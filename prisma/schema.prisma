@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Product {
+  id              Int      @id @default(autoincrement())
+  name            String
+  category        String?
+  baseUnit        String
+  grade           String?
+  color           String?
+  specification   String?
+  defaultPrice    Float
+  vipPrice        Float?
+  wholesalePrice  Float?
+  shelfLifeDays   Int      @default(7)
+  attributes      String?   // JSON string, SQLite 不支持 Json 类型
+  status          String   @default("active")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  unitConversions UnitConversion[]
+  stockBatches    StockBatch[]
+  orderItems      OrderItem[]
+}
+
+model UnitConversion {
+  id          Int     @id @default(autoincrement())
+  productId   Int
+  fromUnit    String
+  toBaseQty   Float
+  product     Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, fromUnit])
+}
+
+model StockBatch {
+  id           Int      @id @default(autoincrement())
+  productId    Int
+  batchNo      String   @unique
+  inboundDate  DateTime
+  expiryDate   DateTime
+  inboundQty   Float
+  currentQty   Float
+  costPrice    Float
+  status       String   @default("in_stock")
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  product      Product         @relation(fields: [productId], references: [id])
+  orderItems   OrderItem[]
+  movements    StockMovement[]
+
+  @@index([productId, status])
+  @@index([expiryDate])
+}
+
+model StockMovement {
+  id             Int      @id @default(autoincrement())
+  batchId        Int
+  type           String
+  qtyChange      Float
+  relatedOrderId Int?
+  operator       String?
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  batch          StockBatch @relation(fields: [batchId], references: [id])
+
+  @@index([createdAt])
+}
+
+model Customer {
+  id          Int      @id @default(autoincrement())
+  name        String
+  phone       String?  @unique
+  address     String?
+  level       String   @default("normal")
+  balance     Float    @default(0)
+  totalOwed   Float    @default(0)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orders      Order[]
+  payments    Payment[]
+
+  @@index([phone])
+}
+
+model Order {
+  id              Int      @id @default(autoincrement())
+  orderNo         String   @unique
+  customerId      Int?
+  orderType       String   @default("retail")
+  totalAmount     Float
+  paidAmount      Float    @default(0)
+  owedAmount      Float    @default(0)
+  paymentMethod   String?
+  deliveryTime    DateTime?
+  deliveryAddress String?
+  notes           String?
+  status          String   @default("pending")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  customer        Customer?   @relation(fields: [customerId], references: [id])
+  items           OrderItem[]
+  payments        Payment[]
+
+  @@index([createdAt])
+  @@index([customerId])
+}
+
+model OrderItem {
+  id          Int     @id @default(autoincrement())
+  orderId     Int
+  productId   Int
+  batchId     Int
+  unit        String
+  qty         Float
+  baseQty     Float
+  unitPrice   Float
+  subtotal    Float
+  grade       String?
+  color       String?
+  notes       String?
+
+  order       Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product    @relation(fields: [productId], references: [id])
+  batch       StockBatch @relation(fields: [batchId], references: [id])
+}
+
+model Payment {
+  id              Int      @id @default(autoincrement())
+  customerId      Int?
+  orderId         Int?
+  amount          Float
+  paymentMethod   String
+  type            String
+  operator        String?
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  customer        Customer? @relation(fields: [customerId], references: [id])
+  order           Order?    @relation(fields: [orderId], references: [id])
+
+  @@index([customerId, createdAt])
+}
