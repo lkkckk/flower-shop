@@ -10,7 +10,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        sans: ['Nunito', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['Outfit', 'system-ui', 'sans-serif'],
       },
       colors: {
         primary: {
@@ -25,6 +26,18 @@ export default {
           800: '#9d174d',
           900: '#831843',
         },
+        sage: {
+          50: '#f4f7f4',
+          100: '#e5eee5',
+          200: '#cddfcb',
+          300: '#a8c6a5',
+          400: '#7fa67a',
+          500: '#60885c',
+          600: '#4a6b47',
+          700: '#3d563a',
+          800: '#324531',
+          900: '#2a3929',
+        }
       },
     },
   },

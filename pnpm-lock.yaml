@@ -42,6 +42,9 @@ importers:
         specifier: ^5.0.4
         version: 5.0.4(@vue/compiler-sfc@3.5.32)(pinia@3.0.4(typescript@6.0.2)(vue@3.5.32(typescript@6.0.2)))(vue@3.5.32(typescript@6.0.2))
     devDependencies:
+      '@nuxtjs/google-fonts':
+        specifier: ^3.2.0
+        version: 3.2.0(magicast@0.5.2)
       '@types/lodash-es':
         specifier: ^4.17.12
         version: 4.17.12
@@ -571,6 +574,9 @@ packages:
         optional: true
       rollup-plugin-visualizer:
         optional: true
+
+  '@nuxtjs/google-fonts@3.2.0':
+    resolution: {integrity: sha512-cGAjDJoeQ2jm6VJCo4AtSmKO6KjsbO9RSLj8q261fD0lMVNMZCxkCxBkg8L0/2Vfgp+5QBHWVXL71p1tiybJFw==}
 
   '@nuxtjs/tailwindcss@6.14.0':
     resolution: {integrity: sha512-30RyDK++LrUVRgc2A85MktGWIZoRQgeQKjE4CjjD64OXNozyl+4ScHnnYgqVToMM6Ch2ZG2W4wV2J0EN6F0zkQ==}
@@ -2300,6 +2306,9 @@ packages:
   globby@16.2.0:
     resolution: {integrity: sha512-QrJia2qDf5BB/V6HYlDTs0I0lBahyjLzpGQg3KT7FnCdTonAyPy2RtY802m2k4ALx6Dp752f82WsOczEVr3l6Q==}
     engines: {node: '>=20'}
+
+  google-fonts-helper@3.7.4:
+    resolution: {integrity: sha512-LNq+i6DjgFfJkb+DN2aztI2Bv/QXKMTQAzwU0arxmK6OZjUY/OxqQJQVWf+31WZFJQzTGFvtaCrSiN+kUosNTw==}
 
   gopd@1.2.0:
     resolution: {integrity: sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==}
@@ -4777,6 +4786,14 @@ snapshots:
       - vue-tsc
       - yaml
 
+  '@nuxtjs/google-fonts@3.2.0(magicast@0.5.2)':
+    dependencies:
+      '@nuxt/kit': 3.21.2(magicast@0.5.2)
+      google-fonts-helper: 3.7.4
+      pathe: 1.1.2
+    transitivePeerDependencies:
+      - magicast
+
   '@nuxtjs/tailwindcss@6.14.0(magicast@0.5.2)(yaml@2.8.3)':
     dependencies:
       '@nuxt/kit': 3.21.2(magicast@0.5.2)
@@ -6279,6 +6296,13 @@ snapshots:
       is-path-inside: 4.0.0
       slash: 5.1.0
       unicorn-magic: 0.4.0
+
+  google-fonts-helper@3.7.4:
+    dependencies:
+      deepmerge: 4.3.1
+      hookable: 5.5.3
+      ofetch: 1.5.1
+      ufo: 1.6.3
 
   gopd@1.2.0: {}
 

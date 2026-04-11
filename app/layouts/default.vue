@@ -225,7 +225,7 @@ const SiderContent = defineComponent({
           {
             mode: 'inline',
             selectedKeys: props.selectedKeys,
-            theme: 'dark',
+            theme: 'light',
           },
           () =>
             menuItems.map(item =>
@@ -250,8 +250,9 @@ export default defineComponent({
 
 <style scoped>
 .sider {
-  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+  background: #ffffff;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.02);
+  border-right: 1px solid rgba(0,0,0,0.04);
   overflow: auto;
   height: 100vh;
   position: fixed;
@@ -274,7 +275,7 @@ export default defineComponent({
   height: 64px;
   padding: 0 16px;
   gap: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
 }
 
 .logo-icon {
@@ -282,14 +283,12 @@ export default defineComponent({
 }
 
 .logo-text {
+  font-family: 'Outfit', sans-serif;
   font-size: 18px;
-  font-weight: 600;
-  color: #fff;
+  font-weight: 700;
+  color: #1f2937;
+  letter-spacing: -0.02em;
   white-space: nowrap;
-  background: linear-gradient(135deg, #f472b6, #ec4899);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 
 .header {
@@ -297,8 +296,9 @@ export default defineComponent({
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
   height: 64px;
   position: sticky;
   top: 0;

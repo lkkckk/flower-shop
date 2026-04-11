@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col h-screen overflow-hidden bg-gray-50 pos-container">
+  <div class="flex flex-col h-screen overflow-hidden bg-[#fafaf9] pos-container">
     <PosCartTabs />
     
     <div class="flex flex-1 overflow-hidden relative">

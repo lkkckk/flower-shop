@@ -1,7 +1,7 @@
 <template>
-  <div class="h-full flex flex-col bg-gray-50 border-r border-gray-200">
+  <div class="h-full flex flex-col bg-[#fafaf9] border-r border-[#f3f4f6]">
     <!-- 顶部搜索 -->
-    <div class="p-4 bg-white border-b border-gray-200 flex gap-2">
+    <div class="p-4 bg-white border-b border-[#f3f4f6] flex gap-2">
       <a-input-search
         ref="searchInputRef"
         v-model:value="searchKeyword"
@@ -12,9 +12,9 @@
       />
     </div>
 
-    <div class="flex flex-1 overflow-hidden">
+    <div class="flex flex-1 overflow-hidden pt-2">
       <!-- 左侧分类 -->
-      <div class="w-28 bg-white border-r border-gray-200 overflow-y-auto">
+      <div class="w-28 bg-transparent overflow-y-auto px-2">
         <a-menu
           v-model:selectedKeys="selectedCategories"
           mode="inline"
@@ -31,7 +31,7 @@
       </div>
 
       <!-- 右侧商品列表 -->
-      <div class="flex-1 overflow-y-auto p-2 bg-white">
+      <div class="flex-1 overflow-y-auto px-4 pb-4">
         <a-table
           :columns="columns"
           :data-source="filteredProducts"
@@ -45,8 +45,12 @@
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'name'">
               <div class="font-medium text-gray-800">{{ record.name }}</div>
-              <div class="text-xs text-gray-400 mt-0.5">
-                <a-tag v-if="record.grade" :color="getGradeColor(record.grade)" class="mr-1" style="font-size: 10px; padding: 0 4px; line-height: 16px;">{{ record.grade }}</a-tag>
+              <div class="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                <span v-if="record.grade" :class="[
+                  'px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider',
+                  record.grade === 'A级' ? 'bg-pink-100 text-pink-700' : 
+                  record.grade === 'B级' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
+                ]">{{ record.grade }}</span>
                 <span v-if="record.color">{{ record.color }} </span>
                 <span v-if="record.specification">{{ record.specification }}</span>
               </div>
@@ -54,8 +58,8 @@
             
             <template v-else-if="column.key === 'stock'">
               <span :class="{
-                'text-green-600 font-medium': record.totalStock > 100,
-                'text-yellow-600 font-medium': record.totalStock > 0 && record.totalStock <= 100,
+                'text-sage-600 font-bold font-display tracking-tight': record.totalStock > 100,
+                'text-amber-500 font-bold font-display tracking-tight': record.totalStock > 0 && record.totalStock <= 100,
                 'text-red-500 font-bold': record.totalStock <= 0
               }">
                 {{ record.totalStock }} {{ record.baseUnit }}
@@ -63,7 +67,7 @@
             </template>
             
             <template v-else-if="column.key === 'price'">
-              <span class="text-pink-600 font-medium">¥{{ record.defaultPrice?.toFixed(2) }}</span>
+              <span class="text-pink-600 font-bold font-display tracking-tight text-sm">¥{{ record.defaultPrice?.toFixed(2) }}</span>
             </template>
 
             <template v-else-if="column.key === 'action'">
@@ -72,7 +76,7 @@
                   type="primary"
                   shape="circle"
                   size="small"
-                  class="bg-pink-500 border-none"
+                  class="bg-pink-500 hover:bg-pink-600 border-none shadow-md shadow-pink-500/20"
                   :disabled="record.totalStock <= 0"
                   @click.stop="openAddModal(record)"
                 >

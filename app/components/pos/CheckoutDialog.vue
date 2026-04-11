@@ -8,9 +8,9 @@
     destroyOnClose
   >
     <div v-if="cart" class="p-4">
-      <div class="text-center mb-8">
-        <div class="text-gray-500 mb-2">应收金额</div>
-        <div class="text-5xl font-bold text-red-600">¥ {{ total.toFixed(2) }}</div>
+      <div class="text-center mb-8 mt-4">
+        <div class="text-gray-500 mb-2 font-medium">应收金额</div>
+        <div class="text-6xl font-bold text-pink-600 font-display tracking-tight">¥ {{ total.toFixed(2) }}</div>
       </div>
 
       <div class="mb-6">
@@ -33,25 +33,25 @@
             v-model:value="paidAmount"
             :min="0"
             :disabled="paymentMethod === 'credit'"
-            class="text-right text-2xl w-40 font-bold text-gray-800"
+            class="text-right text-[28px] w-48 font-bold font-display tracking-tight text-gray-800"
             :controls="false"
             autofocus
             @pressEnter="handleConfirm"
           />
         </div>
         
-        <div class="flex items-center justify-between pt-4 border-t border-gray-200 border-dashed">
-          <span class="text-gray-500">找零</span>
-          <span class="text-xl font-bold text-green-600">¥ {{ changeAmount.toFixed(2) }}</span>
+        <div class="flex items-center justify-between pt-4 border-t border-gray-200 border-dashed mt-4">
+          <span class="text-gray-500 font-medium">找零</span>
+          <span class="text-2xl font-bold text-sage-600 font-display tracking-tight">¥ {{ changeAmount.toFixed(2) }}</span>
         </div>
       </div>
 
       <div class="flex gap-4">
-        <a-button size="large" class="flex-1" @click="$emit('update:visible', false)">返回修改</a-button>
+        <a-button size="large" class="flex-1 h-14 rounded-xl text-lg font-bold text-gray-600" @click="$emit('update:visible', false)">返回修改</a-button>
         <a-button 
           type="primary" 
           size="large" 
-          class="flex-1 bg-pink-500 border-none h-12 text-lg font-bold" 
+          class="flex-1 bg-gradient-to-r from-pink-500 to-pink-600 border-none h-14 text-xl font-bold rounded-xl shadow-lg shadow-pink-500/30 hover:-translate-y-0.5 transition-transform" 
           @click="handleConfirm"
           :loading="loading"
           :disabled="paymentMethod === 'credit' && !cart.customerId"

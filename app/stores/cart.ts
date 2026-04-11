@@ -120,12 +120,29 @@ export const useCartStore = defineStore('cart', () => {
     return product.defaultPrice
   }
 
+  const getLevelBasePrice = (prices: any, level: string) => {
+    if (!prices) return 0
+    if (level === 'vip' && prices.vipPrice != null) return prices.vipPrice
+    if (level === 'wholesale' && prices.wholesalePrice != null) return prices.wholesalePrice
+    return prices.defaultPrice || 0
+  }
+
   const recalculatePrices = (cart: Cart) => {
     cart.items.forEach((item) => {
-      // 无法直接通过现有的 item 获取 product 所有的价格，
-      // 所以我们保留了 originalPrice 为默认价格，在这里做一个简化的约定：
-      // 如果要完整支持重新算价，最好我们在 item 里存下 defaultPrice/vipPrice/wholesalePrice
-      // 这里我们在 addItem 时存下这三个价或者根据传入的信息重新计算
+      const prices = (item as any)._prices
+      if (!prices) return
+
+      // 计算当前 item 单位下的换算系数
+      let toBaseQty = 1
+      if (item.unit !== item.baseUnit) {
+        const conv = item.unitConversions.find((u) => u.fromUnit === item.unit)
+        if (conv) toBaseQty = conv.toBaseQty
+      }
+
+      const basePrice = getLevelBasePrice(prices, cart.customerLevel)
+      item.unitPrice = basePrice * toBaseQty
+      item.originalPrice = item.unitPrice
+      item.subtotal = item.qty * item.unitPrice
     })
   }
 
@@ -148,7 +165,8 @@ export const useCartStore = defineStore('cart', () => {
       cart.label = '散客'
     }
 
-    // TODO: Ideally we should recalculate prices here if we have the full product info saved in cart.
+    // 根据新等级重算购物车里所有 item 的单价
+    recalculatePrices(cart)
   }
 
   const addItem = (cartId: string, product: any, unit: string, qty: number) => {

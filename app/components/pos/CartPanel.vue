@@ -8,24 +8,31 @@
 
     <template v-else>
       <!-- 客户选择区 -->
-      <div class="p-3 bg-gray-50 border-b border-gray-200 cursor-pointer hover:bg-gray-100 transition" @click="customerDrawerVisible = true">
+      <div class="p-3 bg-gray-50 border-b border-gray-200 cursor-pointer hover:bg-gray-100 transition" @click="openCustomerDrawer">
         <div v-if="!cart.customerId" class="flex items-center justify-center p-2 rounded border-2 border-dashed border-gray-300 text-gray-500 font-medium">
           👤 散客（点击选择客户）
         </div>
         <div v-else class="flex justify-between items-center bg-white p-2 rounded shadow-sm">
-          <div>
-            <div class="font-bold text-gray-800">{{ cart.customerName }}</div>
-            <div class="flex items-center gap-2 mt-1">
-              <a-tag :color="getLevelColor(cart.customerLevel)">{{ getLevelName(cart.customerLevel) }}</a-tag>
-              <span class="text-xs text-red-500" v-if="cart.customerBalance < 0">欠款 ￥{{ Math.abs(cart.customerBalance).toFixed(2) }}</span>
+          <div class="flex items-center gap-3">
+            <a-avatar :style="{ backgroundColor: '#ec4899' }">{{ (cart.customerName || '?').slice(0, 1) }}</a-avatar>
+            <div>
+              <div class="font-bold text-gray-800">{{ cart.customerName }}</div>
+              <div class="flex items-center gap-2 mt-1">
+                <a-tag :color="getLevelColor(cart.customerLevel)">{{ getLevelName(cart.customerLevel) }}</a-tag>
+                <span class="text-xs text-red-500 font-medium" v-if="cart.customerBalance < 0">欠款 ¥{{ Math.abs(cart.customerBalance).toFixed(2) }}</span>
+                <span class="text-xs text-green-600 font-medium" v-else-if="cart.customerBalance > 0">预存 ¥{{ cart.customerBalance.toFixed(2) }}</span>
+              </div>
             </div>
           </div>
-          <a-button type="link" size="small" @click.stop="clearCustomer">清除</a-button>
+          <a-space :size="0">
+            <a-button type="link" size="small" @click.stop="openCustomerDrawer">更换</a-button>
+            <a-button type="link" size="small" danger @click.stop="clearCustomer">清除</a-button>
+          </a-space>
         </div>
       </div>
 
       <!-- 购物车列表区域 -->
-      <div class="flex-1 overflow-y-auto bg-gray-50 p-2">
+      <div class="flex-1 overflow-y-auto bg-[#fafaf9] p-3">
         <a-empty v-if="cart.items.length === 0" description="购物车为空，请从左侧选择商品" class="mt-20" />
         
         <div v-else class="space-y-2">
@@ -115,16 +122,16 @@
           </div>
           <div class="text-right">
             <div class="text-xs text-gray-500 mb-1">应付金额</div>
-            <div class="text-2xl font-bold text-red-600 leading-none">¥{{ total.toFixed(2) }}</div>
+            <div class="text-[32px] font-bold text-pink-600 font-display tracking-tight leading-none">¥{{ total.toFixed(2) }}</div>
           </div>
         </div>
 
         <!-- 按钮 -->
-        <div class="flex gap-2 p-3 bg-gray-50">
-          <a-button size="large" class="w-1/3 font-medium" :disabled="cart.items.length === 0">
+        <div class="flex gap-3 p-4 bg-white border-t border-gray-100">
+          <a-button size="large" class="w-1/3 font-bold text-gray-600 h-14 rounded-xl" :disabled="cart.items.length === 0">
             挂单 (Ctrl+S)
           </a-button>
-          <a-button type="primary" size="large" class="bg-pink-500 border-none w-2/3 font-bold text-lg" :disabled="cart.items.length === 0" @click="$emit('checkout')">
+          <a-button type="primary" size="large" class="bg-gradient-to-r from-pink-500 to-pink-600 border-none w-2/3 font-bold text-xl h-14 rounded-xl shadow-lg shadow-pink-500/30 hover:-translate-y-0.5 transition-transform" :disabled="cart.items.length === 0" @click="$emit('checkout')">
             结账 (Ctrl+Enter)
           </a-button>
         </div>
@@ -136,48 +143,76 @@
       title="选择客户"
       placement="right"
       :open="customerDrawerVisible"
+      :width="drawerWidth"
+      :body-style="{ padding: 0, display: 'flex', flexDirection: 'column' }"
       @close="customerDrawerVisible = false"
-      width="400"
     >
-      <a-input-search
-        placeholder="搜索姓名或手机号"
-        v-model:value="customerSearchKeyword"
-        @search="fetchCustomers"
-        allow-clear
-        class="mb-4"
-      />
-      <div class="space-y-2">
-        <div 
-          v-for="c in customers" 
-          :key="c.id" 
-          class="p-3 border rounded cursor-pointer hover:border-pink-500 hover:shadow-sm"
-          @click="selectCustomer(c)"
-        >
-          <div class="flex justify-between">
-            <span class="font-bold">{{ c.name }}</span>
-            <span>{{ c.phone }}</span>
-          </div>
-          <div class="flex justify-between mt-2 text-sm">
-            <a-tag :color="getLevelColor(c.level)">{{ getLevelName(c.level) }}</a-tag>
-            <span v-if="c.balance < 0" class="text-red-500">欠款 ￥{{ Math.abs(c.balance).toFixed(2) }}</span>
-            <span v-else class="text-green-500">余额 ￥{{ c.balance.toFixed(2) }}</span>
+      <div class="p-4 border-b border-gray-100">
+        <a-input-search
+          v-model:value="customerSearchKeyword"
+          placeholder="搜索姓名或手机号"
+          allow-clear
+          @search="fetchCustomers"
+        />
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-3">
+        <a-empty v-if="!customersLoading && customers.length === 0" description="未找到匹配的客户" />
+        <div v-else class="space-y-2">
+          <div
+            v-for="c in customers"
+            :key="c.id"
+            class="p-3 border border-gray-200 rounded cursor-pointer hover:border-pink-500 hover:shadow-sm transition"
+            @click="selectCustomer(c)"
+          >
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-gray-800">{{ c.name }}</span>
+              <span class="text-xs text-gray-500 font-mono">{{ c.phone || '—' }}</span>
+            </div>
+            <div class="flex justify-between items-center mt-2">
+              <a-tag :color="getLevelColor(c.level)">{{ getLevelName(c.level) }}</a-tag>
+              <span v-if="c.balance < 0" class="text-xs text-red-500 font-medium">欠款 ¥{{ Math.abs(c.balance).toFixed(2) }}</span>
+              <span v-else-if="c.balance > 0" class="text-xs text-green-600 font-medium">预存 ¥{{ c.balance.toFixed(2) }}</span>
+              <span v-else class="text-xs text-gray-400">—</span>
+            </div>
           </div>
         </div>
       </div>
+
+      <div class="p-3 border-t border-gray-100 bg-gray-50 flex gap-2">
+        <a-button class="flex-1" @click="openNewCustomerForm">
+          <template #icon><PlusOutlined /></template>
+          新增客户
+        </a-button>
+        <a-button class="flex-1" danger :disabled="!cart?.customerId" @click="clearCustomer">
+          清除选择
+        </a-button>
+      </div>
     </a-drawer>
+
+    <!-- 新增客户表单 -->
+    <CustomerForm
+      v-model:visible="newCustomerFormVisible"
+      :customer="null"
+      @success="onNewCustomerCreated"
+    />
 
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { Modal } from 'ant-design-vue'
+import { PlusOutlined } from '@ant-design/icons-vue'
 import { useCartStore } from '~/stores/cart'
+import { useCustomers } from '~/composables/useCustomers'
+import CustomerForm from '~/components/customers/CustomerForm.vue'
 import debounce from 'lodash-es/debounce'
 
 defineEmits(['checkout'])
 
 const cartStore = useCartStore()
+const { searchCustomers } = useCustomers()
 
 const cart = computed(() => {
   return cartStore.carts.find(c => c.id === cartStore.activeCartId)
@@ -197,33 +232,98 @@ const total = computed(() => {
 const customerDrawerVisible = ref(false)
 const customerSearchKeyword = ref('')
 const customers = ref<any[]>([])
+const customersLoading = ref(false)
+const newCustomerFormVisible = ref(false)
+
+// 抽屉宽度：手机端 100%
+const drawerWidth = ref<number | string>(400)
+const updateDrawerWidth = () => {
+  drawerWidth.value = typeof window !== 'undefined' && window.innerWidth < 640 ? '100%' : 400
+}
+onMounted(() => {
+  updateDrawerWidth()
+  window.addEventListener('resize', updateDrawerWidth)
+})
+onUnmounted(() => {
+  if (typeof window !== 'undefined') window.removeEventListener('resize', updateDrawerWidth)
+})
 
 const fetchCustomers = async () => {
-  const res: any = await $fetch('/api/customers', {
-    query: { keyword: customerSearchKeyword.value }
-  })
-  if (res.data) {
-    customers.value = res.data.list
+  customersLoading.value = true
+  try {
+    const data = await searchCustomers(customerSearchKeyword.value || '')
+    customers.value = data.list || []
+  } catch {
+    customers.value = []
+  } finally {
+    customersLoading.value = false
   }
+}
+
+const openCustomerDrawer = () => {
+  customerDrawerVisible.value = true
 }
 
 watch(customerDrawerVisible, (val) => {
-  if (val && customers.value.length === 0) fetchCustomers()
+  if (val) fetchCustomers()
 })
 
-watch(customerSearchKeyword, debounce(fetchCustomers, 500))
+watch(customerSearchKeyword, debounce(fetchCustomers, 300))
 
-const selectCustomer = (c: any) => {
+const applyCustomer = (c: any | null) => {
   if (cart.value) {
     cartStore.setCustomer(cart.value.id, c)
   }
-  customerDrawerVisible.value = false
+}
+
+const confirmAndApply = (c: any | null, onDone: () => void) => {
+  if (!cart.value) return
+  const hasItems = cart.value.items.length > 0
+  const isSwitching =
+    (c && cart.value.customerId !== c.id) || (!c && cart.value.customerId !== null)
+
+  if (hasItems && isSwitching) {
+    Modal.confirm({
+      title: '切换客户将重新计算价格',
+      content: '当前购物车有商品，按新客户等级重算单价后金额可能变动，确认继续？',
+      okText: '确认切换',
+      cancelText: '取消',
+      onOk() {
+        applyCustomer(c)
+        onDone()
+      },
+    })
+  } else {
+    applyCustomer(c)
+    onDone()
+  }
+}
+
+const selectCustomer = (c: any) => {
+  confirmAndApply(c, () => {
+    customerDrawerVisible.value = false
+  })
 }
 
 const clearCustomer = () => {
+  confirmAndApply(null, () => {
+    customerDrawerVisible.value = false
+  })
+}
+
+const openNewCustomerForm = () => {
+  newCustomerFormVisible.value = true
+}
+
+const onNewCustomerCreated = (newCustomer: any) => {
+  // 自动选中刚创建的客户
   if (cart.value) {
-    cartStore.setCustomer(cart.value.id, null)
+    cartStore.setCustomer(cart.value.id, newCustomer)
   }
+  newCustomerFormVisible.value = false
+  customerDrawerVisible.value = false
+  // 刷新搜索列表
+  fetchCustomers()
 }
 
 const getLevelName = (level: string) => {
