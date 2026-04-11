@@ -67,9 +67,18 @@
             </template>
 
             <template v-else-if="column.key === 'action'">
-              <a-button type="primary" shape="circle" size="small" class="bg-pink-500 border-none" @click.stop="openAddModal(record)">
-                <template #icon><PlusOutlined /></template>
-              </a-button>
+              <a-tooltip :title="record.totalStock <= 0 ? '无库存' : ''">
+                <a-button
+                  type="primary"
+                  shape="circle"
+                  size="small"
+                  class="bg-pink-500 border-none"
+                  :disabled="record.totalStock <= 0"
+                  @click.stop="openAddModal(record)"
+                >
+                  <template #icon><PlusOutlined /></template>
+                </a-button>
+              </a-tooltip>
             </template>
           </template>
         </a-table>
@@ -149,9 +158,10 @@ const fetchStoreProducts = async () => {
   loading.value = true
   try {
     const res: any = await $fetch('/api/products/with-stock')
-    if (res.data) {
-      products.value = res.data
+    if (res.error) {
+      throw new Error(res.error.message)
     }
+    products.value = res.data?.list || []
   } catch (error) {
     message.error('加载商品失败')
   } finally {
@@ -213,6 +223,10 @@ const onCategoryClick = ({ key }: { key: string }) => {
 const customRow = (record: any) => {
   return {
     onClick: () => {
+      if (record.totalStock <= 0) {
+        message.warning('该商品当前无库存')
+        return
+      }
       openAddModal(record)
     }
   }
