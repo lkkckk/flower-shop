@@ -10,6 +10,7 @@
       </template>
       <template #extra>
         <a-button v-if="customer" @click="openEdit">编辑</a-button>
+        <a-button v-if="customer" @click="openRecharge">充值</a-button>
         <a-button v-if="customer" type="primary" @click="openRepay">收款</a-button>
       </template>
     </a-page-header>
@@ -28,6 +29,9 @@
             <span v-else class="text-gray-400">—</span>
           </a-descriptions-item>
           <a-descriptions-item label="累计欠款">¥{{ (customer.totalOwed || 0).toFixed(2) }}</a-descriptions-item>
+          <a-descriptions-item label="会员积分">
+            <span class="text-yellow-600 font-bold">{{ customer.points || 0 }} 分</span>
+          </a-descriptions-item>
           <a-descriptions-item label="创建时间">{{ formatDateTime(customer.createdAt) }}</a-descriptions-item>
           <a-descriptions-item label="地址" :span="3">{{ customer.address || '—' }}</a-descriptions-item>
           <a-descriptions-item label="备注" :span="3">{{ customer.notes || '—' }}</a-descriptions-item>
@@ -102,6 +106,35 @@
               </template>
             </a-table>
           </a-tab-pane>
+          <a-tab-pane key="favorites" tab="常购花材">
+            <a-empty v-if="favorites.length === 0 && !favoritesLoading" description="暂无购买记录" />
+            <a-spin v-else :spinning="favoritesLoading">
+              <a-table
+                :columns="favoritesColumns"
+                :data-source="favorites"
+                :pagination="false"
+                row-key="productId"
+                size="small"
+                :scroll="{ x: 500 }"
+              >
+                <template #bodyCell="{ column, record }">
+                  <template v-if="column.key === 'productName'">
+                    <span class="font-medium">{{ record.productName }}</span>
+                    <a-tag v-if="record.grade" class="ml-1 text-[10px]">{{ record.grade }}</a-tag>
+                  </template>
+                  <template v-else-if="column.key === 'totalQty'">
+                    {{ formatQty(record.totalQty) }} {{ record.baseUnit }}
+                  </template>
+                  <template v-else-if="column.key === 'orderCount'">
+                    {{ record.orderCount }} 次
+                  </template>
+                  <template v-else-if="column.key === 'totalAmount'">
+                    <span class="font-bold text-pink-600">¥{{ record.totalAmount.toFixed(2) }}</span>
+                  </template>
+                </template>
+              </a-table>
+            </a-spin>
+          </a-tab-pane>
         </a-tabs>
       </a-card>
     </a-spin>
@@ -117,27 +150,38 @@
       :customer="customer"
       @success="loadCustomer"
     />
+
+    <RechargeDialog
+      v-model:visible="rechargeVisible"
+      :customer="customer"
+      @success="loadCustomer"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import { useCustomers } from '~/composables/useCustomers'
 import CustomerForm from '~/components/customers/CustomerForm.vue'
 import RepayDialog from '~/components/customers/RepayDialog.vue'
+import RechargeDialog from '~/components/customers/RechargeDialog.vue'
 
 useHead({ title: '客户详情 - 花店管理系统' })
 
 const route = useRoute()
 const router = useRouter()
-const { fetchCustomer, loading } = useCustomers()
+const { fetchCustomer, fetchCustomerFavorites, loading } = useCustomers()
 
 const customer = ref<any | null>(null)
 const activeTab = ref('orders')
 const formVisible = ref(false)
 const repayVisible = ref(false)
+const rechargeVisible = ref(false)
+const favorites = ref<any[]>([])
+const favoritesLoading = ref(false)
+const favoritesLoaded = ref(false)
 
 const orderColumns = [
   { title: '订单号', key: 'orderNo', width: 160 },
@@ -155,6 +199,37 @@ const paymentColumns = [
   { title: '支付方式', key: 'paymentMethod', width: 100 },
   { title: '备注', key: 'notes' },
 ]
+
+const favoritesColumns = [
+  { title: '商品', key: 'productName', width: 200 },
+  { title: '累计数量', key: 'totalQty', width: 120 },
+  { title: '购买次数', key: 'orderCount', width: 100 },
+  { title: '累计金额', key: 'totalAmount', width: 120 },
+]
+
+const formatQty = (n: number) => {
+  if (!n) return 0
+  return Number.isInteger(n) ? n : n.toFixed(2)
+}
+
+const loadFavorites = async () => {
+  const id = Number(route.params.id)
+  if (!id || favoritesLoaded.value) return
+  favoritesLoading.value = true
+  try {
+    favorites.value = await fetchCustomerFavorites(id) || []
+    favoritesLoaded.value = true
+  } catch {
+    favorites.value = []
+  } finally {
+    favoritesLoading.value = false
+  }
+}
+
+// 懒加载：切到 favorites tab 时才请求
+watch(activeTab, (val) => {
+  if (val === 'favorites') loadFavorites()
+})
 
 const loadCustomer = async () => {
   const id = Number(route.params.id)
@@ -175,6 +250,10 @@ const openEdit = () => {
 
 const openRepay = () => {
   repayVisible.value = true
+}
+
+const openRecharge = () => {
+  rechargeVisible.value = true
 }
 
 const formatDateTime = (d: string | Date) => dayjs(d).format('YYYY-MM-DD HH:mm')
@@ -212,12 +291,12 @@ const orderStatusColor = (s: string) => {
 }
 
 const paymentTypeText = (t: string) => {
-  const map: Record<string, string> = { income: '收款', repay: '还款', refund: '退款' }
+  const map: Record<string, string> = { income: '收款', repay: '还款', refund: '退款', recharge: '充值' }
   return map[t] || t
 }
 
 const paymentTypeColor = (t: string) => {
-  const map: Record<string, string> = { income: 'green', repay: 'blue', refund: 'orange' }
+  const map: Record<string, string> = { income: 'green', repay: 'blue', refund: 'orange', recharge: 'cyan' }
   return map[t] || 'default'
 }
 

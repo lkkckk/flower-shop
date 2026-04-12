@@ -282,6 +282,24 @@ export const useCartStore = defineStore('cart', () => {
     cart.items = cart.items.filter((i) => i.id !== itemId)
   }
 
+  const batchUpdatePrices = (cartId: string, itemIds: string[], adjustment: { type: 'fixed' | 'percentage'; value: number }) => {
+    const cart = carts.value.find((c) => c.id === cartId)
+    if (!cart) return
+
+    for (const item of cart.items) {
+      if (!itemIds.includes(item.id)) continue
+
+      if (adjustment.type === 'fixed') {
+        item.unitPrice = adjustment.value
+      } else {
+        // percentage: value = -10 means 10% off, value = 20 means 20% markup
+        item.unitPrice = item.originalPrice * (1 + adjustment.value / 100)
+      }
+      item.unitPrice = Math.max(0, Math.round(item.unitPrice * 100) / 100)
+      item.subtotal = item.qty * item.unitPrice
+    }
+  }
+
   const setDiscount = (cartId: string, amount: number) => {
     const cart = carts.value.find((c) => c.id === cartId)
     if (!cart) return
@@ -325,6 +343,7 @@ export const useCartStore = defineStore('cart', () => {
     updateItemQty,
     updateItemUnit,
     updateItemPrice,
+    batchUpdatePrices,
     removeItem,
     setDiscount,
     setNotes,

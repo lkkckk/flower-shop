@@ -31,18 +31,39 @@
         </div>
       </div>
 
+      <!-- 批量操作栏 -->
+      <div v-if="cart.items.length > 0" class="px-3 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+        <a-checkbox v-model:checked="selectionMode" @change="onSelectionModeChange">
+          <span class="text-sm text-gray-600">批量操作</span>
+        </a-checkbox>
+        <div v-if="selectionMode && selectedItemIds.size > 0" class="flex gap-2">
+          <a-button size="small" @click="selectAll">全选</a-button>
+          <a-button size="small" type="primary" @click="batchPriceModalVisible = true">
+            批量改价 ({{ selectedItemIds.size }})
+          </a-button>
+        </div>
+      </div>
+
       <!-- 购物车列表区域 -->
       <div class="flex-1 overflow-y-auto bg-[#fafaf9] p-3">
         <a-empty v-if="cart.items.length === 0" description="购物车为空，请从左侧选择商品" class="mt-20" />
-        
+
         <div v-else class="space-y-2">
-          <div v-for="item in cart.items" :key="item.id" class="bg-white p-3 rounded-lg shadow-sm border border-gray-100">
+          <div v-for="item in cart.items" :key="item.id" class="bg-white p-3 rounded-lg shadow-sm border border-gray-100" :class="{ 'ring-2 ring-pink-300': selectionMode && selectedItemIds.has(item.id) }">
             <!-- 行1：名称/操作 -->
             <div class="flex justify-between items-start mb-2">
+              <div class="flex items-start gap-2">
+                <a-checkbox
+                  v-if="selectionMode"
+                  :checked="selectedItemIds.has(item.id)"
+                  @change="toggleItemSelection(item.id)"
+                  class="mt-0.5"
+                />
               <div class="font-medium text-gray-800 leading-tight">
                 {{ item.productName }}
                 <a-tag v-if="item.grade" class="ml-1 text-[10px]">{{ item.grade }}</a-tag>
                 <div class="text-xs text-gray-400 mt-0.5">{{ item.specification }}</div>
+              </div>
               </div>
               <a-button type="text" danger size="small" @click="cartStore.removeItem(cart.id, item.id)">删除</a-button>
             </div>
@@ -137,6 +158,48 @@
         </div>
       </div>
     </template>
+
+    <!-- 批量改价弹窗 -->
+    <a-modal
+      v-model:open="batchPriceModalVisible"
+      title="批量改价"
+      @ok="applyBatchPrice"
+      @cancel="batchPriceModalVisible = false"
+      destroy-on-close
+      width="400px"
+    >
+      <div class="py-3">
+        <div class="text-sm text-gray-500 mb-3">已选 {{ selectedItemIds.size }} 个商品</div>
+        <a-radio-group v-model:value="batchPriceMode" class="mb-4">
+          <a-radio value="fixed">统一定价</a-radio>
+          <a-radio value="percentage">百分比调整</a-radio>
+        </a-radio-group>
+        <div v-if="batchPriceMode === 'fixed'">
+          <a-input-number
+            v-model:value="batchPriceValue"
+            :min="0"
+            :precision="2"
+            class="w-full"
+            size="large"
+            prefix="¥"
+            placeholder="统一单价"
+            autofocus
+          />
+        </div>
+        <div v-else>
+          <a-input-number
+            v-model:value="batchPriceValue"
+            class="w-full"
+            size="large"
+            :formatter="(val: any) => `${val}%`"
+            :parser="(val: any) => val.replace('%', '')"
+            placeholder="如 -10 表示打9折，20 表示加价20%"
+            autofocus
+          />
+          <div class="text-xs text-gray-400 mt-1">负数为折扣（如 -10 = 打9折），正数为加价</div>
+        </div>
+      </div>
+    </a-modal>
 
     <!-- 客户选择抽屉 -->
     <a-drawer
@@ -334,6 +397,45 @@ const getLevelName = (level: string) => {
 const getLevelColor = (level: string) => {
   const map: any = { normal: 'default', member: 'blue', vip: 'gold', wholesale: 'purple' }
   return map[level] || 'default'
+}
+
+// 批量操作
+const selectionMode = ref(false)
+const selectedItemIds = ref<Set<string>>(new Set())
+const batchPriceModalVisible = ref(false)
+const batchPriceMode = ref<'fixed' | 'percentage'>('fixed')
+const batchPriceValue = ref<number>(0)
+
+const onSelectionModeChange = () => {
+  if (!selectionMode.value) {
+    selectedItemIds.value = new Set()
+  }
+}
+
+const toggleItemSelection = (id: string) => {
+  const newSet = new Set(selectedItemIds.value)
+  if (newSet.has(id)) {
+    newSet.delete(id)
+  } else {
+    newSet.add(id)
+  }
+  selectedItemIds.value = newSet
+}
+
+const selectAll = () => {
+  if (!cart.value) return
+  selectedItemIds.value = new Set(cart.value.items.map((i) => i.id))
+}
+
+const applyBatchPrice = () => {
+  if (!cart.value || selectedItemIds.value.size === 0) return
+  cartStore.batchUpdatePrices(cart.value.id, [...selectedItemIds.value], {
+    type: batchPriceMode.value,
+    value: batchPriceValue.value,
+  })
+  batchPriceModalVisible.value = false
+  selectedItemIds.value = new Set()
+  selectionMode.value = false
 }
 
 // 辅助方法：快速编辑当前项单价或整体优惠

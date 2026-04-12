@@ -122,15 +122,24 @@ export default defineEventHandler(async (event) => {
         }
       }
 
-      // 5. 更新客户余额/欠款
-      if (cart.customerId && payment.owedAmount > 0) {
-        await tx.customer.update({
-          where: { id: cart.customerId },
-          data: {
-            balance: { decrement: payment.owedAmount },     // balance 负数代表欠款
-            totalOwed: { increment: payment.owedAmount },   // 欠款总额增加
-          }
-        })
+      // 5. 更新客户余额/欠款/积分
+      if (cart.customerId) {
+        const customerUpdate: any = {}
+        if (payment.owedAmount > 0) {
+          customerUpdate.balance = { decrement: payment.owedAmount }   // balance 负数代表欠款
+          customerUpdate.totalOwed = { increment: payment.owedAmount } // 欠款总额增加
+        }
+        // 每消费 1 元积 1 分
+        const earnedPoints = Math.floor(totalAmount)
+        if (earnedPoints > 0) {
+          customerUpdate.points = { increment: earnedPoints }
+        }
+        if (Object.keys(customerUpdate).length > 0) {
+          await tx.customer.update({
+            where: { id: cart.customerId },
+            data: customerUpdate,
+          })
+        }
       }
 
       // 6. 创建 Payment 收款流水

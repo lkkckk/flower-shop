@@ -21,6 +21,10 @@
           />
         </div>
         <div class="toolbar-right">
+          <a-button @click="exportDebtSummary">
+            <template #icon><DownloadOutlined /></template>
+            导出欠款表
+          </a-button>
           <a-button type="primary" @click="openCreate">
             <template #icon><PlusOutlined /></template>
             新增客户
@@ -61,12 +65,17 @@
             <span class="text-xs text-gray-500">¥{{ (record.totalOwed || 0).toFixed(2) }}</span>
           </template>
 
+          <template v-else-if="column.key === 'points'">
+            <span class="text-yellow-600 font-medium">{{ record.points || 0 }}</span>
+          </template>
+
           <template v-else-if="column.key === 'createdAt'">
             <span class="text-gray-600 text-sm">{{ formatDate(record.createdAt) }}</span>
           </template>
 
           <template v-else-if="column.key === 'action'">
             <a-space :size="4">
+              <a-button type="link" size="small" @click="openRecharge(record)">充值</a-button>
               <a-button type="link" size="small" @click="openRepay(record)">还款</a-button>
               <a-button type="link" size="small" @click="openEdit(record)">编辑</a-button>
               <a-popconfirm
@@ -107,18 +116,26 @@
       :customer="repayCustomerData"
       @success="onRepaySuccess"
     />
+
+    <RechargeDialog
+      v-model:visible="rechargeVisible"
+      :customer="rechargeCustomerData"
+      @success="onRechargeSuccess"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { PlusOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, DownloadOutlined } from '@ant-design/icons-vue'
 import { message, Modal } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import { useCustomers } from '~/composables/useCustomers'
+import { useExport } from '~/composables/useExport'
 import CustomerForm from '~/components/customers/CustomerForm.vue'
 import RepayDialog from '~/components/customers/RepayDialog.vue'
+import RechargeDialog from '~/components/customers/RechargeDialog.vue'
 
 useHead({ title: '客户管理 - 花店管理系统' })
 
@@ -138,6 +155,9 @@ const editingCustomer = ref<any | null>(null)
 const repayVisible = ref(false)
 const repayCustomerData = ref<any | null>(null)
 
+const rechargeVisible = ref(false)
+const rechargeCustomerData = ref<any | null>(null)
+
 const levelOptions = [
   { value: 'normal', label: '普通' },
   { value: 'member', label: '会员' },
@@ -151,8 +171,9 @@ const columns = [
   { title: '等级', key: 'level', width: 90 },
   { title: '账户余额', key: 'balance', width: 160 },
   { title: '累计欠款', key: 'totalOwed', width: 110 },
+  { title: '积分', key: 'points', width: 90 },
   { title: '创建时间', key: 'createdAt', width: 140 },
-  { title: '操作', key: 'action', width: 200, fixed: 'right' as const },
+  { title: '操作', key: 'action', width: 250, fixed: 'right' as const },
 ]
 
 const loadList = async () => {
@@ -196,11 +217,20 @@ const openRepay = (record: any) => {
   repayVisible.value = true
 }
 
+const openRecharge = (record: any) => {
+  rechargeCustomerData.value = { ...record }
+  rechargeVisible.value = true
+}
+
 const onFormSuccess = () => {
   loadList()
 }
 
 const onRepaySuccess = () => {
+  loadList()
+}
+
+const onRechargeSuccess = () => {
   loadList()
 }
 
@@ -218,6 +248,35 @@ const onDelete = async (record: any) => {
     } else {
       message.error(e.message || '删除失败')
     }
+  }
+}
+
+const exportDebtSummary = async () => {
+  try {
+    const res: any = await $fetch('/api/customers/debt-summary')
+    if (res.error) {
+      message.error(res.error.message || '获取欠款数据失败')
+      return
+    }
+    const customers = res.data?.list || []
+    if (customers.length === 0) {
+      message.info('暂无欠款客户')
+      return
+    }
+    const { exportToCsv } = useExport()
+    const headers = ['客户姓名', '手机号', '等级', '当前欠款 (¥)', '累计欠款 (¥)']
+    const rows = customers.map((c: any) => [
+      c.name,
+      c.phone || '',
+      getLevelName(c.level),
+      Math.abs(c.balance).toFixed(2),
+      (c.totalOwed || 0).toFixed(2),
+    ])
+    const filename = `客户欠款汇总表_${dayjs().format('YYYYMMDD')}`
+    exportToCsv(filename, headers, rows)
+    message.success('欠款汇总表已导出')
+  } catch (e: any) {
+    message.error(e.message || '导出失败')
   }
 }
 

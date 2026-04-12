@@ -94,6 +94,46 @@ export const useStocks = () => {
     }
   }
 
+  const scrapBatch = async (payload: { batchId: number; qty: number; reason?: string }) => {
+    loading.value = true
+    error.value = null
+    try {
+      const response = await $fetch('/api/stocks/scrap', {
+        method: 'POST',
+        body: payload,
+      })
+      const res = response as any
+      if (res.error) throw new Error(res.error.message)
+      return res.data
+    } catch (e: any) {
+      error.value = e.message || '报损失败'
+      message.error(error.value!)
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const discountBatch = async (payload: { batchId: number; discountPrice: number; reason?: string }) => {
+    loading.value = true
+    error.value = null
+    try {
+      const response = await $fetch('/api/stocks/discount', {
+        method: 'POST',
+        body: payload,
+      })
+      const res = response as any
+      if (res.error) throw new Error(res.error.message)
+      return res.data
+    } catch (e: any) {
+      error.value = e.message || '折价失败'
+      message.error(error.value!)
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     loading,
     error,
@@ -101,5 +141,7 @@ export const useStocks = () => {
     fetchExpiring,
     createInbound,
     fetchProductsWithStock,
+    scrapBatch,
+    discountBatch,
   }
 }

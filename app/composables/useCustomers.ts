@@ -90,6 +90,19 @@ export const useCustomers = () => {
       '还款失败'
     )
 
+  const rechargeCustomer = (id: number, payload: RepayPayload) =>
+    handle<{ customer: any; payment: any }>(
+      () => fetchAny(`/api/customers/${id}/recharge`, { method: 'POST', body: payload }),
+      '充值失败'
+    )
+
+  const fetchCustomerFavorites = (id: number) =>
+    handle<any[]>(
+      () => fetchAny(`/api/customers/${id}/favorites`),
+      '获取常购花材失败',
+      true
+    )
+
   const searchCustomers = (keyword: string) =>
     handle<{ list: any[] }>(
       () => fetchAny('/api/customers/search', { query: { keyword } }),
@@ -106,6 +119,8 @@ export const useCustomers = () => {
     updateCustomer,
     deleteCustomer,
     repayCustomer,
+    rechargeCustomer,
+    fetchCustomerFavorites,
     searchCustomers,
   }
 }

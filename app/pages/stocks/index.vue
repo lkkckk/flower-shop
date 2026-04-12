@@ -140,7 +140,10 @@
             </template>
 
             <template v-else-if="column.key === 'action'">
-              <a-button type="link" size="small" danger @click="onScrap(record)">报损</a-button>
+              <a-space :size="4">
+                <a-button type="link" size="small" danger @click="openScrapModal(record)">报损</a-button>
+                <a-button type="link" size="small" @click="openDiscountModal(record)">折价</a-button>
+              </a-space>
             </template>
           </template>
         </template>
@@ -159,11 +162,85 @@
         />
       </div>
     </a-card>
+
+    <!-- 报损弹窗 -->
+    <a-modal
+      v-model:open="scrapModalVisible"
+      title="库存报损"
+      :confirm-loading="scrapSubmitting"
+      @ok="onScrapSubmit"
+      @cancel="scrapModalVisible = false"
+      destroy-on-close
+    >
+      <div v-if="currentBatch" class="py-2">
+        <div class="bg-gray-50 rounded-lg p-3 mb-4">
+          <div class="font-medium text-gray-800">{{ currentBatch.product?.name }}</div>
+          <div class="text-sm text-gray-500 mt-1">
+            批次号：<span class="font-mono">{{ currentBatch.batchNo }}</span>
+            · 当前库存：<span class="font-bold text-pink-600">{{ formatQty(currentBatch.currentQty) }} {{ currentBatch.product?.baseUnit }}</span>
+          </div>
+        </div>
+        <a-form layout="vertical">
+          <a-form-item label="报损数量" required>
+            <a-input-number
+              v-model:value="scrapForm.qty"
+              :min="0.01"
+              :max="currentBatch.currentQty"
+              :precision="2"
+              class="w-full"
+              size="large"
+            />
+            <div class="mt-1 text-xs text-gray-400">
+              <a class="text-pink-600 cursor-pointer" @click="scrapForm.qty = currentBatch.currentQty">全部报损</a>
+            </div>
+          </a-form-item>
+          <a-form-item label="报损原因">
+            <a-textarea v-model:value="scrapForm.reason" :auto-size="{ minRows: 2, maxRows: 4 }" placeholder="如：花材枯萎、损坏等" />
+          </a-form-item>
+        </a-form>
+      </div>
+    </a-modal>
+
+    <!-- 折价弹窗 -->
+    <a-modal
+      v-model:open="discountModalVisible"
+      title="库存折价"
+      :confirm-loading="discountSubmitting"
+      @ok="onDiscountSubmit"
+      @cancel="discountModalVisible = false"
+      destroy-on-close
+    >
+      <div v-if="currentBatch" class="py-2">
+        <div class="bg-gray-50 rounded-lg p-3 mb-4">
+          <div class="font-medium text-gray-800">{{ currentBatch.product?.name }}</div>
+          <div class="text-sm text-gray-500 mt-1">
+            批次号：<span class="font-mono">{{ currentBatch.batchNo }}</span>
+            · 当前库存：{{ formatQty(currentBatch.currentQty) }} {{ currentBatch.product?.baseUnit }}
+            · 进价：<span class="text-pink-600">¥{{ currentBatch.costPrice?.toFixed(2) }}</span>
+          </div>
+        </div>
+        <a-form layout="vertical">
+          <a-form-item label="折后单价 (¥)" required>
+            <a-input-number
+              v-model:value="discountForm.discountPrice"
+              :min="0"
+              :precision="2"
+              class="w-full"
+              size="large"
+              prefix="¥"
+            />
+          </a-form-item>
+          <a-form-item label="折价原因">
+            <a-textarea v-model:value="discountForm.reason" :auto-size="{ minRows: 2, maxRows: 4 }" placeholder="如：临近过期、品相下降等" />
+          </a-form-item>
+        </a-form>
+      </div>
+    </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
@@ -175,7 +252,7 @@ useHead({ title: '库存管理 - 花店管理系统' })
 
 const route = useRoute()
 const router = useRouter()
-const { fetchStocks, loading } = useStocks()
+const { fetchStocks, scrapBatch, discountBatch, loading } = useStocks()
 const { fetchProducts } = useProducts()
 
 const view = ref<'by_product' | 'by_batch'>('by_product')
@@ -213,7 +290,7 @@ const batchColumns = [
   { title: '入库/当前', key: 'qty', width: 140 },
   { title: '进价', key: 'costPrice', width: 90 },
   { title: '状态', key: 'status', width: 90 },
-  { title: '操作', key: 'action', width: 90, fixed: 'right' as const },
+  { title: '操作', key: 'action', width: 150, fixed: 'right' as const },
 ]
 
 const currentColumns = computed(() => (view.value === 'by_product' ? productColumns : batchColumns))
@@ -271,8 +348,73 @@ const viewBatchesOf = (record: any) => {
   loadList()
 }
 
-const onScrap = (_record: any) => {
-  message.info('报损功能即将上线')
+// 报损弹窗
+const scrapModalVisible = ref(false)
+const scrapSubmitting = ref(false)
+const currentBatch = ref<any>(null)
+const scrapForm = reactive({ qty: 0 as number, reason: '' })
+
+const openScrapModal = (record: any) => {
+  currentBatch.value = record
+  scrapForm.qty = record.currentQty
+  scrapForm.reason = ''
+  scrapModalVisible.value = true
+}
+
+const onScrapSubmit = async () => {
+  if (!currentBatch.value || !(scrapForm.qty > 0)) {
+    message.warning('请输入报损数量')
+    return
+  }
+  scrapSubmitting.value = true
+  try {
+    await scrapBatch({
+      batchId: currentBatch.value.id,
+      qty: scrapForm.qty,
+      reason: scrapForm.reason || undefined,
+    })
+    message.success('报损成功')
+    scrapModalVisible.value = false
+    loadList()
+  } catch {
+    // composable 已 message.error
+  } finally {
+    scrapSubmitting.value = false
+  }
+}
+
+// 折价弹窗
+const discountModalVisible = ref(false)
+const discountSubmitting = ref(false)
+const discountForm = reactive({ discountPrice: 0 as number, reason: '' })
+
+const openDiscountModal = (record: any) => {
+  currentBatch.value = record
+  discountForm.discountPrice = record.costPrice || 0
+  discountForm.reason = ''
+  discountModalVisible.value = true
+}
+
+const onDiscountSubmit = async () => {
+  if (!currentBatch.value || discountForm.discountPrice < 0) {
+    message.warning('请输入折后单价')
+    return
+  }
+  discountSubmitting.value = true
+  try {
+    await discountBatch({
+      batchId: currentBatch.value.id,
+      discountPrice: discountForm.discountPrice,
+      reason: discountForm.reason || undefined,
+    })
+    message.success('折价成功')
+    discountModalVisible.value = false
+    loadList()
+  } catch {
+    // composable 已 message.error
+  } finally {
+    discountSubmitting.value = false
+  }
 }
 
 const goInbound = () => {

@@ -20,6 +20,10 @@
           </a-space>
         </div>
         <div class="toolbar-right">
+          <a-button @click="onExportReport" :disabled="!data">
+            <template #icon><DownloadOutlined /></template>
+            导出报表
+          </a-button>
           <a-button @click="loadData">
             <template #icon><ReloadOutlined /></template>
             刷新
@@ -248,8 +252,11 @@ import {
   UserOutlined,
   RiseOutlined,
   ReloadOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons-vue'
+import { message } from 'ant-design-vue'
 import { useReports } from '~/composables/useReports'
+import { useExport } from '~/composables/useExport'
 import { paymentMethodText, formatDate } from '~/composables/useStatement'
 
 useHead({ title: '经营报表 - 花店管理系统' })
@@ -342,6 +349,64 @@ const applyPreset = (preset: string) => {
     }
   }
   loadData()
+}
+
+const onExportReport = () => {
+  if (!data.value) {
+    message.warning('暂无数据可导出')
+    return
+  }
+  const { exportToCsv } = useExport()
+  const s = data.value.summary
+  const rows: any[][] = []
+
+  // 核心指标
+  rows.push(['--- 核心指标 ---', ''])
+  rows.push(['销售总额', s.totalSales.toFixed(2)])
+  rows.push(['订单数', s.orderCount])
+  rows.push(['客单价', s.avgOrderValue.toFixed(2)])
+  rows.push(['毛利率', s.grossMargin.toFixed(1) + '%'])
+  rows.push(['已收金额', s.totalPaid.toFixed(2)])
+  rows.push(['新增欠款', s.totalOwed.toFixed(2)])
+  rows.push(['进货成本', s.totalCost.toFixed(2)])
+  rows.push(['毛利总额', s.grossProfit.toFixed(2)])
+  rows.push([])
+
+  // 每日趋势
+  rows.push(['--- 每日趋势 ---', '', '', ''])
+  rows.push(['日期', '订单数', '销售额', '毛利'])
+  for (const d of data.value.dailyTrend || []) {
+    rows.push([d.date, d.orderCount, d.amount.toFixed(2), d.profit.toFixed(2)])
+  }
+  rows.push([])
+
+  // 畅销榜
+  rows.push(['--- 畅销榜 TOP 10 ---', '', '', '', ''])
+  rows.push(['排名', '商品名', '销量', '销售额', '毛利'])
+  ;(data.value.topProducts || []).forEach((p: any, i: number) => {
+    rows.push([i + 1, p.productName, formatQty(p.qty), p.amount.toFixed(2), p.profit.toFixed(2)])
+  })
+  rows.push([])
+
+  // 支付方式
+  rows.push(['--- 支付方式分布 ---', '', ''])
+  rows.push(['方式', '笔数', '金额'])
+  for (const m of data.value.paymentMethods || []) {
+    rows.push([paymentMethodText(m.method), m.count, m.amount.toFixed(2)])
+  }
+  rows.push([])
+
+  // 滞销商品
+  rows.push(['--- 滞销商品 ---', '', '', ''])
+  rows.push(['商品名', '当前库存', '7天销量', '最后销售日期'])
+  for (const p of data.value.slowProducts || []) {
+    rows.push([p.productName, p.currentStock, p.soldCount, p.lastSoldAt ? formatDate(p.lastSoldAt) : '从未销售'])
+  }
+
+  const headers = ['指标', '值']
+  const filename = `经营报表_${dateRange.value[0]}_${dateRange.value[1]}`
+  exportToCsv(filename, headers, rows)
+  message.success('报表已导出')
 }
 
 const loadData = async () => {
