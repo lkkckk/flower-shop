@@ -73,12 +73,16 @@
           <a-dropdown>
             <a-button type="text" class="user-btn">
               <UserOutlined />
-              <span class="user-name">店长</span>
+              <span class="user-name">{{ user?.name || user?.username || '店长' }}</span>
             </a-button>
             <template #overlay>
               <a-menu>
                 <a-menu-item key="settings">
                   <NuxtLink to="/settings">系统设置</NuxtLink>
+                </a-menu-item>
+                <a-menu-divider />
+                <a-menu-item key="logout" @click="handleLogout">
+                  <LogoutOutlined /> 退出登录
                 </a-menu-item>
               </a-menu>
             </template>
@@ -100,6 +104,7 @@ import {
   MenuUnfoldOutlined,
   BellOutlined,
   UserOutlined,
+  LogoutOutlined,
   HomeOutlined,
   ShoppingOutlined,
   TeamOutlined,
@@ -113,6 +118,13 @@ import {
 
 const route = useRoute()
 const router = useRouter()
+
+const { user, logout } = useAuth()
+
+const handleLogout = async () => {
+  logout()
+  await router.push('/login')
+}
 
 const collapsed = ref(false)
 const drawerVisible = ref(false)

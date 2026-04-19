@@ -107,7 +107,7 @@ export const useProducts = () => {
       const response = await $fetch(`/api/products/${id}`, {
         method: 'DELETE',
       })
-      
+
       const res = response as any
       if (res.error) {
         throw new Error(res.error.message)
@@ -122,12 +122,29 @@ export const useProducts = () => {
     }
   }
 
+  const uploadProductImage = async (id: number, file: File): Promise<string | null> => {
+    const form = new FormData()
+    form.append('file', file)
+    try {
+      const res: any = await $fetch(`/api/products/${id}/image`, {
+        method: 'POST',
+        body: form,
+      })
+      if (res.error) throw new Error(res.error.message)
+      return res.data?.imageUrl ?? null
+    } catch (e: any) {
+      message.error(e.message || '图片上传失败')
+      return null
+    }
+  }
+
   return {
     fetchProducts,
     fetchProduct,
     createProduct,
     updateProduct,
     deleteProduct,
+    uploadProductImage,
     loading,
     error,
   }

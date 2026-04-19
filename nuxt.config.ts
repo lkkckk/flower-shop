@@ -27,6 +27,21 @@ export default defineNuxtConfig({
     typeCheck: false, // 开发时关闭以提升速度，CI 中可开启
   },
 
+  // Nitro：为 /api/** 开启 CORS，供微信小程序/小程序 H5 预览跨域调用
+  nitro: {
+    routeRules: {
+      '/api/**': {
+        cors: true,
+        headers: {
+          'Access-Control-Allow-Origin': process.env.CORS_ORIGIN || '*',
+          'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+          'Access-Control-Max-Age': '86400',
+        },
+      },
+    },
+  },
+
   // 应用级配置
   app: {
     head: {

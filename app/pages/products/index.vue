@@ -52,7 +52,17 @@
         :locale="{ emptyText: '暂无商品数据' }"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'grade'">
+          <template v-if="column.key === 'image'">
+            <a-avatar
+              shape="square"
+              :size="36"
+              :src="record.imageUrl || undefined"
+            >
+              <template v-if="!record.imageUrl" #icon><span style="font-size:18px">🌸</span></template>
+            </a-avatar>
+          </template>
+
+          <template v-else-if="column.key === 'grade'">
             <a-tag v-if="record.grade" :color="getGradeColor(record.grade)">
               {{ record.grade }}
             </a-tag>
@@ -138,6 +148,7 @@ const editingProduct = ref<any | null>(null)
 
 // 表格列定义
 const columns = [
+  { title: '图片', key: 'image', width: 60, fixed: 'left' as const },
   { title: '商品名称', dataIndex: 'name', key: 'name', fixed: 'left' as const, width: 200 },
   { title: '分类', dataIndex: 'category', key: 'category', width: 100 },
   { title: '等级/规格/颜色', key: 'specs', width: 180, customRender: ({ record }: any) => {

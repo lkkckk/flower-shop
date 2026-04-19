@@ -5,7 +5,7 @@
     @update:open="$emit('update:visible', $event)"
     @ok="handleOk"
     @cancel="handleCancel"
-    :confirmLoading="loading"
+    :confirmLoading="loading || imageUploading"
     width="800px"
     destroyOnClose
   >
@@ -37,7 +37,9 @@
                 <a-select-option value="A级">A级</a-select-option>
                 <a-select-option value="B级">B级</a-select-option>
                 <a-select-option value="C级">C级</a-select-option>
-                <a-select-option value="不分级">不分级</a-select-option>
+                <a-select-option value="D级">D级</a-select-option>
+                <a-select-option value="E级">E级</a-select-option>
+                <a-select-option value="O级">O级</a-select-option>
               </a-select>
             </a-form-item>
           </div>
@@ -46,7 +48,18 @@
               <a-input v-model:value="formState.color" placeholder="如：红、粉" />
             </a-form-item>
             <a-form-item label="规格" name="specification">
-              <a-input v-model:value="formState.specification" placeholder="如：70cm" />
+              <a-auto-complete
+                v-model:value="formState.specification"
+                placeholder="请选择或输入规格"
+                :options="[
+                  { value: '70cm' },
+                  { value: '65cm' },
+                  { value: '60cm' },
+                  { value: '55cm' },
+                  { value: '50cm' }
+                ]"
+                :filter-option="filterOption"
+              />
             </a-form-item>
           </div>
         </a-card>
@@ -101,7 +114,31 @@
           </a-form-item>
         </a-card>
 
-        <!-- 第四组：单位换算 -->
+        <!-- 第四组：商品图片 -->
+        <a-card title="商品图片" size="small" class="form-card col-span-full">
+          <div class="flex items-center gap-6">
+            <div class="image-preview">
+              <img v-if="previewUrl" :src="previewUrl" alt="商品图片" class="preview-img" />
+              <div v-else class="no-image">🌸</div>
+            </div>
+            <div>
+              <input
+                ref="fileInputRef"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                class="hidden"
+                @change="onFileChange"
+              />
+              <a-button @click="fileInputRef?.click()">
+                <template #icon><UploadOutlined /></template>
+                {{ previewUrl ? '更换图片' : '上传图片' }}
+              </a-button>
+              <div class="text-xs text-gray-400 mt-2">支持 jpg / png / webp，建议尺寸 400×400</div>
+            </div>
+          </div>
+        </a-card>
+
+        <!-- 第五组：单位换算 -->
         <a-card title="单位换算配置" size="small" class="form-card col-span-full">
           <template #extra>
             <span class="text-xs text-gray-400 font-normal">
@@ -143,7 +180,7 @@
           </a-button>
         </a-card>
 
-        <!-- 第五组：状态 -->
+        <!-- 第六组：状态 -->
         <a-card title="状态" size="small" class="form-card col-span-full">
           <a-form-item name="status" class="mb-0">
             <a-radio-group v-model:value="formState.status">
@@ -160,7 +197,7 @@
 <script setup lang="ts">
 import { ref, watch, reactive } from 'vue'
 import { message } from 'ant-design-vue'
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons-vue'
+import { DeleteOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
 
 const props = defineProps<{
@@ -173,7 +210,20 @@ const emit = defineEmits<{
   'success': []
 }>()
 
-const { createProduct, updateProduct, loading } = useProducts()
+const { createProduct, updateProduct, uploadProductImage, loading } = useProducts()
+
+// 图片相关
+const imageFile = ref<File | null>(null)
+const previewUrl = ref<string | null>(null)
+const imageUploading = ref(false)
+const fileInputRef = ref<HTMLInputElement>()
+
+const onFileChange = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  imageFile.value = file
+  previewUrl.value = URL.createObjectURL(file)
+}
 
 const formRef = ref<FormInstance>()
 
@@ -233,9 +283,12 @@ watch(
             toBaseQty: uc.toBaseQty,
           })) || [],
         })
+        previewUrl.value = props.product.imageUrl || null
       } else {
         Object.assign(formState, getInitialState())
+        previewUrl.value = null
       }
+      imageFile.value = null
     }
   }
 )
@@ -246,6 +299,11 @@ const rules = {
   baseUnit: [{ required: true, message: '请输入基础单位', trigger: 'blur' }],
   defaultPrice: [{ required: true, type: 'number', message: '请输入默认价', trigger: 'blur' }],
   shelfLifeDays: [{ required: true, type: 'number', message: '请输入花期天数', trigger: 'blur' }],
+}
+
+// 规格自动提示过滤
+const filterOption = (input: string, option: any) => {
+  return String(option.value).toUpperCase().includes(input.toUpperCase())
 }
 
 // 单位换算操作
@@ -266,7 +324,7 @@ const handleCancel = () => {
 const handleOk = async () => {
   try {
     await formRef.value?.validate()
-    
+
     // 自定义前端校验：换算单位名称不能与基础单位相同，且不能重复
     const unitNames = formState.unitConversions.map(uc => uc.fromUnit)
     if (unitNames.includes(formState.baseUnit)) {
@@ -279,15 +337,26 @@ const handleOk = async () => {
       return
     }
 
+    let savedId: number | null = null
     if (props.product) {
       await updateProduct(props.product.id, formState)
+      savedId = props.product.id
     } else {
-      await createProduct(formState)
+      const created = await createProduct(formState)
+      savedId = created?.id ?? null
     }
-    
+
+    // 上传图片（在保存成功后执行）
+    if (imageFile.value && savedId) {
+      imageUploading.value = true
+      await uploadProductImage(savedId, imageFile.value)
+      imageUploading.value = false
+    }
+
     emit('success')
     handleCancel()
   } catch (error) {
+    imageUploading.value = false
     console.error('Validation failed:', error)
   }
 }
@@ -344,5 +413,28 @@ const handleOk = async () => {
 
 .w-full {
   width: 100%;
+}
+
+.image-preview {
+  width: 80px;
+  height: 80px;
+  border: 1px dashed #d9d9d9;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fafafa;
+  flex-shrink: 0;
+}
+
+.preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.no-image {
+  font-size: 28px;
 }
 </style>
