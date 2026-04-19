@@ -181,7 +181,11 @@ defineExpose({
 })
 
 onMounted(() => {
-  fetchStoreProducts()
+  // SPA 模式下组件可能在 auth 中间件重定向前就挂载，先检查 token 避免无效 401
+  const { token } = useAuth()
+  if (token.value) {
+    fetchStoreProducts()
+  }
 })
 
 const debouncedSearch = debounce(fetchStoreProducts, 300)

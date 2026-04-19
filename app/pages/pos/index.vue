@@ -1,13 +1,13 @@
 <template>
   <div class="flex flex-col h-screen overflow-hidden bg-[#fafaf9] pos-container">
     <PosCartTabs />
-    
+
     <div class="flex flex-1 overflow-hidden relative">
-      <PosProductPicker 
+      <PosProductPicker
         ref="productPickerRef"
         class="flex-1 transition-all duration-300"
       />
-      
+
       <!-- 桌面端右侧栏 -->
       <div class="hidden md:block w-[380px] bg-white border-l border-gray-200">
         <PosCartPanel @checkout="checkoutDialogVisible = true" />
@@ -16,10 +16,10 @@
       <!-- 移动端悬浮按钮 & 抽屉 -->
       <div class="md:hidden fixed bottom-6 right-6 z-10" v-if="cartStore.activeCart?.items.length">
         <a-badge :count="cartStore.activeCart.items.length" :number-style="{ backgroundColor: '#ec4899' }">
-          <a-button 
-            type="primary" 
-            shape="circle" 
-            size="large" 
+          <a-button
+            type="primary"
+            shape="circle"
+            size="large"
             class="w-14 h-14 bg-pink-500 border-none shadow-lg shadow-pink-500/40 flex items-center justify-center"
             @click="mobileDrawerVisible = true"
           >
@@ -41,16 +41,15 @@
     </div>
 
     <!-- 结账弹窗 -->
-    <PosCheckoutDialog 
-      v-model:visible="checkoutDialogVisible" 
-      @success="onCheckoutSuccess" 
+    <PosCheckoutDialog
+      v-model:visible="checkoutDialogVisible"
+      @success="onCheckoutSuccess"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { ShoppingCartOutlined } from '@ant-design/icons-vue'
 import { useMagicKeys } from '@vueuse/core'
@@ -60,7 +59,16 @@ definePageMeta({ layout: 'pos' })
 useHead({ title: '开单收银 - 花店管理系统' })
 
 const cartStore = useCartStore()
-const router = useRouter()
+
+// 低库存告警（同会话去重）
+const { checkLowStock } = useLowStockAlert()
+const { token: authToken } = useAuth()
+onMounted(() => {
+  // 冗余保护：只有已登录时才弹提示（中间件一般已拦截未登录）
+  if (authToken.value) {
+    checkLowStock({ target: '/pos/stocktake' })
+  }
+})
 
 const productPickerRef = ref()
 const checkoutDialogVisible = ref(false)
@@ -69,8 +77,13 @@ const mobileDrawerVisible = ref(false)
 // 键盘快捷键
 const { slash, escape, ctrl_enter, ctrl_s, ctrl_n } = useMagicKeys()
 
-// 挂单（保存一下提示即可，因为目前在 pinia 里已经是保存状态了）
-watch(ctrl_s, (v) => { if (v) { message.success('已暂时挂单'); mobileDrawerVisible.value = false } })
+// 挂单
+watch(ctrl_s, (v) => {
+  if (v) {
+    message.success('已暂时挂单')
+    mobileDrawerVisible.value = false
+  }
+})
 
 // 聚焦搜索
 watch(slash, (v) => {
@@ -104,7 +117,6 @@ const onCheckoutSuccess = (orderId: number) => {
   checkoutDialogVisible.value = false
   mobileDrawerVisible.value = false
   setTimeout(() => {
-    // 新窗口打开打印页
     window.open(`/orders/${orderId}/print`, '_blank', 'width=400,height=600')
   }, 100)
 }

@@ -1,6 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
+  ssr: false, // 内部管理系统不需要 SSR，SPA 模式彻底消除样式闪烁
   devtools: { enabled: true },
 
   css: ['~/assets/css/main.css'],

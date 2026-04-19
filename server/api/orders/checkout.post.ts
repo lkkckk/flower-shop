@@ -1,148 +1,232 @@
 import { prisma } from '../../utils/prisma'
+import { computeOrder, type PriceMode } from '../../../shared/priceMode'
 
+/**
+ * 结算接口
+ *
+ * 请求体：
+ *   {
+ *     cart: {
+ *       customerId?: number | null,
+ *       notes?: string,
+ *       priceMode?: 'retail' | 'vip' | 'wholesale' | 'discount' | 'promotion',
+ *       discountRate?: number,      // 0-100，仅 priceMode='discount' 时使用
+ *       promotionId?: number | null,// 仅 priceMode='promotion' 时使用
+ *       discount?: number,          // 兼容：手工折扣金额（额外减免）
+ *       items: [
+ *         { productId, qty, baseQty, unit, unitPrice, subtotal, productName?, ...}
+ *       ]
+ *     },
+ *     payment: { method, paidAmount, owedAmount }
+ *   }
+ *
+ * 服务端会根据 priceMode + 数据库中的商品权威价格 **重新计算** 每行单价与总额，
+ * 不信任前端传来的 unitPrice（防篡改），再落单。
+ */
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
-  const cart = body.cart
-  const payment = body.payment
+  const cart = body?.cart
+  const payment = body?.payment
 
   if (!cart || !payment) {
     throw createError({ statusCode: 400, message: '无效的请求数据' })
   }
-
-  if (cart.items.length === 0) {
+  if (!Array.isArray(cart.items) || cart.items.length === 0) {
     throw createError({ statusCode: 400, message: '购物车为空' })
   }
 
+  const priceMode: PriceMode = (
+    ['retail', 'vip', 'wholesale', 'discount', 'promotion'].includes(cart.priceMode)
+      ? cart.priceMode
+      : 'retail'
+  ) as PriceMode
+
+  const discountRate: number | undefined =
+    priceMode === 'discount' && typeof cart.discountRate === 'number'
+      ? cart.discountRate
+      : undefined
+
+  const promotionId: number | null =
+    priceMode === 'promotion' && cart.promotionId ? Number(cart.promotionId) : null
+
   try {
     const result = await prisma.$transaction(async (tx) => {
-      // 1. 生成订单号
+      // === 1. 拉取权威商品价格 + 促销规则 ===
+      const productIds: number[] = Array.from(
+        new Set(cart.items.map((i: any) => Number(i.productId)).filter(Boolean)),
+      )
+      const products = await tx.product.findMany({
+        where: { id: { in: productIds } },
+        select: {
+          id: true,
+          name: true,
+          defaultPrice: true,
+          vipPrice: true,
+          wholesalePrice: true,
+          baseUnit: true,
+          unitConversions: { select: { fromUnit: true, toBaseQty: true } },
+        },
+      })
+      const productMap = new Map(products.map((p) => [p.id, p]))
+
+      let promotion: { id: number; threshold: number; reduction: number } | null = null
+      if (promotionId) {
+        const p = await tx.promotion.findUnique({ where: { id: promotionId } })
+        if (!p || p.status !== 'active') {
+          throw new Error('促销活动不存在或已停用')
+        }
+        const now = new Date()
+        if (p.startAt && p.startAt > now) throw new Error('促销活动尚未开始')
+        if (p.endAt && p.endAt < now) throw new Error('促销活动已过期')
+        promotion = { id: p.id, threshold: p.threshold, reduction: p.reduction }
+      }
+
+      // === 2. 构造重算输入 ===
+      const lineInputs = cart.items.map((it: any) => {
+        const p = productMap.get(Number(it.productId))
+        if (!p) throw new Error(`商品(id=${it.productId})不存在`)
+        let toBaseQty = 1
+        if (it.unit && it.unit !== p.baseUnit) {
+          const conv = p.unitConversions.find((u) => u.fromUnit === it.unit)
+          if (conv) toBaseQty = conv.toBaseQty
+        }
+        return {
+          basis: {
+            defaultPrice: p.defaultPrice,
+            vipPrice: p.vipPrice,
+            wholesalePrice: p.wholesalePrice,
+          },
+          qty: Number(it.qty),
+          toBaseQty,
+        }
+      })
+
+      const priceResult = computeOrder({
+        items: lineInputs,
+        mode: priceMode,
+        discountRate,
+        promotion,
+      })
+
+      if (priceMode === 'promotion' && !priceResult.promotionApplicable) {
+        throw Object.assign(new Error('当前合计未达到满减门槛'), {
+          code: 'PROMOTION_NOT_APPLICABLE',
+        })
+      }
+
+      // 额外手工整单折扣（历史字段，保留兼容）
+      const extraDiscount = Math.max(0, Number(cart.discount) || 0)
+      const totalAmount = Math.max(0, priceResult.total - extraDiscount)
+
+      // === 3. 生成订单号 ===
       const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '')
       const todayStart = new Date()
       todayStart.setHours(0, 0, 0, 0)
-      
       const orderCount = await tx.order.count({
         where: { createdAt: { gte: todayStart } },
       })
       const orderNo = `O${dateStr}${(orderCount + 1).toString().padStart(4, '0')}`
 
-      // 计算总价
-      const subtotal = cart.items.reduce((sum: number, item: any) => sum + item.subtotal, 0)
-      const totalAmount = Math.max(0, subtotal - cart.discount)
-
-      // 确定状态
+      // === 4. 订单状态 ===
       let status = 'pending'
       if (payment.paidAmount >= totalAmount && totalAmount > 0) status = 'paid'
       else if (payment.paidAmount > 0) status = 'partial'
       if (payment.method === 'credit' || payment.owedAmount === totalAmount) status = 'unpaid'
-      // 兼容一些特殊状态组合
       if (payment.paidAmount >= totalAmount) status = 'paid'
 
-      // 2. 创建主订单
+      // === 5. 创建主订单 ===
       const order = await tx.order.create({
         data: {
           orderNo,
-          orderType: 'retail', // 如果是批发客户可以改
+          orderType: priceMode === 'wholesale' ? 'wholesale' : 'retail',
           customerId: cart.customerId || null,
           totalAmount,
           paidAmount: payment.paidAmount,
           owedAmount: payment.owedAmount,
           status,
           notes: cart.notes,
+          priceMode,
+          discountRate: priceMode === 'discount' ? discountRate ?? null : null,
+          promotionId: promotion?.id ?? null,
         },
       })
 
-      // 3 & 4. 扣除库存 + 记录流水 + 创建订单明细
-      for (const item of cart.items) {
-        let remainingQtyToDeduct = item.baseQty
-        
-        // 查找有库存的批次 (FIFO)
+      // === 6. 扣库存 + 写 OrderItem + 写 StockMovement ===
+      for (let idx = 0; idx < cart.items.length; idx++) {
+        const item = cart.items[idx]
+        const authoritativeUnitPrice = priceResult.lineUnitPrices[idx]
+        const authoritativeLineSubtotal = priceResult.lineSubtotals[idx]
+        const originalPrice = (productMap.get(Number(item.productId))?.defaultPrice) ?? null
+
+        let remainingQtyToDeduct = Number(item.baseQty)
+        const itemTotalQty = remainingQtyToDeduct
+
         const batches = await tx.stockBatch.findMany({
-          where: {
-            productId: item.productId,
-            status: 'in_stock',
-            currentQty: { gt: 0 }
-          },
+          where: { productId: item.productId, status: 'in_stock', currentQty: { gt: 0 } },
           orderBy: { inboundDate: 'asc' },
         })
 
-        const itemTotalQty = remainingQtyToDeduct
-        let deductedQtySoFar = 0
-
         for (const batch of batches) {
           if (remainingQtyToDeduct <= 0) break
-
           const qtyFromThisBatch = Math.min(batch.currentQty, remainingQtyToDeduct)
-          
           remainingQtyToDeduct -= qtyFromThisBatch
-          deductedQtySoFar += qtyFromThisBatch
 
-          // 更新批次库存
+          const newQty = batch.currentQty - qtyFromThisBatch
           await tx.stockBatch.update({
             where: { id: batch.id },
             data: {
-              currentQty: batch.currentQty - qtyFromThisBatch,
-              status: (batch.currentQty - qtyFromThisBatch) <= 0 ? 'sold_out' : 'in_stock'
-            }
+              currentQty: newQty,
+              status: newQty <= 0 ? 'sold_out' : 'in_stock',
+            },
           })
-
-          // 记录库存流水
           await tx.stockMovement.create({
             data: {
               batchId: batch.id,
               type: 'sale',
               qtyChange: -qtyFromThisBatch,
               relatedOrderId: order.id,
-              operator: 'system' // 或者当前登录用户
-            }
+              operator: 'system',
+            },
           })
-          
-          // 为了简化，我们只创建一条整体的 OrderItem（也可按批次拆分多条 Item 以应对精细溯源）
-          // 提示词推荐："如果跨批次，按批次拆成多个 OrderItem"。这里我们按批次分拆创建 OrderItem：
-          // 单件在此批次的销售数量、单价
-          // 需要还原到销售单位的价格和量（如果 1箱=20枝，这次扣了10枝，其实就是卖了0.5箱）
+
           const proportion = qtyFromThisBatch / itemTotalQty
-          
           await tx.orderItem.create({
             data: {
               orderId: order.id,
               productId: item.productId,
               batchId: batch.id,
               unit: item.unit,
-              qty: item.qty * proportion,     // 换算到销售单位的数量
-              baseQty: qtyFromThisBatch,      // 这次扣的基础数量
-              unitPrice: item.unitPrice, 
-              subtotal: item.subtotal * proportion,
-            }
+              qty: Number(item.qty) * proportion,
+              baseQty: qtyFromThisBatch,
+              unitPrice: authoritativeUnitPrice,
+              originalPrice,
+              subtotal: authoritativeLineSubtotal * proportion,
+            },
           })
         }
 
-        // 如果所有批次找完，还需要扣除的数量 > 0，说明库存不足
         if (remainingQtyToDeduct > 0) {
-          throw new Error(`商品【${item.productName}】剩余可用库存不足（还缺 ${remainingQtyToDeduct} 基础单位）`)
+          throw new Error(
+            `商品【${item.productName || item.productId}】剩余可用库存不足（还缺 ${remainingQtyToDeduct} 基础单位）`,
+          )
         }
       }
 
-      // 5. 更新客户余额/欠款/积分
+      // === 7. 客户余额/欠款/积分 ===
       if (cart.customerId) {
         const customerUpdate: any = {}
         if (payment.owedAmount > 0) {
-          customerUpdate.balance = { decrement: payment.owedAmount }   // balance 负数代表欠款
-          customerUpdate.totalOwed = { increment: payment.owedAmount } // 欠款总额增加
+          customerUpdate.balance = { decrement: payment.owedAmount }
+          customerUpdate.totalOwed = { increment: payment.owedAmount }
         }
-        // 每消费 1 元积 1 分
         const earnedPoints = Math.floor(totalAmount)
-        if (earnedPoints > 0) {
-          customerUpdate.points = { increment: earnedPoints }
-        }
+        if (earnedPoints > 0) customerUpdate.points = { increment: earnedPoints }
         if (Object.keys(customerUpdate).length > 0) {
-          await tx.customer.update({
-            where: { id: cart.customerId },
-            data: customerUpdate,
-          })
+          await tx.customer.update({ where: { id: cart.customerId }, data: customerUpdate })
         }
       }
 
-      // 6. 创建 Payment 收款流水
+      // === 8. 收款流水 ===
       if (payment.paidAmount > 0) {
         await tx.payment.create({
           data: {
@@ -151,24 +235,30 @@ export default defineEventHandler(async (event) => {
             amount: payment.paidAmount,
             paymentMethod: payment.method,
             type: 'income',
-            operator: 'system' // 或者当前用户
-          }
+            operator: 'system',
+          },
         })
       }
 
-      return order
+      return { order, priceResult, totalAmount }
     })
 
     return {
-      data: { order: result, message: '结账成功' },
-      error: null
+      data: {
+        order: result.order,
+        total: result.totalAmount,
+        subtotal: result.priceResult.subtotal,
+        reduction: result.priceResult.reduction,
+        priceMode,
+        message: '结账成功',
+      },
+      error: null,
     }
-
   } catch (error: any) {
     setResponseStatus(event, 400)
     return {
       data: null,
-      error: { message: error.message || '结账失败', code: 'CHECKOUT_FAILED' }
+      error: { message: error.message || '结账失败', code: error.code || 'CHECKOUT_FAILED' },
     }
   }
 })

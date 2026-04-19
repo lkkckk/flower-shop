@@ -323,10 +323,14 @@ const loadTodayOrders = async () => {
   }
 }
 
+const { checkLowStock } = useLowStockAlert()
+
 onMounted(() => {
   loadExpiring()
   loadTodayDashboard()
   loadTodayOrders()
+  // 后台首页打开时提醒低库存（同会话仅一次）
+  checkLowStock({ target: '/stocks/stocktake' })
 })
 </script>
 

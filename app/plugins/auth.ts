@@ -30,9 +30,16 @@ export default defineNuxtPlugin((nuxtApp) => {
 
         // 避免登录页内部调接口导致死循环
         if (import.meta.client) {
-          const route = useRoute()
-          if (route.path !== '/login') {
-            return navigateTo(`/login?redirect=${encodeURIComponent(route.fullPath)}`)
+          try {
+            const route = useRoute()
+            const isLoginPage = route.path === '/login' || route.path === '/pos/login'
+            if (!isLoginPage) {
+              // POS 相关路径跳 POS 登录，其余跳管理登录
+              const loginPath = route.path.startsWith('/pos') ? '/pos/login' : '/login'
+              return navigateTo(`${loginPath}?redirect=${encodeURIComponent(route.fullPath)}`)
+            }
+          } catch {
+            // useRoute 可能在某些上下文不可用，静默忽略
           }
         }
       }

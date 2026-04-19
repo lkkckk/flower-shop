@@ -106,10 +106,33 @@ model User {
   username     String   @unique
   passwordHash String
   name         String
-  role         String   @default("staff") // staff | admin
+  role         String   @default("staff") // staff | admin | cashier
   status       String   @default("active")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+/// 全局单行配置（key-value）
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+/// 促销活动：满 X 减 Y
+model Promotion {
+  id         Int       @id @default(autoincrement())
+  name       String
+  type       String    @default("full_reduction") // full_reduction（预留阶梯/折扣）
+  threshold  Float
+  reduction  Float
+  status     String    @default("active") // active | inactive
+  startAt    DateTime?
+  endAt      DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  orders     Order[]
 }
 
 model Order {
@@ -125,10 +148,16 @@ model Order {
   deliveryAddress String?
   notes           String?
   status          String   @default("pending")
+  // 价格模式：retail | vip | wholesale | discount | promotion
+  priceMode       String?
+  // 整单折扣率（0-100），仅 priceMode=discount 时使用
+  discountRate    Float?
+  promotionId     Int?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   customer        Customer?   @relation(fields: [customerId], references: [id])
+  promotion       Promotion?  @relation(fields: [promotionId], references: [id])
   items           OrderItem[]
   payments        Payment[]
 
@@ -137,18 +166,20 @@ model Order {
 }
 
 model OrderItem {
-  id          Int     @id @default(autoincrement())
-  orderId     Int
-  productId   Int
-  batchId     Int
-  unit        String
-  qty         Float
-  baseQty     Float
-  unitPrice   Float
-  subtotal    Float
-  grade       String?
-  color       String?
-  notes       String?
+  id            Int     @id @default(autoincrement())
+  orderId       Int
+  productId     Int
+  batchId       Int
+  unit          String
+  qty           Float
+  baseQty       Float
+  unitPrice     Float
+  /// 成交价所基于的基础价（priceMode 应用前的参考价，用于审计）
+  originalPrice Float?
+  subtotal      Float
+  grade         String?
+  color         String?
+  notes         String?
 
   order       Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product     Product    @relation(fields: [productId], references: [id])

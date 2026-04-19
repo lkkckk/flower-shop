@@ -3,14 +3,28 @@
     <!-- POS 顶部栏 -->
     <header class="pos-header">
       <div class="pos-header-left">
-        <a-button type="link" class="back-btn" @click="navigateTo('/')">
+        <a-button
+          v-if="isAdmin"
+          type="link"
+          class="back-btn"
+          @click="navigateTo('/')"
+        >
           <ArrowLeftOutlined />
           <span class="back-text">返回后台</span>
         </a-button>
-        <a-divider type="vertical" />
+        <a-divider v-if="isAdmin" type="vertical" />
         <span class="shop-name">🌸 花店收银台</span>
       </div>
       <div class="pos-header-right">
+        <a-button
+          type="text"
+          size="small"
+          class="tool-btn"
+          @click="navigateTo('/pos/stocktake')"
+        >
+          <InboxOutlined />
+          <span class="tool-label">盘点</span>
+        </a-button>
         <a-badge :count="0" :show-zero="false">
           <a-button type="text" shape="circle" size="small">
             <BellOutlined />
@@ -19,12 +33,16 @@
         <a-dropdown>
           <a-button type="text" size="small" class="user-btn">
             <UserOutlined />
-            <span class="user-label">店长</span>
+            <span class="user-label">{{ user?.name || user?.username || '收银员' }}</span>
           </a-button>
           <template #overlay>
             <a-menu>
-              <a-menu-item key="settings">
-                <NuxtLink to="/settings">系统设置</NuxtLink>
+              <a-menu-item v-if="isAdmin" key="settings" @click="navigateTo('/settings')">
+                系统设置
+              </a-menu-item>
+              <a-menu-divider v-if="isAdmin" />
+              <a-menu-item key="logout" @click="handleLogout">
+                <LogoutOutlined /> 退出登录
               </a-menu-item>
             </a-menu>
           </template>
@@ -49,7 +67,15 @@ import {
   ArrowLeftOutlined,
   BellOutlined,
   UserOutlined,
+  InboxOutlined,
+  LogoutOutlined,
 } from '@ant-design/icons-vue'
+
+const { user, isAdmin, logout } = useAuth()
+
+const handleLogout = async () => {
+  await logout('pos')
+}
 </script>
 
 <style scoped>
@@ -120,6 +146,7 @@ import {
   border-color: rgba(255, 255, 255, 0.2);
 }
 
+.tool-btn,
 .user-btn {
   color: rgba(255, 255, 255, 0.85) !important;
   display: flex;
@@ -128,11 +155,18 @@ import {
   font-size: 13px;
 }
 
+.tool-btn:hover,
+.user-btn:hover {
+  color: #f472b6 !important;
+}
+
+.tool-label,
 .user-label {
   display: none;
 }
 
 @media (min-width: 768px) {
+  .tool-label,
   .user-label {
     display: inline;
   }
