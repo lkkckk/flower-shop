@@ -1,0 +1,132 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 全局样式 */
+body {
+  font-family: 'Nunito', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #fafaf9; /* Tailwind stone-50, or a warm floral white */
+}
+
+/* Ant Design Vue Sider 覆盖 */
+.ant-layout-sider {
+  background: white !important;
+}
+
+/* Ant Design Vue 菜单光亮模式覆盖 */
+.ant-menu-light {
+  background: transparent !important;
+  border-right: none !important;
+}
+
+.ant-menu-light .ant-menu-item {
+  color: #4b5563 !important; /* gray-600 */
+  border-radius: 8px !important;
+  margin: 4px 12px !important;
+  width: calc(100% - 24px) !important;
+  font-weight: 600;
+}
+
+.ant-menu-light .ant-menu-item-selected {
+  background-color: #fdf2f8 !important; /* pink-50 */
+  color: #db2777 !important; /* pink-600 */
+}
+
+.ant-menu-item-selected::after {
+  display: none !important; /* Remove right border primary color line */
+}
+
+/* 通用表格美学覆盖 */
+.ant-table-wrapper {
+  border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+.ant-table {
+  background: transparent !important;
+}
+
+.ant-table-thead > tr > th {
+  background: #ffffff !important;
+  color: #6b7280 !important; /* gray-500 */
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #f3f4f6 !important; /* gray-100 */
+}
+
+.ant-table-tbody > tr > td {
+  border-bottom: 1px solid #f3f4f6 !important; /* gray-100 */
+  transition: all 0.2s ease !important;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background-color: #fdf2f8 !important; /* pink-50 */
+}
+
+/* 表单输入框圆角与焦点环 */
+.ant-input, .ant-input-number, .ant-picker, .ant-select-selector {
+  border-radius: 8px !important;
+}
+
+.ant-input:focus, .ant-input-focused, .ant-input-number:focus, .ant-input-number-focused, .ant-select-focused .ant-select-selector {
+  border-color: #f472b6 !important; /* pink-400 */
+  box-shadow: 0 0 0 2px rgba(244, 114, 182, 0.2) !important;
+}
+
+/* 按钮微交互 */
+.ant-btn {
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+.ant-btn-primary {
+  background-color: #ec4899 !important; /* pink-500 */
+  border-color: transparent !important;
+  box-shadow: 0 4px 14px 0 rgba(236, 72, 153, 0.39) !important;
+}
+
+.ant-btn-primary:hover {
+  background-color: #db2777 !important; /* pink-600 */
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(236, 72, 153, 0.23) !important;
+}
+
+/* 独立显示字体 */
+.font-display {
+  font-family: 'Outfit', sans-serif !important;
+}
+
+/* 滚动条美化 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* 页面过渡动画 */
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.page-enter-from,
+.page-leave-to {
+  opacity: 0;
+}

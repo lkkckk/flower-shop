@@ -1,0 +1,81 @@
+/* MD3 colors from yemian.html prototype */
+$primary: #884d59;
+$primary-container: #f1a7b4;
+$primary-fixed: #ffd9de;
+$primary-fixed-dim: #feb2bf;
+$on-primary: #ffffff;
+$on-primary-container: #713a46;
+$on-primary-fixed: #370b17;
+
+$secondary: #49654d;
+$secondary-container: #caebcc;
+$secondary-fixed: #caebcc;
+$secondary-fixed-dim: #afcfb1;
+$on-secondary: #ffffff;
+$on-secondary-container: #4e6b53;
+
+$tertiary: #77592e;
+$tertiary-container: #dcb582;
+$tertiary-fixed: #ffddb3;
+$tertiary-fixed-dim: #e8c08c;
+$on-tertiary: #ffffff;
+$on-tertiary-container: #62461d;
+
+$surface: #fcf8f7;
+$surface-container-low: #f7f3f2;
+$surface-container: #f1edec;
+$surface-container-lowest: #ffffff;
+$surface-container-high: #ebe7e6;
+$surface-container-highest: #e5e2e1;
+$surface-variant: #e5e2e1;
+$surface-dim: #ddd9d8;
+$surface-bright: #fcf8f7;
+
+$on-surface: #1c1b1b;
+$on-surface-variant: #524345;
+$outline: #847375;
+$outline-variant: #d6c2c4;
+
+$error: #ba1a1a;
+$error-container: #ffdad6;
+$on-error: #ffffff;
+$on-error-container: #93000a;
+
+$gradient-primary: linear-gradient(135deg, #884d59 0%, #f1a7b4 100%);
+$gradient-primary-soft: linear-gradient(135deg, #ffd9de 0%, #f1a7b4 100%);
+
+/* legacy uni defaults for compatibility */
+$uni-color-primary: $primary;
+$uni-color-success: $secondary;
+$uni-color-warning: #f0ad4e;
+$uni-color-error: $error;
+$uni-text-color: $on-surface;
+$uni-text-color-inverse: #fff;
+$uni-text-color-grey: $outline;
+$uni-text-color-placeholder: $outline-variant;
+$uni-text-color-disable: $outline-variant;
+$uni-bg-color: $surface-container-lowest;
+$uni-bg-color-grey: $surface-container-low;
+$uni-bg-color-hover: $surface-container-high;
+$uni-bg-color-mask: rgba(0, 0, 0, 0.4);
+$uni-border-color: $outline-variant;
+$uni-font-size-sm: 24rpx;
+$uni-font-size-base: 28rpx;
+$uni-font-size-lg: 32rpx;
+$uni-border-radius-sm: 4rpx;
+$uni-border-radius-base: 8rpx;
+$uni-border-radius-lg: 16rpx;
+$uni-border-radius-circle: 50%;
+$uni-spacing-row-sm: 10rpx;
+$uni-spacing-row-base: 20rpx;
+$uni-spacing-row-lg: 30rpx;
+$uni-spacing-col-sm: 8rpx;
+$uni-spacing-col-base: 16rpx;
+$uni-spacing-col-lg: 24rpx;
+$uni-opacity-disabled: 0.3;
+$uni-color-title: $on-surface;
+$uni-font-size-title: 40rpx;
+$uni-color-subtitle: $on-surface-variant;
+$uni-font-size-subtitle: 32rpx;
+$uni-color-paragraph: $on-surface-variant;
+$uni-font-size-paragraph: 30rpx;
