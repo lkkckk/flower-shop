@@ -173,7 +173,8 @@ const computeInput = computed(() => {
       toBaseQty,
     }
   })
-  const selectedPromo = promotions.value.find((p) => p.id === promotionId.value) || null
+  const promoList = Array.isArray(promotions.value) ? promotions.value : []
+  const selectedPromo = promoList.find((p) => p.id === promotionId.value) || null
   return computeOrder({
     items,
     mode: priceMode.value,
@@ -235,7 +236,7 @@ const loadPromotions = async () => {
   loadingPromotions.value = true
   try {
     const { data }: any = await $fetch('/api/promotions', { query: { status: 'active' } })
-    promotions.value = data || []
+    promotions.value = data?.list || []
   } catch {
     promotions.value = []
   } finally {
