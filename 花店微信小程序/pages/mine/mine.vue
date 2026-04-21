@@ -1,6 +1,6 @@
 <template>
   <view class="page">
-    <view class="topbar">
+    <view class="topbar topbar--logged" v-if="isLoggedIn">
       <view class="topbar__left">
         <icon name="local_florist" :size="36" color="#884d59" />
         <text class="topbar__title">植物诗集</text>
@@ -8,6 +8,9 @@
       <view class="topbar__right">
         <icon name="settings" :size="40" color="#847375" />
       </view>
+    </view>
+    <view class="topbar topbar--guest" v-else>
+      <text class="topbar__title topbar__title--guest">我的</text>
     </view>
 
     <view class="main">
@@ -102,14 +105,14 @@
         </view>
         <view class="row" @click="noop">
           <view class="row__left">
-            <icon name="local_activity" :size="32" color="#f1a7b4" fill />
+            <icon name="confirmation_number" :size="32" color="#f1a7b4" fill />
             <text class="row__text">领券中心</text>
           </view>
           <icon name="chevron_right" :size="28" color="#d6c2c4" />
         </view>
         <view class="row" @click="noop">
           <view class="row__left">
-            <icon name="forum" :size="32" color="#f1a7b4" fill />
+            <icon name="chat_bubble" :size="32" color="#f1a7b4" fill />
             <text class="row__text">在线客服</text>
           </view>
           <icon name="chevron_right" :size="28" color="#d6c2c4" />
@@ -160,16 +163,25 @@ export default {
   padding-bottom: 40rpx;
 }
 .topbar {
-  position: sticky;
-  top: 0;
-  z-index: 50;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 32rpx 48rpx;
+}
+.topbar--logged {
+  position: sticky;
+  top: 0;
+  z-index: 50;
   background: rgba(252, 248, 247, 0.9);
   backdrop-filter: blur(20rpx);
   box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.03);
+}
+.topbar--guest {
+  justify-content: center;
+  padding: 48rpx 32rpx 20rpx;
+  background: transparent;
+  backdrop-filter: none;
+  box-shadow: none;
 }
 .topbar__left {
   display: flex;
@@ -182,19 +194,23 @@ export default {
   color: #884d59;
   letter-spacing: -1rpx;
 }
+.topbar__title--guest {
+  color: #1c1b1b;
+  font-size: 40rpx;
+}
 
 .main {
-  padding: 32rpx;
+  padding: 0 48rpx 32rpx;
   display: flex;
   flex-direction: column;
-  gap: 32rpx;
+  gap: 48rpx;
 }
 
 /* Hero */
 .hero {
   position: relative;
-  border-radius: 40rpx;
-  padding: 40rpx;
+  border-radius: 32rpx;
+  padding: 48rpx;
   overflow: hidden;
   box-shadow: 0 8rpx 30rpx rgba(136, 77, 89, 0.1);
 }
@@ -229,8 +245,8 @@ export default {
   flex-shrink: 0;
 }
 .hero__avatar-guest {
-  width: 120rpx;
-  height: 120rpx;
+  width: 128rpx;
+  height: 128rpx;
   border-radius: 50%;
   background: #f7f3f2;
   border: 4rpx solid rgba(255, 255, 255, 0.3);
@@ -269,11 +285,11 @@ export default {
   align-items: center;
   gap: 8rpx;
   color: #ffffff;
-  font-size: 40rpx;
+  font-size: 38rpx;
   font-weight: 600;
 }
 .hero__tip {
-  font-size: 24rpx;
+  font-size: 26rpx;
   color: rgba(255, 255, 255, 0.8);
   margin-top: 12rpx;
 }
@@ -290,20 +306,20 @@ export default {
 }
 
 .block {
-  background: #ffffff;
-  border-radius: 40rpx;
+  background: #f7f3f2;
+  border-radius: 32rpx;
   padding: 40rpx;
   box-shadow: 0 4rpx 20rpx rgba(28, 27, 27, 0.02);
 }
 .block--list {
-  padding: 16rpx 24rpx;
+  padding: 12rpx 28rpx;
 }
 .block__head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 16rpx;
-  margin-bottom: 36rpx;
+  padding: 0 8rpx 8rpx;
+  margin-bottom: 20rpx;
 }
 .block__title {
   font-size: 32rpx;
@@ -312,7 +328,7 @@ export default {
 }
 .block__title--tight {
   display: block;
-  padding: 24rpx 16rpx;
+  padding: 22rpx 4rpx;
 }
 .block__more {
   display: flex;
@@ -326,18 +342,21 @@ export default {
 .order-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16rpx;
+  gap: 12rpx;
 }
 .og-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 16rpx;
-  border-radius: 24rpx;
+  padding: 12rpx 4rpx;
 }
 .og-icon {
   position: relative;
-  margin-bottom: 16rpx;
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  background: #e5e2e1;
+  margin-bottom: 14rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -361,13 +380,16 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 32rpx 16rpx;
-  border-radius: 16rpx;
+  padding: 30rpx 4rpx;
+  border-bottom: 2rpx solid rgba(214, 194, 196, 0.15);
+}
+.row:last-child {
+  border-bottom: none;
 }
 .row__left {
   display: flex;
   align-items: center;
-  gap: 24rpx;
+  gap: 16rpx;
 }
 .row__text {
   font-size: 28rpx;

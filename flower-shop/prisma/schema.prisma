@@ -153,6 +153,16 @@ model Order {
   // 整单折扣率（0-100），仅 priceMode=discount 时使用
   discountRate    Float?
   promotionId     Int?
+  // 预售单收货人信息（可能与下单客户不同）
+  receiverName      String?
+  receiverPhone     String?
+  // 贺卡内容（鲜花预售常见，独立于 notes 以便单独打印）
+  cardMessage       String?
+  // 订单来源/渠道标记（如 "美团闪购#5"、"抖音#12"、"店内"），打印右上角显示
+  sourceChannel     String?
+  // 预售履约提醒阶段：none | d7 | d3 | due | overdue
+  reminderStage     String?   @default("none")
+  reminderUpdatedAt DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -163,13 +173,15 @@ model Order {
 
   @@index([createdAt])
   @@index([customerId])
+  @@index([orderType, deliveryTime])
 }
 
 model OrderItem {
   id            Int     @id @default(autoincrement())
   orderId       Int
   productId     Int
-  batchId       Int
+  // 预售单创建时不绑定批次，批次在转执行阶段按 FIFO 分配
+  batchId       Int?
   unit          String
   qty           Float
   baseQty       Float
@@ -180,10 +192,12 @@ model OrderItem {
   grade         String?
   color         String?
   notes         String?
+  // 预售下单时保存的商品参考图（下单瞬间的商品图片快照，用于配送单打印）
+  imageUrl      String?
 
-  order       Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product     Product    @relation(fields: [productId], references: [id])
-  batch       StockBatch @relation(fields: [batchId], references: [id])
+  order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product     @relation(fields: [productId], references: [id])
+  batch       StockBatch? @relation(fields: [batchId], references: [id])
 }
 
 model Payment {

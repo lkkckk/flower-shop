@@ -10,6 +10,7 @@
         <icon name="search" :size="44" color="#884d59" />
       </view>
     </view>
+    <view class="topbar__divider"></view>
 
     <view class="main">
       <!-- Search Bar -->
@@ -154,8 +155,10 @@ export default {
 }
 
 .topbar {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 50;
   display: flex;
   justify-content: space-between;
@@ -164,6 +167,15 @@ export default {
   background: rgba(252, 248, 247, 0.9);
   backdrop-filter: blur(20rpx);
   box-shadow: 0 4rpx 20rpx rgba(28, 27, 27, 0.04);
+}
+.topbar__divider {
+  position: fixed;
+  top: 124rpx;
+  left: 0;
+  right: 0;
+  z-index: 49;
+  height: 10rpx;
+  background: linear-gradient(to bottom, #f7f3f2, rgba(247, 243, 242, 0));
 }
 .topbar__left {
   display: flex;
@@ -185,10 +197,10 @@ export default {
 }
 
 .main {
-  padding: 32rpx;
+  padding: 160rpx 32rpx 32rpx;
   display: flex;
   flex-direction: column;
-  gap: 48rpx;
+  gap: 64rpx;
 }
 
 /* Search */
@@ -200,7 +212,7 @@ export default {
   display: flex;
   align-items: center;
   padding: 0 24rpx;
-  height: 88rpx;
+  height: 96rpx;
 }
 .search__icon {
   margin-right: 16rpx;
@@ -252,13 +264,13 @@ export default {
   backdrop-filter: blur(10rpx);
 }
 .hero__title {
-  font-size: 56rpx;
+  font-size: 60rpx;
   font-weight: 700;
   line-height: 1.15;
   letter-spacing: -1rpx;
 }
 .hero__desc {
-  font-size: 26rpx;
+  font-size: 28rpx;
   color: rgba(255, 255, 255, 0.9);
   margin-top: 8rpx;
   margin-bottom: 24rpx;
@@ -266,7 +278,7 @@ export default {
 }
 .hero__btn {
   align-self: flex-start;
-  padding: 18rpx 48rpx;
+  padding: 16rpx 44rpx;
   border-radius: 999rpx;
   background: linear-gradient(135deg, #884d59, #f1a7b4);
   color: #ffffff;
@@ -276,14 +288,14 @@ export default {
 }
 .hero__dots {
   position: absolute;
-  right: 32rpx;
-  bottom: 32rpx;
+  right: 24rpx;
+  bottom: 24rpx;
   display: flex;
-  gap: 12rpx;
+  gap: 10rpx;
 }
 .dot {
-  width: 16rpx;
-  height: 16rpx;
+  width: 12rpx;
+  height: 12rpx;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.4);
 }
@@ -305,8 +317,8 @@ export default {
   gap: 12rpx;
 }
 .quick__circle {
-  width: 112rpx;
-  height: 112rpx;
+  width: 108rpx;
+  height: 108rpx;
   border-radius: 50%;
   background: #f7f3f2;
   display: flex;
@@ -315,7 +327,7 @@ export default {
   box-shadow: 0 2rpx 10rpx rgba(28, 27, 27, 0.03);
 }
 .quick__label {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #524345;
   font-weight: 500;
 }
@@ -328,18 +340,18 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  margin-bottom: 40rpx;
+  margin-bottom: 48rpx;
 }
 .week__title {
   display: block;
-  font-size: 44rpx;
+  font-size: 48rpx;
   font-weight: 700;
   color: #1c1b1b;
   letter-spacing: -1rpx;
 }
 .week__subtitle {
   display: block;
-  font-size: 24rpx;
+  font-size: 28rpx;
   color: #847375;
   margin-top: 8rpx;
   font-weight: 300;
@@ -349,19 +361,19 @@ export default {
   align-items: center;
   gap: 8rpx;
   color: #884d59;
-  font-size: 26rpx;
+  font-size: 24rpx;
   font-weight: 600;
 }
 
 .week__grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24rpx;
+  gap: 20rpx;
 }
 
 .bcard {
   background: #ffffff;
-  border-radius: 32rpx;
+  border-radius: 28rpx;
   overflow: hidden;
   box-shadow: 0 4rpx 20rpx rgba(28, 27, 27, 0.03);
   display: flex;
@@ -376,7 +388,7 @@ export default {
   height: 256rpx;
 }
 .bcard--wide .bcard__img {
-  width: 280rpx;
+  width: 268rpx;
   height: 256rpx;
   flex-shrink: 0;
 }
@@ -395,14 +407,14 @@ export default {
   backdrop-filter: blur(8rpx);
 }
 .bcard__body {
-  padding: 24rpx;
+  padding: 32rpx;
   display: flex;
   flex-direction: column;
   justify-content: center;
   flex: 1;
 }
 .bcard__body--sm {
-  padding: 20rpx;
+  padding: 24rpx;
 }
 .bcard__tag {
   align-self: flex-start;
@@ -415,21 +427,21 @@ export default {
   margin-bottom: 8rpx;
 }
 .bcard__title {
-  font-size: 32rpx;
+  font-size: 36rpx;
   font-weight: 700;
   color: #1c1b1b;
   line-height: 1.2;
   margin-bottom: 4rpx;
 }
 .bcard__title-sm {
-  font-size: 28rpx;
+  font-size: 32rpx;
   font-weight: 700;
   color: #1c1b1b;
   line-height: 1.2;
   margin-bottom: 4rpx;
 }
 .bcard__desc {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #847375;
   margin-bottom: 16rpx;
   overflow: hidden;
@@ -443,12 +455,12 @@ export default {
   margin-top: auto;
 }
 .bcard__price {
-  font-size: 32rpx;
+  font-size: 36rpx;
   font-weight: 700;
   color: #884d59;
 }
 .bcard__price-sm {
-  font-size: 28rpx;
+  font-size: 32rpx;
   font-weight: 700;
   color: #884d59;
 }

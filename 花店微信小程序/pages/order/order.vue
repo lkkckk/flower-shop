@@ -87,7 +87,7 @@
 
         <!-- Order 3: 已完成 -->
         <view class="order order--done">
-          <image class="order__img" :src="orders[2].img" mode="aspectFill" />
+          <image class="order__img order__img--done" :src="orders[2].img" mode="aspectFill" />
           <view class="order__body">
             <view class="order__head">
               <view>
@@ -144,17 +144,19 @@ export default {
 .page {
   min-height: 100vh;
   background: #fcf8f7;
-  padding-bottom: 40rpx;
+  padding-bottom: 56rpx;
 }
 .topbar {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 50;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 32rpx 48rpx;
-  background: rgba(252, 248, 247, 0.9);
+  background: rgba(252, 248, 247, 0.92);
   backdrop-filter: blur(20rpx);
   box-shadow: 0 4rpx 20rpx rgba(28, 27, 27, 0.04);
 }
@@ -173,17 +175,17 @@ export default {
 }
 
 .main {
-  padding: 0 32rpx 40rpx;
+  padding: 132rpx 32rpx 40rpx;
 }
 
 /* Tabs */
 .tabs {
   position: sticky;
-  top: 140rpx;
+  top: 132rpx;
   z-index: 40;
   display: flex;
   gap: 48rpx;
-  padding: 32rpx 16rpx 32rpx;
+  padding: 24rpx 32rpx 28rpx;
   background: rgba(252, 248, 247, 0.9);
   backdrop-filter: blur(16rpx);
   margin: 0 -32rpx 48rpx;
@@ -191,10 +193,11 @@ export default {
 }
 .tab {
   position: relative;
-  padding-bottom: 16rpx;
-  font-size: 28rpx;
+  padding-bottom: 14rpx;
+  font-size: 24rpx;
   color: #524345;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 1rpx;
   white-space: nowrap;
 }
 .tab--active {
@@ -205,7 +208,7 @@ export default {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 4rpx;
+  height: 3rpx;
   background: #884d59;
   border-radius: 999rpx;
 }
@@ -217,20 +220,23 @@ export default {
 }
 .order {
   background: #ffffff;
-  border-radius: 24rpx;
+  border-radius: 36rpx;
   overflow: hidden;
-  box-shadow: 0 4rpx 20rpx rgba(28, 27, 27, 0.04);
+  box-shadow: 0 6rpx 26rpx rgba(28, 27, 27, 0.05);
 }
 .order--done {
-  opacity: 0.75;
+  opacity: 0.78;
 }
 .order__img {
   width: 100%;
-  height: 300rpx;
+  height: 460rpx;
   background: #f7f3f2;
 }
+.order__img--done {
+  filter: grayscale(30%);
+}
 .order__body {
-  padding: 40rpx;
+  padding: 48rpx;
   display: flex;
   flex-direction: column;
 }
@@ -238,11 +244,11 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 32rpx;
+  margin-bottom: 28rpx;
 }
 .order__no {
   display: block;
-  font-size: 22rpx;
+  font-size: 20rpx;
   font-weight: 500;
   color: #524345;
   letter-spacing: 2rpx;
@@ -251,7 +257,7 @@ export default {
 }
 .order__date {
   display: block;
-  font-size: 22rpx;
+  font-size: 20rpx;
   color: #847375;
   font-weight: 500;
   letter-spacing: 1rpx;
@@ -261,20 +267,20 @@ export default {
 }
 .order__title {
   display: block;
-  font-size: 40rpx;
+  font-size: 48rpx;
   font-weight: 600;
   color: #1c1b1b;
   margin-bottom: 12rpx;
 }
 .order__desc {
   display: block;
-  font-size: 28rpx;
+  font-size: 32rpx;
   color: #524345;
   line-height: 1.6;
 }
 .order__qty {
   display: block;
-  font-size: 28rpx;
+  font-size: 30rpx;
   color: #1c1b1b;
   margin-top: 8rpx;
 }
@@ -287,7 +293,7 @@ export default {
 }
 .order__label {
   display: block;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #524345;
   letter-spacing: 2rpx;
   text-transform: uppercase;
@@ -295,7 +301,7 @@ export default {
 }
 .order__total {
   display: block;
-  font-size: 28rpx;
+  font-size: 30rpx;
   font-weight: 500;
   color: #1c1b1b;
 }
@@ -306,9 +312,9 @@ export default {
 
 /* Badges */
 .badge {
-  padding: 8rpx 24rpx;
+  padding: 8rpx 22rpx;
   border-radius: 4rpx;
-  font-size: 22rpx;
+  font-size: 20rpx;
   font-weight: 700;
   letter-spacing: 1rpx;
 }
@@ -327,9 +333,9 @@ export default {
 
 /* Buttons */
 .btn {
-  padding: 14rpx 32rpx;
+  padding: 14rpx 30rpx;
   border-radius: 999rpx;
-  font-size: 26rpx;
+  font-size: 24rpx;
   font-weight: 500;
   text-align: center;
 }

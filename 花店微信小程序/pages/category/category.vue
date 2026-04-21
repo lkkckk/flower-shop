@@ -10,6 +10,7 @@
         <icon name="menu" :size="40" color="#847375" />
       </view>
     </view>
+    <view class="topbar__divider"></view>
 
     <view class="layout">
       <!-- Sidebar -->
@@ -153,8 +154,10 @@ export default {
   flex-direction: column;
 }
 .topbar {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 50;
   display: flex;
   justify-content: space-between;
@@ -163,6 +166,15 @@ export default {
   background: rgba(252, 248, 247, 0.9);
   backdrop-filter: blur(20rpx);
   box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.03);
+}
+.topbar__divider {
+  position: fixed;
+  top: 124rpx;
+  left: 0;
+  right: 0;
+  z-index: 49;
+  height: 10rpx;
+  background: linear-gradient(to bottom, #f7f3f2, rgba(247, 243, 242, 0));
 }
 .topbar__left {
   display: flex;
@@ -180,14 +192,15 @@ export default {
 .layout {
   flex: 1;
   display: flex;
-  height: calc(100vh - 120rpx);
+  height: 100vh;
+  padding-top: 132rpx;
 }
 
 .sidebar {
   width: 160rpx;
   background: #f7f3f2;
   height: 100%;
-  border-top-right-radius: 24rpx;
+  border-top-right-radius: 20rpx;
 }
 
 .sbitem {
@@ -196,7 +209,7 @@ export default {
   flex-direction: column;
   align-items: center;
   gap: 8rpx;
-  padding: 28rpx 12rpx;
+  padding: 24rpx 10rpx;
 }
 .sbitem--active {
   color: #884d59;
@@ -211,8 +224,8 @@ export default {
   background: linear-gradient(to bottom, #884d59, #f1a7b4);
 }
 .sbitem__icon {
-  width: 72rpx;
-  height: 72rpx;
+  width: 64rpx;
+  height: 64rpx;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -223,7 +236,7 @@ export default {
   box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
 }
 .sbitem__text {
-  font-size: 22rpx;
+  font-size: 20rpx;
   color: #524345;
 }
 .sbitem__text--active {
@@ -237,11 +250,11 @@ export default {
   height: 100%;
 }
 .content__head {
-  margin-bottom: 40rpx;
+  margin-bottom: 32rpx;
 }
 .content__title {
   display: block;
-  font-size: 44rpx;
+  font-size: 48rpx;
   font-weight: 700;
   color: #1c1b1b;
   letter-spacing: -1rpx;
@@ -277,10 +290,10 @@ export default {
 .pcard__img {
   width: 100%;
   aspect-ratio: 1 / 1;
-  height: 300rpx;
+  height: 280rpx;
 }
 .pcard--hero .pcard__img {
-  height: 440rpx;
+  height: 460rpx;
 }
 .pcard__badge {
   position: absolute;
@@ -296,7 +309,7 @@ export default {
   backdrop-filter: blur(10rpx);
 }
 .pcard__body {
-  padding: 28rpx;
+  padding: 32rpx;
   background: #f7f3f2;
   flex: 1;
   display: flex;
@@ -305,9 +318,9 @@ export default {
 }
 .pcard__body--hero {
   background: #f7f3f2;
-  padding: 32rpx;
-  margin: -40rpx 28rpx 28rpx 28rpx;
-  border-radius: 16rpx;
+  padding: 40rpx;
+  margin: -64rpx 32rpx 32rpx 32rpx;
+  border-radius: 24rpx;
   box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.03);
   position: relative;
   z-index: 2;
@@ -319,26 +332,26 @@ export default {
   margin-bottom: 12rpx;
 }
 .pcard__title {
-  font-size: 28rpx;
+  font-size: 32rpx;
   font-weight: 700;
   color: #1c1b1b;
   margin-bottom: 8rpx;
   line-height: 1.2;
 }
 .pcard__title-hero {
-  font-size: 32rpx;
+  font-size: 36rpx;
   font-weight: 700;
   color: #1c1b1b;
   flex: 1;
   padding-right: 16rpx;
 }
 .pcard__price-hero {
-  font-size: 32rpx;
+  font-size: 36rpx;
   font-weight: 700;
   color: #884d59;
 }
 .pcard__desc {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #524345;
   line-height: 1.5;
   overflow: hidden;
@@ -357,11 +370,11 @@ export default {
   padding: 4rpx 16rpx;
   background: #caebcc;
   color: #49654d;
-  font-size: 20rpx;
+  font-size: 22rpx;
   border-radius: 4rpx;
 }
 .pcard__price {
-  font-size: 28rpx;
+  font-size: 30rpx;
   font-weight: 700;
   color: #884d59;
 }
@@ -385,6 +398,6 @@ export default {
   text-align: center;
   color: #524345;
   font-size: 24rpx;
-  margin: 60rpx 0 40rpx;
+  margin: 96rpx 0 64rpx;
 }
 </style>

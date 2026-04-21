@@ -1,4 +1,5 @@
 import { prisma } from '../../utils/prisma'
+import { allocateAndDeduct, type AllocationItem } from '../../utils/stockAllocator'
 import { computeOrder, type PriceMode } from '../../../shared/priceMode'
 
 /**
@@ -151,66 +152,18 @@ export default defineEventHandler(async (event) => {
         },
       })
 
-      // === 6. 扣库存 + 写 OrderItem + 写 StockMovement ===
-      for (let idx = 0; idx < cart.items.length; idx++) {
-        const item = cart.items[idx]
-        const authoritativeUnitPrice = priceResult.lineUnitPrices[idx]
-        const authoritativeLineSubtotal = priceResult.lineSubtotals[idx]
-        const originalPrice = (productMap.get(Number(item.productId))?.defaultPrice) ?? null
-
-        let remainingQtyToDeduct = Number(item.baseQty)
-        const itemTotalQty = remainingQtyToDeduct
-
-        const batches = await tx.stockBatch.findMany({
-          where: { productId: item.productId, status: 'in_stock', currentQty: { gt: 0 } },
-          orderBy: { inboundDate: 'asc' },
-        })
-
-        for (const batch of batches) {
-          if (remainingQtyToDeduct <= 0) break
-          const qtyFromThisBatch = Math.min(batch.currentQty, remainingQtyToDeduct)
-          remainingQtyToDeduct -= qtyFromThisBatch
-
-          const newQty = batch.currentQty - qtyFromThisBatch
-          await tx.stockBatch.update({
-            where: { id: batch.id },
-            data: {
-              currentQty: newQty,
-              status: newQty <= 0 ? 'sold_out' : 'in_stock',
-            },
-          })
-          await tx.stockMovement.create({
-            data: {
-              batchId: batch.id,
-              type: 'sale',
-              qtyChange: -qtyFromThisBatch,
-              relatedOrderId: order.id,
-              operator: 'system',
-            },
-          })
-
-          const proportion = qtyFromThisBatch / itemTotalQty
-          await tx.orderItem.create({
-            data: {
-              orderId: order.id,
-              productId: item.productId,
-              batchId: batch.id,
-              unit: item.unit,
-              qty: Number(item.qty) * proportion,
-              baseQty: qtyFromThisBatch,
-              unitPrice: authoritativeUnitPrice,
-              originalPrice,
-              subtotal: authoritativeLineSubtotal * proportion,
-            },
-          })
-        }
-
-        if (remainingQtyToDeduct > 0) {
-          throw new Error(
-            `商品【${item.productName || item.productId}】剩余可用库存不足（还缺 ${remainingQtyToDeduct} 基础单位）`,
-          )
-        }
-      }
+      // === 6. 扣库存 + 写 OrderItem + 写 StockMovement（统一走 stockAllocator） ===
+      const allocInputs: AllocationItem[] = cart.items.map((item: any, idx: number) => ({
+        productId: Number(item.productId),
+        unit: item.unit,
+        qty: Number(item.qty),
+        baseQty: Number(item.baseQty),
+        unitPrice: priceResult.lineUnitPrices[idx],
+        subtotal: priceResult.lineSubtotals[idx],
+        originalPrice: productMap.get(Number(item.productId))?.defaultPrice ?? null,
+        productName: item.productName,
+      }))
+      await allocateAndDeduct(tx, order.id, allocInputs, 'system')
 
       // === 7. 客户余额/欠款/积分 ===
       if (cart.customerId) {

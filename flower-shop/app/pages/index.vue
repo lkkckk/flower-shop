@@ -79,6 +79,46 @@
       </a-col>
     </a-row>
 
+    <!-- 即将履约预售 -->
+    <a-card v-if="upcomingPreorders.length > 0" class="page-card">
+      <template #title>
+        <span>即将履约预售单</span>
+        <a-tag color="orange" class="ml-2">{{ upcomingPreorders.length }}</a-tag>
+      </template>
+      <template #extra>
+        <a-button type="link" size="small" @click="router.push('/preorders')">查看全部</a-button>
+      </template>
+      <a-list :data-source="upcomingPreorders.slice(0, 6)" item-layout="horizontal">
+        <template #renderItem="{ item }">
+          <a-list-item @click="router.push(`/preorders/${item.id}`)" class="cursor-pointer hover:bg-pink-50">
+            <a-list-item-meta>
+              <template #title>
+                <span class="font-mono text-xs text-gray-500">{{ item.orderNo }}</span>
+                <span class="ml-2 font-medium">{{ item.receiverName || item.customer?.name || '散客' }}</span>
+                <a-tag
+                  v-if="item.reminderStage && item.reminderStage !== 'none'"
+                  :color="reminderColor(item.reminderStage)"
+                  class="ml-2"
+                >
+                  {{ reminderLabel(item.reminderStage) }}
+                </a-tag>
+              </template>
+              <template #description>
+                {{ formatDeliveryTime(item.deliveryTime) }}
+                <span v-if="item.daysUntil != null" class="ml-2 text-gray-500">
+                  · {{ item.daysUntil < 0 ? `已逾期 ${-item.daysUntil} 天` : item.daysUntil === 0 ? '今日' : `还剩 ${item.daysUntil} 天` }}
+                </span>
+              </template>
+            </a-list-item-meta>
+            <div class="text-right">
+              <div class="font-bold text-pink-600">¥{{ Number(item.totalAmount).toFixed(2) }}</div>
+              <div class="text-xs text-gray-400">{{ statusLabel(item.status) }}</div>
+            </div>
+          </a-list-item>
+        </template>
+      </a-list>
+    </a-card>
+
     <!-- 主内容区 -->
     <a-row :gutter="[16, 16]">
       <!-- 今日订单 -->
@@ -208,12 +248,16 @@ import {
 } from '@ant-design/icons-vue'
 import { useStocks } from '~/composables/useStocks'
 import { useReports } from '~/composables/useReports'
+import { usePreorders } from '~/composables/usePreorders'
+import { PREORDER_STATUS_LABEL } from '../../shared/preorderStatus'
+import { REMINDER_STAGE_LABEL, REMINDER_STAGE_COLOR } from '../../shared/preorderReminder'
 
 useHead({ title: '首页 - 花店管理系统' })
 
 const router = useRouter()
 const { fetchExpiring, loading } = useStocks()
 const { fetchDashboard } = useReports()
+const { fetchUpcoming } = usePreorders()
 
 const now = dayjs()
 const todayStr = now.format('YYYY 年 MM 月 DD 日 dddd')
@@ -231,6 +275,12 @@ const expiring = ref<any[]>([])
 const expired = ref<any[]>([])
 const todayOrders = ref<any[]>([])
 const ordersLoading = ref(false)
+const upcomingPreorders = ref<any[]>([])
+
+const formatDeliveryTime = (d: any) => dayjs(d).format('YYYY-MM-DD HH:mm')
+const reminderColor = (s: string) => REMINDER_STAGE_COLOR[s as keyof typeof REMINDER_STAGE_COLOR] || 'default'
+const reminderLabel = (s: string) => REMINDER_STAGE_LABEL[s as keyof typeof REMINDER_STAGE_LABEL] || ''
+const statusLabel = (s: string) => PREORDER_STATUS_LABEL[s as keyof typeof PREORDER_STATUS_LABEL] || s
 
 const todaySummary = ref({
   totalSales: 0,
@@ -325,10 +375,15 @@ const loadTodayOrders = async () => {
 
 const { checkLowStock } = useLowStockAlert()
 
+const loadUpcomingPreorders = async () => {
+  upcomingPreorders.value = await fetchUpcoming(7)
+}
+
 onMounted(() => {
   loadExpiring()
   loadTodayDashboard()
   loadTodayOrders()
+  loadUpcomingPreorders()
   // 后台首页打开时提醒低库存（同会话仅一次）
   checkLowStock({ target: '/stocks/stocktake' })
 })

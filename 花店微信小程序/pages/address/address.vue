@@ -2,49 +2,66 @@
   <view class="page">
     <view class="topbar">
       <view class="topbar__btn" @click="goBack">
-        <icon name="arrow_back_ios_new" :size="36" color="#1c1b1b" />
+        <icon name="arrow_back_ios_new" :size="32" color="#884d59" />
       </view>
-      <text class="topbar__title">收货地址</text>
+      <text class="topbar__title">植物诗意</text>
       <view class="topbar__btn"></view>
     </view>
+    <view class="topbar__divider"></view>
 
     <view class="main">
-      <view
-        v-for="(a, i) in addresses"
-        :key="i"
-        class="addr"
-        :class="{ 'addr--default': a.isDefault }"
-      >
-        <view class="addr__head">
-          <view class="addr__name-row">
-            <text class="addr__name">{{ a.name }}</text>
-            <text class="addr__phone">{{ a.phone }}</text>
-            <view v-if="a.isDefault" class="addr__tag">默认</view>
+      <view class="head">
+        <text class="head__title">收货地址</text>
+        <text class="head__desc">管理您的配送信息</text>
+      </view>
+
+      <view class="list">
+        <view
+          v-for="(a, i) in addresses"
+          :key="i"
+          class="card"
+          :class="{ 'card--default': a.isDefault }"
+        >
+          <view class="card__decor" v-if="a.isDefault"></view>
+          <view class="card__head">
+            <view class="card__identity">
+              <text class="card__name">{{ a.name }}</text>
+              <text v-if="a.isDefault" class="tag tag--default">默认</text>
+              <text class="tag tag--type">{{ a.type }}</text>
+            </view>
+            <text class="card__phone">{{ a.phone }}</text>
           </view>
-          <view class="addr__actions">
-            <view class="addr__action" @click="edit(i)">
-              <icon name="edit" :size="28" color="#884d59" />
+
+          <text class="card__detail">{{ a.detailLine1 }}</text>
+          <text class="card__detail">{{ a.detailLine2 }}</text>
+
+          <view class="card__foot">
+            <view class="switch-row" @click="setDefault(i)">
+              <view class="switch" :class="{ 'switch--on': a.isDefault }">
+                <view class="switch__dot"></view>
+              </view>
+              <text :class="{ 'switch-row__on': a.isDefault }">
+                {{ a.isDefault ? '默认地址' : '设为默认' }}
+              </text>
             </view>
-            <view class="addr__action" @click="remove(i)">
-              <icon name="delete" :size="28" color="#884d59" />
+            <view class="actions">
+              <view class="action" @click="edit(i)">
+                <icon name="edit" :size="18" color="#524345" />
+                <text>编辑</text>
+              </view>
+              <view class="action action--danger" @click="remove(i)">
+                <icon name="delete" :size="18" color="#ba1a1a" />
+                <text>删除</text>
+              </view>
             </view>
-          </view>
-        </view>
-        <text class="addr__detail">{{ a.detail }}</text>
-        <view class="addr__foot">
-          <view class="addr__radio" @click="setDefault(i)">
-            <view class="radio" :class="{ 'radio--on': a.isDefault }">
-              <view v-if="a.isDefault" class="radio__dot"></view>
-            </view>
-            <text>设为默认地址</text>
           </view>
         </view>
       </view>
     </view>
 
-    <view class="addbar">
-      <view class="addbtn" @click="add">
-        <icon name="add" :size="36" color="#ffffff" />
+    <view class="add-wrap">
+      <view class="add-btn" @click="add">
+        <icon name="add" :size="20" color="#ffffff" />
         <text>新增收货地址</text>
       </view>
     </view>
@@ -53,21 +70,26 @@
 
 <script>
 import Icon from '@/components/icon/icon.vue'
+
 export default {
   components: { Icon },
   data() {
     return {
       addresses: [
         {
-          name: '张小花',
-          phone: '188****8888',
-          detail: '上海市徐汇区虹漕路 88 弄 8 号楼 808 室',
+          name: '林语夕',
+          phone: '138****5678',
+          type: '家',
+          detailLine1: '上海市静安区南京西路 1266 号',
+          detailLine2: '恒隆广场 1 座 66 层',
           isDefault: true
         },
         {
-          name: '李花匠',
+          name: '张爱玲',
           phone: '139****1234',
-          detail: '上海市静安区南京西路 1788 号恒隆广场 B 座 20F',
+          type: '公司',
+          detailLine1: '北京市朝阳区建国路 87 号',
+          detailLine2: '北京 SKP 8 层',
           isDefault: false
         }
       ]
@@ -76,7 +98,9 @@ export default {
   methods: {
     goBack() { uni.navigateBack() },
     setDefault(i) {
-      this.addresses.forEach((a, idx) => { a.isDefault = idx === i })
+      this.addresses.forEach((address, index) => {
+        address.isDefault = index === i
+      })
     },
     edit() { uni.showToast({ title: '编辑地址', icon: 'none' }) },
     remove() { uni.showToast({ title: '删除地址', icon: 'none' }) },
@@ -89,8 +113,9 @@ export default {
 .page {
   min-height: 100vh;
   background: #fcf8f7;
-  padding-bottom: 200rpx;
+  padding-bottom: 180rpx;
 }
+
 .topbar {
   position: sticky;
   top: 0;
@@ -98,8 +123,8 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 32rpx;
-  background: rgba(252, 248, 247, 0.9);
+  padding: 28rpx 32rpx;
+  background: rgba(252, 248, 247, 0.88);
   backdrop-filter: blur(20rpx);
 }
 .topbar__btn {
@@ -111,124 +136,182 @@ export default {
 }
 .topbar__title {
   font-size: 34rpx;
+  color: #884d59;
   font-weight: 700;
-  color: #1c1b1b;
+  letter-spacing: -0.6rpx;
 }
+.topbar__divider {
+  height: 10rpx;
+  background: linear-gradient(to bottom, #f7f3f2, rgba(247, 243, 242, 0));
+}
+
 .main {
   padding: 24rpx 32rpx;
+}
+.head {
+  margin-bottom: 20rpx;
+}
+.head__title {
+  display: block;
+  font-size: 48rpx;
+  font-weight: 700;
+  color: #884d59;
+  letter-spacing: -1rpx;
+}
+.head__desc {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 26rpx;
+  color: #524345;
+}
+
+.list {
   display: flex;
   flex-direction: column;
   gap: 24rpx;
 }
-.addr {
-  background: #ffffff;
+.card {
+  position: relative;
+  overflow: hidden;
+  background: #f7f3f2;
   border-radius: 32rpx;
-  padding: 32rpx;
-  box-shadow: 0 4rpx 20rpx rgba(28, 27, 27, 0.04);
-  border: 2rpx solid transparent;
+  padding: 40rpx;
 }
-.addr--default {
-  background: linear-gradient(135deg, #ffd9de 0%, #f7f3f2 100%);
-  border-color: #f1a7b4;
+.card--default {
+  background: #ffffff;
+  box-shadow: 0 8rpx 24rpx rgba(136, 77, 89, 0.08);
 }
-.addr__head {
+.card__decor {
+  position: absolute;
+  top: -26rpx;
+  right: -20rpx;
+  width: 180rpx;
+  height: 180rpx;
+  border-radius: 50%;
+  background: rgba(136, 77, 89, 0.06);
+}
+.card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 14rpx;
+  position: relative;
+}
+.card__identity {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  flex-wrap: wrap;
+}
+.card__name {
+  font-size: 34rpx;
+  color: #1c1b1b;
+  font-weight: 700;
+}
+.tag {
+  padding: 4rpx 14rpx;
+  border-radius: 8rpx;
+  font-size: 20rpx;
+  letter-spacing: 2rpx;
+}
+.tag--default {
+  background: rgba(136, 77, 89, 0.12);
+  color: #884d59;
+}
+.tag--type {
+  background: #e5e2e1;
+  color: #524345;
+}
+.card__phone {
+  font-size: 26rpx;
+  color: #524345;
+}
+.card__detail {
+  display: block;
+  font-size: 26rpx;
+  line-height: 1.6;
+  color: #524345;
+}
+.card__foot {
+  margin-top: 18rpx;
+  padding-top: 18rpx;
+  border-top: 2rpx solid rgba(214, 194, 196, 0.22);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16rpx;
+  gap: 12rpx;
 }
-.addr__name-row {
+
+.switch-row {
   display: flex;
   align-items: center;
-  gap: 16rpx;
+  gap: 10rpx;
+  font-size: 24rpx;
+  color: #847375;
 }
-.addr__name {
-  font-size: 32rpx;
-  font-weight: 700;
-  color: #1c1b1b;
+.switch-row__on {
+  color: #884d59;
+  font-weight: 600;
 }
-.addr__phone {
-  font-size: 26rpx;
-  color: #524345;
+.switch {
+  width: 68rpx;
+  height: 38rpx;
+  border-radius: 999rpx;
+  background: #d6c2c4;
+  padding: 4rpx;
+  display: flex;
+  align-items: center;
+  transition: all 0.25s ease;
 }
-.addr__tag {
-  padding: 4rpx 14rpx;
+.switch--on {
   background: #884d59;
-  color: #ffffff;
-  font-size: 20rpx;
-  border-radius: 8rpx;
-  font-weight: 500;
 }
-.addr__actions {
+.switch__dot {
+  width: 30rpx;
+  height: 30rpx;
+  border-radius: 50%;
+  background: #ffffff;
+  transition: transform 0.25s ease;
+}
+.switch--on .switch__dot {
+  transform: translateX(30rpx);
+}
+
+.actions {
   display: flex;
   gap: 20rpx;
 }
-.addr__action {
-  width: 56rpx;
-  height: 56rpx;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.6);
+.action {
   display: flex;
   align-items: center;
-  justify-content: center;
-}
-.addr__detail {
-  display: block;
-  font-size: 26rpx;
-  color: #524345;
-  line-height: 1.7;
-  margin-bottom: 24rpx;
-}
-.addr__foot {
-  padding-top: 20rpx;
-  border-top: 2rpx solid rgba(214, 194, 196, 0.3);
-}
-.addr__radio {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
+  gap: 6rpx;
   font-size: 24rpx;
   color: #524345;
 }
-.radio {
-  width: 32rpx;
-  height: 32rpx;
-  border-radius: 50%;
-  border: 3rpx solid #d6c2c4;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.action--danger {
+  color: #ba1a1a;
 }
-.radio--on {
-  border-color: #884d59;
-}
-.radio__dot {
-  width: 16rpx;
-  height: 16rpx;
-  border-radius: 50%;
-  background: #884d59;
-}
-.addbar {
+
+.add-wrap {
   position: fixed;
-  bottom: 0;
   left: 0;
   right: 0;
-  z-index: 40;
+  bottom: 0;
+  z-index: 60;
   padding: 24rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
-  background: rgba(252, 248, 247, 0.9);
-  backdrop-filter: blur(20rpx);
+  background: linear-gradient(to top, #fcf8f7, rgba(252, 248, 247, 0.86), rgba(252, 248, 247, 0));
 }
-.addbtn {
+.add-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12rpx;
-  padding: 28rpx 0;
+  gap: 10rpx;
   border-radius: 999rpx;
   background: linear-gradient(135deg, #884d59, #f1a7b4);
   color: #ffffff;
-  font-size: 28rpx;
+  font-size: 30rpx;
   font-weight: 600;
-  box-shadow: 0 8rpx 20rpx rgba(136, 77, 89, 0.3);
+  padding: 32rpx 0;
+  box-shadow: 0 8rpx 26rpx rgba(136, 77, 89, 0.22);
 }
 </style>
