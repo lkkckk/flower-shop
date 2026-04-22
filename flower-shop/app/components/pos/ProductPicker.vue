@@ -14,7 +14,7 @@
 
     <div class="flex flex-1 overflow-hidden pt-2">
       <!-- 左侧分类（动态三级） -->
-      <div class="w-36 bg-transparent overflow-y-auto px-2">
+      <div class="w-48 md:w-52 lg:w-56 shrink-0 bg-transparent overflow-y-auto px-2">
         <a-menu
           v-model:selectedKeys="selectedCategories"
           v-model:openKeys="openCategoryKeys"
@@ -45,7 +45,7 @@
       </div>
 
       <!-- 右侧商品列表 -->
-      <div class="flex-1 overflow-y-auto px-4 pb-4">
+      <div class="flex-1 min-w-0 overflow-auto px-4 pb-4">
         <a-table
           :columns="columns"
           :data-source="filteredProducts"
@@ -53,6 +53,7 @@
           row-key="id"
           size="small"
           :pagination="false"
+          :scroll="{ x: 480 }"
           :customRow="customRow"
           class="cursor-pointer"
         >
