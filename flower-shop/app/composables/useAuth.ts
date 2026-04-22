@@ -29,7 +29,10 @@ export const useAuth = () => {
 
   const isLoggedIn = computed(() => !!token.value && !!user.value)
   const isCashier = computed(() => user.value?.role === 'cashier')
+  // isAdmin：admin 或 staff 均有管理后台访问权（注意：user management 等敏感操作另用 isStrictAdmin）
   const isAdmin = computed(() => user.value?.role === 'admin' || user.value?.role === 'staff')
+  // isStrictAdmin：仅限 admin 角色，用于用户管理、高级设置
+  const isStrictAdmin = computed(() => user.value?.role === 'admin')
 
   const login = async (
     username: string,
@@ -94,6 +97,7 @@ export const useAuth = () => {
     isLoggedIn,
     isCashier,
     isAdmin,
+    isStrictAdmin,
     login,
     logout,
     fetchMe,

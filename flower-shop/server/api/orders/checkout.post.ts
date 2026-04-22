@@ -37,7 +37,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const priceMode: PriceMode = (
-    ['retail', 'vip', 'wholesale', 'discount', 'promotion'].includes(cart.priceMode)
+    ['retail', 'discount', 'promotion'].includes(cart.priceMode)
       ? cart.priceMode
       : 'retail'
   ) as PriceMode
@@ -62,8 +62,6 @@ export default defineEventHandler(async (event) => {
           id: true,
           name: true,
           defaultPrice: true,
-          vipPrice: true,
-          wholesalePrice: true,
           baseUnit: true,
           unitConversions: { select: { fromUnit: true, toBaseQty: true } },
         },
@@ -92,11 +90,7 @@ export default defineEventHandler(async (event) => {
           if (conv) toBaseQty = conv.toBaseQty
         }
         return {
-          basis: {
-            defaultPrice: p.defaultPrice,
-            vipPrice: p.vipPrice,
-            wholesalePrice: p.wholesalePrice,
-          },
+          basis: { defaultPrice: p.defaultPrice },
           qty: Number(it.qty),
           toBaseQty,
         }
@@ -128,18 +122,35 @@ export default defineEventHandler(async (event) => {
       })
       const orderNo = `O${dateStr}${(orderCount + 1).toString().padStart(4, '0')}`
 
-      // === 4. 订单状态 ===
-      let status = 'pending'
-      if (payment.paidAmount >= totalAmount && totalAmount > 0) status = 'paid'
-      else if (payment.paidAmount > 0) status = 'partial'
-      if (payment.method === 'credit' || payment.owedAmount === totalAmount) status = 'unpaid'
-      if (payment.paidAmount >= totalAmount) status = 'paid'
+      // === 4. balance 支付：校验余额 ===
+      if (payment.method === 'balance') {
+        if (!cart.customerId) throw new Error('扣预存需要选择客户')
+        const customer = await tx.customer.findUnique({ where: { id: cart.customerId } })
+        if (!customer || customer.balance <= 0) throw new Error('客户预存余额不足')
+        if (customer.balance < payment.paidAmount) throw new Error('预存余额不足以支付全额')
+      }
 
-      // === 5. 创建主订单 ===
+      // === 5. 订单状态 ===
+      let status = 'pending'
+      if (payment.method === 'credit') {
+        status = 'unpaid'
+      } else if (payment.paidAmount >= totalAmount && totalAmount > 0) {
+        status = 'paid'
+      } else if (payment.paidAmount > 0) {
+        status = 'partial'
+      }
+
+      // 收银员 ID（前端传入，或 fallback 到当前登录用户）
+      const currentUser = event.context.user
+      const cashierId: number | null = body.cashierId
+        ? Number(body.cashierId)
+        : (currentUser?.sub ? Number(currentUser.sub) : null)
+
+      // === 6. 创建主订单 ===
       const order = await tx.order.create({
         data: {
           orderNo,
-          orderType: priceMode === 'wholesale' ? 'wholesale' : 'retail',
+          orderType: 'retail',
           customerId: cart.customerId || null,
           totalAmount,
           paidAmount: payment.paidAmount,
@@ -149,10 +160,11 @@ export default defineEventHandler(async (event) => {
           priceMode,
           discountRate: priceMode === 'discount' ? discountRate ?? null : null,
           promotionId: promotion?.id ?? null,
+          cashierId,
         },
       })
 
-      // === 6. 扣库存 + 写 OrderItem + 写 StockMovement（统一走 stockAllocator） ===
+      // === 7. 扣库存 + 写 OrderItem + 写 StockMovement（统一走 stockAllocator） ===
       const allocInputs: AllocationItem[] = cart.items.map((item: any, idx: number) => ({
         productId: Number(item.productId),
         unit: item.unit,
@@ -165,9 +177,13 @@ export default defineEventHandler(async (event) => {
       }))
       await allocateAndDeduct(tx, order.id, allocInputs, 'system')
 
-      // === 7. 客户余额/欠款/积分 ===
+      // === 8. 客户余额/欠款/积分 ===
       if (cart.customerId) {
         const customerUpdate: any = {}
+        if (payment.method === 'balance' && payment.paidAmount > 0) {
+          // 扣预存：balance 直接减去已付金额
+          customerUpdate.balance = { decrement: payment.paidAmount }
+        }
         if (payment.owedAmount > 0) {
           customerUpdate.balance = { decrement: payment.owedAmount }
           customerUpdate.totalOwed = { increment: payment.owedAmount }
@@ -179,7 +195,7 @@ export default defineEventHandler(async (event) => {
         }
       }
 
-      // === 8. 收款流水 ===
+      // === 9. 收款流水 ===
       if (payment.paidAmount > 0) {
         await tx.payment.create({
           data: {

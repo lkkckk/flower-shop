@@ -211,6 +211,86 @@
         </a-col>
       </a-row>
 
+      <!-- 收银员明细（仅 admin） -->
+      <a-card v-if="isStrictAdmin" title="收银员收款明细" class="page-card">
+        <a-spin :spinning="cashierLoading">
+          <a-empty v-if="!cashierStats.length" description="暂无收银记录" />
+          <a-table
+            v-else
+            :columns="cashierColumns"
+            :data-source="cashierStats"
+            :pagination="false"
+            row-key="cashierId"
+            size="small"
+          />
+        </a-spin>
+      </a-card>
+
+      <!-- 欠款客户 -->
+      <a-card class="page-card">
+        <template #title>
+          <span>欠款客户列表</span>
+          <a-tag color="red" class="ml-2" v-if="debtors.length">{{ debtors.length }} 人</a-tag>
+        </template>
+        <a-spin :spinning="debtorLoading">
+          <a-empty v-if="!debtors.length" description="暂无欠款客户" />
+          <a-table
+            v-else
+            :columns="debtorColumns"
+            :data-source="debtors"
+            :pagination="false"
+            row-key="id"
+            size="small"
+            :expand-row-by-click="true"
+          >
+            <template #expandedRowRender="{ record }">
+              <div class="pl-4 pr-2 py-2">
+                <div class="font-medium text-gray-600 mb-2">欠款订单明细</div>
+                <a-table
+                  :columns="debtorOrderColumns"
+                  :data-source="record.orders"
+                  :pagination="false"
+                  row-key="id"
+                  size="small"
+                >
+                  <template #bodyCell="{ column, record: order }">
+                    <template v-if="column.key === 'createdAt'">
+                      {{ formatDate(order.createdAt) }}
+                    </template>
+                    <template v-else-if="column.key === 'totalAmount'">
+                      ¥{{ Number(order.totalAmount).toFixed(2) }}
+                    </template>
+                    <template v-else-if="column.key === 'paidAmount'">
+                      ¥{{ Number(order.paidAmount).toFixed(2) }}
+                    </template>
+                    <template v-else-if="column.key === 'owedAmount'">
+                      <span class="text-red-600 font-bold">¥{{ Number(order.owedAmount).toFixed(2) }}</span>
+                    </template>
+                    <template v-else-if="column.key === 'lastPayment'">
+                      <span v-if="order.payments?.length">
+                        ¥{{ Number(order.payments[0].amount).toFixed(2) }}
+                        ({{ formatDate(order.payments[0].createdAt) }})
+                      </span>
+                      <span v-else class="text-gray-400">无收款</span>
+                    </template>
+                  </template>
+                </a-table>
+              </div>
+            </template>
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'totalOwed'">
+                <span class="text-red-600 font-bold">¥{{ Number(record.totalOwed).toFixed(2) }}</span>
+              </template>
+              <template v-else-if="column.key === 'balance'">
+                <span :class="record.balance >= 0 ? 'text-green-600' : 'text-red-500'">
+                  ¥{{ Number(record.balance).toFixed(2) }}
+                </span>
+              </template>
+            </template>
+          </a-table>
+        </a-spin>
+      </a-card>
+
       <!-- 滞销商品 -->
       <a-card title="滞销商品（近 7 天 < 5 单且仍有库存）" class="page-card">
         <a-empty v-if="!data?.slowProducts?.length" description="暂无滞销商品" />
@@ -261,7 +341,68 @@ import { paymentMethodText, formatDate } from '~/composables/useStatement'
 
 useHead({ title: '经营报表 - 花店管理系统' })
 
+const { isStrictAdmin } = useAuth()
 const { fetchDashboard, loading } = useReports()
+
+// 欠款客户
+const debtors = ref<any[]>([])
+const debtorLoading = ref(false)
+
+const debtorColumns = [
+  { title: '客户', dataIndex: 'name', key: 'name', width: 120 },
+  { title: '电话', dataIndex: 'phone', key: 'phone', width: 130 },
+  { title: '累计欠款', key: 'totalOwed', width: 120 },
+  { title: '当前余额', key: 'balance', width: 120 },
+  { title: '欠款订单数', key: 'orderCount', width: 100, customRender: ({ record }: any) => record.orders?.length || 0 },
+]
+
+const debtorOrderColumns = [
+  { title: '订单号', dataIndex: 'orderNo', key: 'orderNo', width: 160 },
+  { title: '下单时间', key: 'createdAt', width: 120 },
+  { title: '应收', key: 'totalAmount', width: 100 },
+  { title: '已付', key: 'paidAmount', width: 100 },
+  { title: '欠款', key: 'owedAmount', width: 100 },
+  { title: '最近收款', key: 'lastPayment', width: 160 },
+]
+
+const loadDebtors = async () => {
+  debtorLoading.value = true
+  try {
+    const res: any = await $fetch('/api/reports/debtors')
+    debtors.value = res.data || []
+  } catch {
+    debtors.value = []
+  } finally {
+    debtorLoading.value = false
+  }
+}
+
+// 收银员明细（admin only）
+const cashierStats = ref<any[]>([])
+const cashierLoading = ref(false)
+const cashierColumns = [
+  { title: '收银员', dataIndex: 'cashierName', key: 'cashierName', width: 120 },
+  { title: '账号', dataIndex: 'cashierUsername', key: 'cashierUsername', width: 100 },
+  { title: '订单数', dataIndex: 'orderCount', key: 'orderCount', width: 90 },
+  { title: '销售总额', key: 'totalSales', width: 120, customRender: ({ record }: any) => `¥${Number(record.totalSales).toFixed(2)}` },
+  { title: '已收', key: 'totalPaid', width: 120, customRender: ({ record }: any) => `¥${Number(record.totalPaid).toFixed(2)}` },
+  { title: '欠款', key: 'totalOwed', width: 120, customRender: ({ record }: any) => `¥${Number(record.totalOwed).toFixed(2)}` },
+]
+
+const loadCashierStats = async () => {
+  if (!isStrictAdmin.value) return
+  cashierLoading.value = true
+  try {
+    const res: any = await $fetch('/api/reports/cashier', {
+      query: { startDate: dateRange.value[0], endDate: dateRange.value[1] },
+    })
+    cashierStats.value = res.data || []
+  } catch {
+    cashierStats.value = []
+  } finally {
+    cashierLoading.value = false
+  }
+}
 
 const dateRange = ref<[string, string]>([
   dayjs().startOf('day').format('YYYY-MM-DD'),
@@ -423,6 +564,8 @@ const loadData = async () => {
 
 onMounted(() => {
   loadData()
+  loadDebtors()
+  loadCashierStats()
 })
 </script>
 

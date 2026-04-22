@@ -16,6 +16,15 @@
         <span class="shop-name">🌸 花店收银台</span>
       </div>
       <div class="pos-header-right">
+        <!-- 当前收银员显示与切换 -->
+        <a-button type="text" size="small" class="tool-btn" @click="switchCashierModalVisible = true">
+          <UserOutlined />
+          <span class="tool-label">
+            {{ currentCashier?.name || '未知' }}
+            <span class="text-xs opacity-60 ml-1">切换</span>
+          </span>
+        </a-button>
+        <a-divider type="vertical" />
         <a-button
           type="text"
           size="small"
@@ -25,11 +34,6 @@
           <InboxOutlined />
           <span class="tool-label">盘点</span>
         </a-button>
-        <a-badge :count="0" :show-zero="false">
-          <a-button type="text" shape="circle" size="small">
-            <BellOutlined />
-          </a-button>
-        </a-badge>
         <a-dropdown>
           <a-button type="text" size="small" class="user-btn">
             <UserOutlined />
@@ -50,6 +54,31 @@
       </div>
     </header>
 
+    <!-- 切换收银员 Modal -->
+    <a-modal
+      v-model:open="switchCashierModalVisible"
+      title="切换收银员"
+      @ok="handleSwitchCashier"
+      @cancel="switchCashierModalVisible = false"
+      :confirm-loading="switchingCashier"
+      ok-text="确认切换"
+    >
+      <div class="py-4">
+        <div class="text-gray-500 text-sm mb-4">
+          当前收银员：<strong>{{ currentCashier?.name }}</strong>
+        </div>
+        <a-form layout="vertical">
+          <a-form-item label="收银员用户名">
+            <a-input v-model:value="switchForm.username" placeholder="请输入收银员账号" />
+          </a-form-item>
+          <a-form-item label="密码">
+            <a-input-password v-model:value="switchForm.password" placeholder="请输入密码" @pressEnter="handleSwitchCashier" />
+          </a-form-item>
+        </a-form>
+        <div v-if="switchError" class="text-red-500 text-sm mt-2">{{ switchError }}</div>
+      </div>
+    </a-modal>
+
     <!-- 多单 Tab 占位 -->
     <div class="pos-tabs">
       <slot name="tabs" />
@@ -65,16 +94,53 @@
 <script setup lang="ts">
 import {
   ArrowLeftOutlined,
-  BellOutlined,
   UserOutlined,
   InboxOutlined,
   LogoutOutlined,
 } from '@ant-design/icons-vue'
+import { reactive, ref } from 'vue'
+import { message } from 'ant-design-vue'
 
 const { user, isAdmin, logout } = useAuth()
+const { currentCashier, setActiveCashier } = useActiveCashier()
 
 const handleLogout = async () => {
   await logout('pos')
+}
+
+// 切换收银员
+const switchCashierModalVisible = ref(false)
+const switchingCashier = ref(false)
+const switchError = ref('')
+const switchForm = reactive({ username: '', password: '' })
+
+const handleSwitchCashier = async () => {
+  if (!switchForm.username || !switchForm.password) {
+    switchError.value = '请输入用户名和密码'
+    return
+  }
+  switchingCashier.value = true
+  switchError.value = ''
+  try {
+    const res: any = await $fetch('/api/auth/login', {
+      method: 'POST',
+      body: { username: switchForm.username, password: switchForm.password, scope: 'pos' },
+    })
+    if (res.error) {
+      switchError.value = res.error.message || '账号或密码错误'
+      return
+    }
+    const cashierUser = res.data.user
+    setActiveCashier({ id: cashierUser.id, name: cashierUser.name, username: cashierUser.username })
+    message.success(`已切换为收银员：${cashierUser.name}`)
+    switchCashierModalVisible.value = false
+    switchForm.username = ''
+    switchForm.password = ''
+  } catch (e: any) {
+    switchError.value = e.data?.message || '验证失败，请重试'
+  } finally {
+    switchingCashier.value = false
+  }
 }
 </script>
 

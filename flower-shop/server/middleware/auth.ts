@@ -32,8 +32,10 @@ const CASHIER_PREFIX_ALLOW: string[] = [
   '/api/products/with-stock',
   '/api/customers/search',
   '/api/stocks/stocktake',
+  '/api/stocks/inbound',   // 允许店员录入库存
+  '/api/stocks',           // 允许店员查看库存（costPrice 字段由 API 内部过滤）
   '/api/promotions',
-  '/api/settings', // 允许读 lowStockThreshold；写操作由 API 内部角色校验
+  '/api/settings',         // 允许读 lowStockThreshold；写操作由 API 内部角色校验
 ]
 
 const isPublicPath = (path: string): boolean => {

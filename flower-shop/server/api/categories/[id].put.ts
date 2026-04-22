@@ -1,0 +1,30 @@
+import { prisma } from '../../utils/prisma'
+import { getCurrentUser } from '../../utils/auth'
+
+export default defineEventHandler(async (event) => {
+  const payload = getCurrentUser(event)
+  if (!payload || payload.type !== 'staff' || payload.role === 'cashier') {
+    setResponseStatus(event, 403)
+    return { data: null, error: { message: '权限不足', code: 'FORBIDDEN' } }
+  }
+
+  const id = Number(getRouterParam(event, 'id'))
+  const body = await readBody(event)
+  const { name, parentId, sort } = body || {}
+
+  if (!name?.trim()) {
+    setResponseStatus(event, 400)
+    return { data: null, error: { message: '分类名称不能为空', code: 'VALIDATION_ERROR' } }
+  }
+
+  const category = await prisma.category.update({
+    where: { id },
+    data: {
+      name: name.trim(),
+      parentId: parentId !== undefined ? (parentId ? Number(parentId) : null) : undefined,
+      sort: sort !== undefined ? Number(sort) : undefined,
+    },
+  })
+
+  return { data: category, error: null }
+})

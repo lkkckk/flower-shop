@@ -4,13 +4,28 @@ export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const keyword = query.keyword as string | undefined
   const category = query.category as string | undefined
+  const categoryId = query.categoryId ? Number(query.categoryId) : undefined
 
   const where: any = { status: 'active' }
 
   if (keyword) {
     where.name = { contains: keyword }
   }
-  if (category) {
+  if (categoryId) {
+    const allCats = await prisma.category.findMany({ select: { id: true, parentId: true } })
+    const descendantIds = new Set<number>([categoryId])
+    let changed = true
+    while (changed) {
+      changed = false
+      for (const c of allCats) {
+        if (c.parentId && descendantIds.has(c.parentId) && !descendantIds.has(c.id)) {
+          descendantIds.add(c.id)
+          changed = true
+        }
+      }
+    }
+    where.categoryId = { in: Array.from(descendantIds) }
+  } else if (category) {
     where.category = category
   }
 
@@ -19,6 +34,7 @@ export default defineEventHandler(async (event) => {
       where,
       include: {
         unitConversions: true,
+        categoryRef: true,
         stockBatches: {
           where: { status: 'in_stock', currentQty: { gt: 0 } },
           select: { currentQty: true },

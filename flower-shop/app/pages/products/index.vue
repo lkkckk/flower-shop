@@ -9,19 +9,17 @@
           class="w-full sm:w-64"
           allow-clear
         />
-        <a-select
-          v-model:value="filters.category"
-          class="w-full sm:w-32"
+        <a-cascader
+          v-model:value="filters.categoryPath"
+          :options="categoryOptions"
+          :field-names="{ label: 'name', value: 'id', children: 'children' }"
+          class="w-full sm:w-56"
           placeholder="全部分类"
+          change-on-select
+          expand-trigger="hover"
           allow-clear
           @change="handleFilterChange"
-        >
-          <a-select-option value="鲜切花">鲜切花</a-select-option>
-          <a-select-option value="绿植">绿植</a-select-option>
-          <a-select-option value="花束">花束</a-select-option>
-          <a-select-option value="配材">配材</a-select-option>
-          <a-select-option value="其他">其他</a-select-option>
-        </a-select>
+        />
         <a-select
           v-model:value="filters.status"
           class="w-full sm:w-32"
@@ -33,9 +31,12 @@
           <a-select-option value="inactive">停售</a-select-option>
         </a-select>
       </div>
-      <a-button type="primary" @click="openAddModal" class="bg-pink-500 hover:bg-pink-600 border-none shadow-sm flex items-center gap-1 shrink-0">
-        <PlusOutlined /> 新增商品
-      </a-button>
+      <div class="flex gap-2 shrink-0">
+        <a-button @click="categoryDrawerVisible = true" class="flex items-center gap-1">管理分类</a-button>
+        <a-button type="primary" @click="openAddModal" class="bg-pink-500 hover:bg-pink-600 border-none shadow-sm flex items-center gap-1">
+          <PlusOutlined /> 新增商品
+        </a-button>
+      </div>
     </div>
 
     <!-- 主表格区域 -->
@@ -57,8 +58,9 @@
               shape="square"
               :size="36"
               :src="record.imageUrl || undefined"
+              :style="{ background: '#fce7f3', fontSize: '18px' }"
             >
-              <template v-if="!record.imageUrl" #icon><span style="font-size:18px">🌸</span></template>
+              <template v-if="!record.imageUrl">🌸</template>
             </a-avatar>
           </template>
 
@@ -95,11 +97,23 @@
                 编辑
               </a-button>
               <a-popconfirm
-                title="确定要软删除该商品吗？（将设为停售状态）"
-                @confirm="handleDelete(record.id)"
+                :title="record.status === 'active' ? '确定要停售该商品吗？' : '确定要恢复在售吗？'"
+                @confirm="handleToggleStatus(record)"
                 ok-text="确定"
                 cancel-text="取消"
                 placement="topLeft"
+              >
+                <a-button type="link" size="small" class="p-0" :class="record.status === 'active' ? 'text-orange-500 hover:text-orange-700' : 'text-green-600 hover:text-green-800'">
+                  {{ record.status === 'active' ? '停售' : '恢复' }}
+                </a-button>
+              </a-popconfirm>
+              <a-popconfirm
+                title="确定要永久删除该商品吗？（有订单或库存时会拒绝）"
+                @confirm="handleForceDelete(record.id)"
+                ok-text="确定删除"
+                cancel-text="取消"
+                placement="topLeft"
+                ok-button-props="{ danger: true }"
               >
                 <a-button type="link" size="small" danger class="p-0">删除</a-button>
               </a-popconfirm>
@@ -115,26 +129,49 @@
       :product="editingProduct"
       @success="loadData"
     />
+
+    <!-- 分类管理抽屉 -->
+    <a-drawer
+      v-model:open="categoryDrawerVisible"
+      title="管理商品分类"
+      width="480"
+      :closable="true"
+    >
+      <ProductsCategoryManager />
+    </a-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, watch } from 'vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
+import { message } from 'ant-design-vue'
 import type { TablePaginationConfig } from 'ant-design-vue'
 import debounce from 'lodash-es/debounce'
 
 useHead({ title: '商品管理 - 花店管理系统' })
 
-const { fetchProducts, deleteProduct, loading } = useProducts()
+const { fetchProducts, updateProduct, loading } = useProducts()
+
+const categoryDrawerVisible = ref(false)
 
 // 状态
 const products = ref<any[]>([])
 const searchKeyword = ref('')
 const filters = reactive({
-  category: undefined as string | undefined,
+  categoryPath: [] as number[],
   status: undefined as string | undefined,
 })
+
+const categoryOptions = ref<any[]>([])
+const loadCategories = async () => {
+  try {
+    const res: any = await $fetch('/api/categories')
+    categoryOptions.value = res.data || []
+  } catch {
+    categoryOptions.value = []
+  }
+}
 const pagination = reactive<TablePaginationConfig>({
   current: 1,
   pageSize: 20,
@@ -150,7 +187,7 @@ const editingProduct = ref<any | null>(null)
 const columns = [
   { title: '图片', key: 'image', width: 60, fixed: 'left' as const },
   { title: '商品名称', dataIndex: 'name', key: 'name', fixed: 'left' as const, width: 200 },
-  { title: '分类', dataIndex: 'category', key: 'category', width: 100 },
+  { title: '分类', key: 'category', width: 120, customRender: ({ record }: any) => record.categoryRef?.name || record.category || '-' },
   { title: '等级/规格/颜色', key: 'specs', width: 180, customRender: ({ record }: any) => {
       const parts = []
       if (record.color) parts.push(record.color)
@@ -178,11 +215,14 @@ const getGradeColor = (grade: string) => {
 // 数据加载
 const loadData = async () => {
   try {
+    const catId = filters.categoryPath?.length
+      ? filters.categoryPath[filters.categoryPath.length - 1]
+      : undefined
     const res = await fetchProducts({
       page: pagination.current,
       pageSize: pagination.pageSize,
       keyword: searchKeyword.value,
-      category: filters.category,
+      categoryId: catId,
       status: filters.status,
     })
     products.value = res.list
@@ -224,14 +264,38 @@ const openEditModal = (record: any) => {
   modalVisible.value = true
 }
 
-// 删除操作
-const handleDelete = async (id: number) => {
-  await deleteProduct(id)
-  loadData()
+// 停售 / 恢复
+const handleToggleStatus = async (record: any) => {
+  try {
+    await $fetch(`/api/products/${record.id}`, {
+      method: 'PUT',
+      body: { ...record, status: record.status === 'active' ? 'inactive' : 'active' },
+    })
+    message.success(record.status === 'active' ? '已停售' : '已恢复在售')
+    loadData()
+  } catch (e: any) {
+    message.error(e.message || '操作失败')
+  }
+}
+
+// 真删除
+const handleForceDelete = async (id: number) => {
+  try {
+    const res: any = await $fetch(`/api/products/${id}?force=true`, { method: 'DELETE' })
+    if (res.error) {
+      message.error(res.error.message || '删除失败')
+    } else {
+      message.success('商品已永久删除')
+      loadData()
+    }
+  } catch (e: any) {
+    message.error(e.data?.error?.message || e.message || '删除失败')
+  }
 }
 
 // 初始化
 onMounted(() => {
+  loadCategories()
   loadData()
 })
 </script>
