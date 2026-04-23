@@ -1,7 +1,11 @@
 import dayjs from 'dayjs'
 import { prisma } from '../../utils/prisma'
+import { getCurrentUser } from '../../utils/auth'
 
 export default defineEventHandler(async (event) => {
+  const payload = getCurrentUser(event)
+  const isCashier = payload?.type === 'staff' && payload?.role === 'cashier'
+
   const query = getQuery(event)
   const page = Number(query.page) || 1
   const pageSize = Number(query.pageSize) || 20
@@ -32,8 +36,13 @@ export default defineEventHandler(async (event) => {
         prisma.stockBatch.count({ where }),
       ])
 
+      // 店员角色：隐藏进价
+      const sanitized = isCashier
+        ? list.map(({ costPrice: _c, ...rest }) => rest)
+        : list
+
       return {
-        data: { list, total, page, pageSize },
+        data: { list: sanitized, total, page, pageSize },
         error: null,
       }
     }

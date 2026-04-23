@@ -143,6 +143,14 @@
               <a-space :size="4">
                 <a-button type="link" size="small" danger @click="openScrapModal(record)">报损</a-button>
                 <a-button type="link" size="small" @click="openDiscountModal(record)">折价</a-button>
+                <a-popconfirm
+                  title="确定删除该批次吗？（有销售记录时不允许删除）"
+                  ok-text="删除"
+                  cancel-text="取消"
+                  @confirm="handleBatchDelete(record.id)"
+                >
+                  <a-button type="link" size="small" danger class="text-red-400 hover:text-red-600">删除</a-button>
+                </a-popconfirm>
               </a-space>
             </template>
           </template>
@@ -414,6 +422,20 @@ const onDiscountSubmit = async () => {
     // composable 已 message.error
   } finally {
     discountSubmitting.value = false
+  }
+}
+
+const handleBatchDelete = async (id: number) => {
+  try {
+    const res: any = await $fetch(`/api/stocks/${id}`, { method: 'DELETE' })
+    if (res.error) {
+      message.error(res.error.message || '删除失败')
+    } else {
+      message.success('批次已删除')
+      loadList()
+    }
+  } catch (e: any) {
+    message.error(e.data?.error?.message || e.message || '删除失败')
   }
 }
 

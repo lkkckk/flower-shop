@@ -3,12 +3,10 @@
  * 放在 shared/ 下，前端 import 'shared/priceMode'，后端 import '../../../shared/priceMode'
  */
 
-export type PriceMode = 'retail' | 'vip' | 'wholesale' | 'discount' | 'promotion'
+export type PriceMode = 'retail' | 'discount' | 'promotion'
 
 export interface PriceBasis {
   defaultPrice: number
-  vipPrice?: number | null
-  wholesalePrice?: number | null
 }
 
 export interface LineInput {
@@ -53,15 +51,8 @@ function roundPrice(n: number): number {
   return Math.max(0, Math.round(n * 100) / 100)
 }
 
-/**
- * 挑选基础单价（按 priceMode）
- * - retail / discount / promotion：均以 defaultPrice 为基础（discount/promotion 在合计层面扣减）
- * - vip：优先 vipPrice，缺省回退 defaultPrice
- * - wholesale：优先 wholesalePrice，缺省回退 defaultPrice
- */
-export function pickBasePrice(basis: PriceBasis, mode: PriceMode): number {
-  if (mode === 'vip' && basis.vipPrice != null) return basis.vipPrice
-  if (mode === 'wholesale' && basis.wholesalePrice != null) return basis.wholesalePrice
+/** 挑选基础单价（所有模式均以 defaultPrice 为基础，discount/promotion 在合计层面调整） */
+export function pickBasePrice(basis: PriceBasis, _mode: PriceMode): number {
   return basis.defaultPrice
 }
 

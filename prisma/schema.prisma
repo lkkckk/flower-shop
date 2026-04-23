@@ -7,10 +7,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Category {
+  id        Int        @id @default(autoincrement())
+  name      String
+  parentId  Int?
+  parent    Category?  @relation("CategoryChildren", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryChildren")
+  sort      Int        @default(0)
+  createdAt DateTime   @default(now())
+
+  products  Product[]
+}
+
 model Product {
-  id              Int      @id @default(autoincrement())
+  id              Int       @id @default(autoincrement())
   name            String
   category        String?
+  categoryId      Int?
   baseUnit        String
   grade           String?
   color           String?
@@ -25,6 +38,7 @@ model Product {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  categoryRef     Category?        @relation(fields: [categoryId], references: [id])
   unitConversions UnitConversion[]
   stockBatches    StockBatch[]
   orderItems      OrderItem[]
@@ -110,6 +124,8 @@ model User {
   status       String   @default("active")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  processedOrders Order[] @relation("OrderCashier")
 }
 
 /// 全局单行配置（key-value）
@@ -153,23 +169,38 @@ model Order {
   // 整单折扣率（0-100），仅 priceMode=discount 时使用
   discountRate    Float?
   promotionId     Int?
+  // 预售单收货人信息（可能与下单客户不同）
+  receiverName      String?
+  receiverPhone     String?
+  // 贺卡内容（鲜花预售常见，独立于 notes 以便单独打印）
+  cardMessage       String?
+  // 订单来源/渠道标记（如 "美团闪购#5"、"抖音#12"、"店内"），打印右上角显示
+  sourceChannel     String?
+  // 预售履约提醒阶段：none | d7 | d3 | due | overdue
+  reminderStage     String?   @default("none")
+  reminderUpdatedAt DateTime?
+  // 结账收银员
+  cashierId         Int?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   customer        Customer?   @relation(fields: [customerId], references: [id])
   promotion       Promotion?  @relation(fields: [promotionId], references: [id])
+  cashier         User?       @relation("OrderCashier", fields: [cashierId], references: [id])
   items           OrderItem[]
   payments        Payment[]
 
   @@index([createdAt])
   @@index([customerId])
+  @@index([orderType, deliveryTime])
 }
 
 model OrderItem {
   id            Int     @id @default(autoincrement())
   orderId       Int
   productId     Int
-  batchId       Int
+  // 预售单创建时不绑定批次，批次在转执行阶段按 FIFO 分配
+  batchId       Int?
   unit          String
   qty           Float
   baseQty       Float
@@ -180,10 +211,12 @@ model OrderItem {
   grade         String?
   color         String?
   notes         String?
+  // 预售下单时保存的商品参考图（下单瞬间的商品图片快照，用于配送单打印）
+  imageUrl      String?
 
-  order       Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product     Product    @relation(fields: [productId], references: [id])
-  batch       StockBatch @relation(fields: [batchId], references: [id])
+  order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product     @relation(fields: [productId], references: [id])
+  batch       StockBatch? @relation(fields: [batchId], references: [id])
 }
 
 model Payment {

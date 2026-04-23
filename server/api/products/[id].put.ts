@@ -24,6 +24,7 @@ export default defineEventHandler(async (event) => {
         data: {
           name: body.name,
           category: body.category,
+          categoryId: body.categoryId ?? null,
           baseUnit: body.baseUnit,
           grade: body.grade,
           color: body.color,

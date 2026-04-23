@@ -10,7 +10,7 @@ export const useProducts = () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  const fetchProducts = async (params: { page?: number; pageSize?: number; keyword?: string; category?: string; status?: string } = {}) => {
+  const fetchProducts = async (params: { page?: number; pageSize?: number; keyword?: string; category?: string; categoryId?: number; status?: string } = {}) => {
     loading.value = true
     error.value = null
     try {

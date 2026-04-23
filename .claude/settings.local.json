@@ -1,29 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx nuxt:*)",
-      "Bash(xargs wc:*)",
-      "Bash(npx prisma:*)",
-      "Bash(dir \"E:\\\\flower\\\\flower-shop\\\\server\\\\api\\\\products\" /b)",
-      "Bash(pnpm add *)",
-      "Bash(npx -y degit dcloudio/uni-preset-vue#vite-ts miniapp)",
-      "Bash(pnpm install *)",
-      "Bash(pnpm build:mp-weixin)",
-      "Bash(pnpm build *)",
-      "Bash(pnpm prisma *)",
-      "Bash(tasklist)",
-      "Bash(tasklist /FI \"IMAGENAME eq node.exe\")",
-      "Bash(wmic process *)",
-      "Bash(gh repo *)",
-      "WebFetch(domain:github.com)",
-      "Bash(curl -s \"https://api.github.com/repos/ComposioHQ/awesome-claude-skills/contents\")",
-      "Bash([ -d \"$DEST/$s\" ])",
-      "Bash(cp -r /tmp/acs/__TRACKED_VAR__ C:/Users/admin/.claude/skills/__TRACKED_VAR__)",
-      "Bash(set -e)",
-      "Bash(mkdir -p flower-shop/prisma/migrations/20260421000000_add_preorder_support flower-shop/server/api/preorders 'flower-shop/server/api/preorders/[id]' flower-shop/app/components/preorders flower-shop/app/pages/preorders 'flower-shop/app/pages/preorders/[id]')",
-      "Bash(cp -v prisma/migrations/20260421000000_add_preorder_support/migration.sql flower-shop/prisma/migrations/20260421000000_add_preorder_support/)",
-      "Bash(cp -v server/utils/stockAllocator.ts flower-shop/server/utils/)",
-      "Bash(cp -v shared/preorderReminder.ts flower-shop/shared/)"
+      "Bash(npx prisma *)",
+      "Bash(npx tsc *)",
+      "Bash(npx nuxi *)"
     ]
   }
 }

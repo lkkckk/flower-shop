@@ -9,10 +9,16 @@ export default defineEventHandler(async (event) => {
   const status = query.status as string | undefined
   const startDate = query.startDate ? dayjs(query.startDate as string).startOf('day').toDate() : undefined
   const endDate = query.endDate ? dayjs(query.endDate as string).endOf('day').toDate() : undefined
+  // 订单类型过滤：默认排除预售单（预售单走独立页面管理）。
+  // - 不传 orderType 或传 'non-preorder'：排除 preorder
+  // - 传具体值（如 'retail' / 'preorder' / 'all'）：显式使用
+  const orderType = (query.orderType as string | undefined) ?? 'non-preorder'
 
   const where: any = {}
   if (customerId) where.customerId = customerId
   if (status) where.status = status
+  if (orderType === 'non-preorder') where.orderType = { not: 'preorder' }
+  else if (orderType !== 'all') where.orderType = orderType
   if (startDate || endDate) {
     where.createdAt = {}
     if (startDate) where.createdAt.gte = startDate
