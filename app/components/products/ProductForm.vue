@@ -23,14 +23,22 @@
             <a-input v-model:value="formState.name" placeholder="请输入商品名称" />
           </a-form-item>
           <div class="row-2">
-            <a-form-item label="分类" name="category">
-              <a-select v-model:value="formState.category" placeholder="请选择分类">
-                <a-select-option value="鲜切花">鲜切花</a-select-option>
-                <a-select-option value="绿植">绿植</a-select-option>
-                <a-select-option value="花束">花束</a-select-option>
-                <a-select-option value="配材">配材</a-select-option>
-                <a-select-option value="其他">其他</a-select-option>
-              </a-select>
+            <a-form-item label="分类" name="categoryPath">
+              <a-cascader
+                v-model:value="formState.categoryPath"
+                :options="categoryOptions"
+                :field-names="{ label: 'name', value: 'id', children: 'children' }"
+                placeholder="请选择分类（支持三级）"
+                change-on-select
+                expand-trigger="hover"
+                allow-clear
+              >
+                <template #notFoundContent>
+                  <div class="text-gray-400 text-sm py-2">
+                    暂无分类，请在商品列表页点"管理分类"新增
+                  </div>
+                </template>
+              </a-cascader>
             </a-form-item>
             <a-form-item label="等级" name="grade">
               <a-select v-model:value="formState.grade" placeholder="请选择等级">
@@ -195,10 +203,35 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, reactive } from 'vue'
+import { ref, watch, reactive, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { DeleteOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
+
+// 分类树
+const categoryOptions = ref<any[]>([])
+const loadCategories = async () => {
+  try {
+    const res: any = await $fetch('/api/categories')
+    categoryOptions.value = res.data || []
+  } catch {
+    categoryOptions.value = []
+  }
+}
+onMounted(() => loadCategories())
+
+// 根据 categoryId 在树上回溯出级联路径 [root, mid, leaf]
+const findCategoryPath = (tree: any[], targetId: number, path: number[] = []): number[] | null => {
+  for (const node of tree) {
+    const next = [...path, node.id]
+    if (node.id === targetId) return next
+    if (node.children?.length) {
+      const found = findCategoryPath(node.children, targetId, next)
+      if (found) return found
+    }
+  }
+  return null
+}
 
 const props = defineProps<{
   visible: boolean
@@ -231,6 +264,8 @@ const formRef = ref<FormInstance>()
 interface FormState {
   name: string
   category: string | undefined
+  categoryId: number | null
+  categoryPath: number[]
   baseUnit: string
   grade: string | undefined
   color: string
@@ -246,6 +281,8 @@ interface FormState {
 const getInitialState = (): FormState => ({
   name: '',
   category: undefined,
+  categoryId: null,
+  categoryPath: [],
   baseUnit: '枝',
   grade: undefined,
   color: '',
@@ -263,12 +300,17 @@ const formState = reactive<FormState>(getInitialState())
 // 监听弹窗显示，初始化数据
 watch(
   () => props.visible,
-  (val) => {
+  async (val) => {
     if (val) {
+      await loadCategories()
       if (props.product) {
+        const pid = props.product.categoryId ?? null
+        const path = pid ? (findCategoryPath(categoryOptions.value, pid) || []) : []
         Object.assign(formState, {
           name: props.product.name,
           category: props.product.category,
+          categoryId: pid,
+          categoryPath: path,
           baseUnit: props.product.baseUnit,
           grade: props.product.grade,
           color: props.product.color || '',
@@ -337,12 +379,33 @@ const handleOk = async () => {
       return
     }
 
+    // 根据级联选择，取末端节点 ID 作为 categoryId
+    const pickedId = formState.categoryPath?.length
+      ? formState.categoryPath[formState.categoryPath.length - 1]
+      : null
+    // 反查末端分类的名称，写入旧字段以兼容历史逻辑
+    let pickedName: string | undefined
+    if (pickedId) {
+      const finder = (nodes: any[]): any => {
+        for (const n of nodes) {
+          if (n.id === pickedId) return n
+          if (n.children?.length) {
+            const f = finder(n.children)
+            if (f) return f
+          }
+        }
+        return null
+      }
+      pickedName = finder(categoryOptions.value)?.name
+    }
+    const payload = { ...formState, categoryId: pickedId, category: pickedName ?? formState.category }
+
     let savedId: number | null = null
     if (props.product) {
-      await updateProduct(props.product.id, formState)
+      await updateProduct(props.product.id, payload)
       savedId = props.product.id
     } else {
-      const created = await createProduct(formState)
+      const created = await createProduct(payload)
       savedId = created?.id ?? null
     }
 

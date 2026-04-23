@@ -16,8 +16,11 @@
           <span v-if="order.customer?.phone">({{ order.customer.phone }})</span>
         </span>
       </div>
+      <div v-if="order.deliveryTime" class="info-line">
+        <span>配送时间：{{ new Date(order.deliveryTime).toLocaleString() }}</span>
+      </div>
       <div v-if="order.deliveryAddress" class="info-line">
-        <span>配送：{{ order.deliveryAddress }}</span>
+        <span>配送地址：{{ order.deliveryAddress }}</span>
       </div>
 
       <div class="divider"></div>
@@ -58,7 +61,7 @@
       </div>
 
       <div v-if="order.notes" class="notes-area">
-        备注：{{ order.notes }}
+        客户备注：{{ order.notes }}
       </div>
 
       <div class="footer-text">

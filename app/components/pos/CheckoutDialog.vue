@@ -23,11 +23,9 @@
       <div class="mb-5 bg-pink-50 p-3 rounded-lg border border-pink-100">
         <div class="text-gray-600 mb-2 font-medium text-sm">价格模式</div>
         <a-radio-group v-model:value="priceMode" button-style="solid" class="w-full flex flex-wrap gap-1">
-          <a-radio-button value="retail" class="flex-1 text-center">原价</a-radio-button>
-          <a-radio-button value="vip" class="flex-1 text-center">VIP 价</a-radio-button>
-          <a-radio-button value="wholesale" class="flex-1 text-center">批发价</a-radio-button>
-          <a-radio-button value="discount" class="flex-1 text-center">折扣</a-radio-button>
-          <a-radio-button value="promotion" class="flex-1 text-center">满减</a-radio-button>
+          <a-radio-button value="retail" class="flex-1 text-center">零售价</a-radio-button>
+          <a-radio-button value="discount" class="flex-1 text-center">折扣价</a-radio-button>
+          <a-radio-button value="promotion" class="flex-1 text-center">满减活动</a-radio-button>
         </a-radio-group>
 
         <div v-if="priceMode === 'discount'" class="mt-3 flex items-center gap-2">
@@ -68,14 +66,30 @@
 
       <div class="mb-5">
         <div class="text-gray-600 mb-2 font-medium text-sm">支付方式</div>
-        <a-radio-group v-model:value="paymentMethod" button-style="solid" class="w-full flex">
+        <a-radio-group v-model:value="paymentMethod" button-style="solid" class="w-full flex flex-wrap gap-1">
           <a-radio-button value="wechat" class="flex-1 text-center justify-center flex items-center h-11">微信</a-radio-button>
           <a-radio-button value="alipay" class="flex-1 text-center justify-center flex items-center h-11">支付宝</a-radio-button>
           <a-radio-button value="cash" class="flex-1 text-center justify-center flex items-center h-11">现金</a-radio-button>
           <a-radio-button value="credit" class="flex-1 text-center justify-center flex items-center h-11">记账</a-radio-button>
+          <a-radio-button
+            value="balance"
+            class="flex-1 text-center justify-center flex items-center h-11"
+            :disabled="!cart.customerId || (cart.customerBalance ?? 0) <= 0"
+          >
+            扣预存
+            <span v-if="cart.customerId && (cart.customerBalance ?? 0) > 0" class="text-xs ml-1 opacity-75">
+              (¥{{ (cart.customerBalance ?? 0).toFixed(2) }})
+            </span>
+          </a-radio-button>
         </a-radio-group>
         <div v-if="paymentMethod === 'credit' && !cart.customerId" class="text-red-500 mt-2 text-sm text-center bg-red-50 p-2 rounded">
           ⚠️ 必须在左侧选择具体客户后才能使用"记账"功能
+        </div>
+        <div v-if="paymentMethod === 'balance' && !cart.customerId" class="text-red-500 mt-2 text-sm text-center bg-red-50 p-2 rounded">
+          ⚠️ 必须在左侧选择具体客户后才能使用"扣预存"功能
+        </div>
+        <div v-if="paymentMethod === 'balance' && cart.customerId && (cart.customerBalance ?? 0) <= 0" class="text-orange-500 mt-2 text-sm text-center bg-orange-50 p-2 rounded">
+          ⚠️ 该客户预存余额不足，无法使用扣预存
         </div>
       </div>
 
@@ -85,7 +99,7 @@
           <a-input-number
             v-model:value="paidAmount"
             :min="0"
-            :disabled="paymentMethod === 'credit'"
+            :disabled="paymentMethod === 'credit' || paymentMethod === 'balance'"
             class="text-right text-[28px] w-48 font-bold font-display tracking-tight text-gray-800"
             :controls="false"
             autofocus
@@ -121,6 +135,7 @@ import { ref, computed, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { useCartStore } from '~/stores/cart'
 import { computeOrder, type PriceMode } from '~~/shared/priceMode'
+import { useActiveCashier } from '~/composables/useActiveCashier'
 
 interface PromotionRow {
   id: number
@@ -137,9 +152,10 @@ const props = defineProps<{
 const emit = defineEmits(['update:visible', 'success'])
 
 const cartStore = useCartStore()
+const { currentCashier } = useActiveCashier()
 
 const loading = ref(false)
-const paymentMethod = ref<'cash' | 'wechat' | 'alipay' | 'credit'>('wechat')
+const paymentMethod = ref<'cash' | 'wechat' | 'alipay' | 'credit' | 'balance'>('wechat')
 const paidAmount = ref<number>(0)
 
 // 价格模式相关
@@ -166,8 +182,6 @@ const computeInput = computed(() => {
     return {
       basis: {
         defaultPrice: p.defaultPrice ?? it.unitPrice,
-        vipPrice: p.vipPrice,
-        wholesalePrice: p.wholesalePrice,
       },
       qty: it.qty,
       toBaseQty,
@@ -194,40 +208,39 @@ const promotionApplicable = computed(() => computeInput.value?.promotionApplicab
 
 const confirmDisabled = computed(() => {
   if (paymentMethod.value === 'credit' && !cart.value?.customerId) return true
+  if (paymentMethod.value === 'balance' && (!cart.value?.customerId || (cart.value?.customerBalance ?? 0) <= 0)) return true
   if (priceMode.value === 'promotion' && promotionId.value && !promotionApplicable.value) return true
   if (priceMode.value === 'promotion' && !promotionId.value) return true
   return false
 })
 
-// 根据顾客等级，弹窗打开时给一个默认的价格模式
 watch(() => props.visible, async (val) => {
   if (!val) return
-  // 自动根据客户等级预选模式
-  const lvl = cart.value?.customerLevel
-  if (lvl === 'vip') priceMode.value = 'vip'
-  else if (lvl === 'wholesale') priceMode.value = 'wholesale'
-  else priceMode.value = 'retail'
+  priceMode.value = 'retail'
   promotionId.value = null
   discountRate.value = 90
-  // 加载促销活动
   await loadPromotions()
-  // 初始化实收
-  if (paymentMethod.value !== 'credit') {
-    paidAmount.value = previewTotal.value
-  } else {
+  if (paymentMethod.value === 'credit' || paymentMethod.value === 'balance') {
     paidAmount.value = 0
+  } else {
+    paidAmount.value = previewTotal.value
   }
 })
 
-// 当支付方式改变
 watch(paymentMethod, (val) => {
-  if (val === 'credit') paidAmount.value = 0
-  else paidAmount.value = previewTotal.value
+  if (val === 'credit') {
+    paidAmount.value = 0
+  } else if (val === 'balance') {
+    paidAmount.value = Math.min(cart.value?.customerBalance ?? 0, previewTotal.value)
+  } else {
+    paidAmount.value = previewTotal.value
+  }
 })
 
-// 当 previewTotal 改变（切换模式/折扣/满减），刷新实收
 watch(previewTotal, (val) => {
-  if (paymentMethod.value !== 'credit') {
+  if (paymentMethod.value === 'balance') {
+    paidAmount.value = Math.min(cart.value?.customerBalance ?? 0, val)
+  } else if (paymentMethod.value !== 'credit') {
     paidAmount.value = val
   }
 })
@@ -254,6 +267,16 @@ const handleConfirm = async () => {
     message.error('请先选择客户才能使用记账付款')
     return
   }
+  if (paymentMethod.value === 'balance') {
+    if (!cart.value.customerId) {
+      message.error('请先选择客户才能使用扣预存')
+      return
+    }
+    if ((cart.value.customerBalance ?? 0) <= 0) {
+      message.error('客户预存余额不足')
+      return
+    }
+  }
   if (priceMode.value === 'promotion') {
     if (!promotionId.value) {
       message.error('请选择一个满减活动，或切回其它价格模式')
@@ -268,11 +291,17 @@ const handleConfirm = async () => {
   loading.value = true
   try {
     const totalNow = previewTotal.value
+    const isBalance = paymentMethod.value === 'balance'
+    const balancePaid = isBalance ? Math.min(cart.value.customerBalance ?? 0, totalNow) : 0
     const paymentInfo = {
       method: paymentMethod.value,
-      paidAmount: Math.min(paidAmount.value, totalNow), // 不存找零部分
+      paidAmount: isBalance ? balancePaid : Math.min(paidAmount.value, totalNow),
       owedAmount:
-        paymentMethod.value === 'credit' ? totalNow : Math.max(0, totalNow - paidAmount.value),
+        paymentMethod.value === 'credit'
+          ? totalNow
+          : isBalance
+          ? Math.max(0, totalNow - balancePaid)
+          : Math.max(0, totalNow - paidAmount.value),
     }
 
     const { data, error }: any = await $fetch('/api/orders/checkout', {
@@ -285,6 +314,7 @@ const handleConfirm = async () => {
           promotionId: priceMode.value === 'promotion' ? promotionId.value : null,
         },
         payment: paymentInfo,
+        cashierId: currentCashier.value?.id,
       },
     })
 

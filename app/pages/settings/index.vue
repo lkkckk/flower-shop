@@ -111,6 +111,80 @@
         </a-form-item>
       </a-form>
     </a-modal>
+
+    <!-- 用户管理（仅 admin 可见） -->
+    <a-card v-if="isStrictAdmin" :bordered="false" class="page-card">
+      <template #title>员工账号管理</template>
+      <template #extra>
+        <a-button type="primary" @click="openUserModal(null)">
+          <template #icon><PlusOutlined /></template>
+          新增账号
+        </a-button>
+      </template>
+      <a-table
+        :columns="userColumns"
+        :data-source="users"
+        :loading="loadingUsers"
+        :pagination="false"
+        row-key="id"
+        size="middle"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'role'">
+            <a-tag :color="record.role === 'admin' ? 'red' : record.role === 'staff' ? 'blue' : 'green'">
+              {{ { admin: '管理员', staff: '员工', cashier: '收银员' }[record.role] || record.role }}
+            </a-tag>
+          </template>
+          <template v-else-if="column.key === 'status'">
+            <a-badge :status="record.status === 'active' ? 'success' : 'default'" :text="record.status === 'active' ? '在职' : '停用'" />
+          </template>
+          <template v-else-if="column.key === 'action'">
+            <a-space>
+              <a-button type="link" size="small" @click="openUserModal(record)" :disabled="record.role === 'admin'">
+                编辑
+              </a-button>
+              <a-popconfirm
+                :title="record.status === 'active' ? '确定停用该账号吗？' : '确定恢复该账号吗？'"
+                @confirm="toggleUserStatus(record)"
+                :disabled="record.role === 'admin'"
+              >
+                <a-button type="link" size="small" :danger="record.status === 'active'" :disabled="record.role === 'admin'">
+                  {{ record.status === 'active' ? '停用' : '恢复' }}
+                </a-button>
+              </a-popconfirm>
+            </a-space>
+          </template>
+        </template>
+      </a-table>
+    </a-card>
+
+    <!-- 用户表单 Modal -->
+    <a-modal
+      v-model:open="userModalVisible"
+      :title="editingUser ? '编辑账号' : '新增账号'"
+      @ok="saveUser"
+      @cancel="userModalVisible = false"
+      :confirm-loading="savingUser"
+      ok-text="保存"
+    >
+      <a-form layout="vertical" class="mt-4">
+        <a-form-item v-if="!editingUser" label="用户名" required>
+          <a-input v-model:value="userForm.username" placeholder="登录用户名" />
+        </a-form-item>
+        <a-form-item label="姓名" required>
+          <a-input v-model:value="userForm.name" placeholder="员工姓名" />
+        </a-form-item>
+        <a-form-item label="角色" required>
+          <a-radio-group v-model:value="userForm.role">
+            <a-radio value="staff">员工（管理权限）</a-radio>
+            <a-radio value="cashier">收银员（POS 权限）</a-radio>
+          </a-radio-group>
+        </a-form-item>
+        <a-form-item :label="editingUser ? '新密码（留空不修改）' : '初始密码'" :required="!editingUser">
+          <a-input-password v-model:value="userForm.password" placeholder="请输入密码（至少 6 位）" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
@@ -121,6 +195,8 @@ import { PlusOutlined } from '@ant-design/icons-vue'
 import dayjs, { type Dayjs } from 'dayjs'
 
 useHead({ title: '系统设置 - 花店管理系统' })
+
+const { isStrictAdmin } = useAuth()
 
 // =============== 基础设置 ===============
 const settingsForm = reactive({
@@ -315,6 +391,85 @@ const deletePromo = async (row: PromoRow) => {
   }
 }
 
+// =============== 用户管理 ===============
+const users = ref<any[]>([])
+const loadingUsers = ref(false)
+const userModalVisible = ref(false)
+const savingUser = ref(false)
+const editingUser = ref<any | null>(null)
+const userForm = reactive({ username: '', name: '', role: 'cashier', password: '' })
+
+const userColumns = [
+  { title: '用户名', dataIndex: 'username', key: 'username', width: 120 },
+  { title: '姓名', dataIndex: 'name', key: 'name', width: 120 },
+  { title: '角色', key: 'role', width: 100 },
+  { title: '状态', key: 'status', width: 90 },
+  { title: '操作', key: 'action', width: 140 },
+]
+
+const loadUsers = async () => {
+  loadingUsers.value = true
+  try {
+    const res: any = await $fetch('/api/users')
+    users.value = res.data || []
+  } catch {
+    users.value = []
+  } finally {
+    loadingUsers.value = false
+  }
+}
+
+const openUserModal = (user: any | null) => {
+  editingUser.value = user
+  userForm.username = ''
+  userForm.name = user?.name || ''
+  userForm.role = user?.role || 'cashier'
+  userForm.password = ''
+  userModalVisible.value = true
+}
+
+const saveUser = async () => {
+  if (!userForm.name.trim()) { message.error('请输入姓名'); return }
+  if (!editingUser.value && (!userForm.username.trim() || !userForm.password.trim())) {
+    message.error('请输入用户名和密码'); return
+  }
+  savingUser.value = true
+  try {
+    if (editingUser.value) {
+      const res: any = await $fetch(`/api/users/${editingUser.value.id}`, {
+        method: 'PUT',
+        body: { name: userForm.name, role: userForm.role, password: userForm.password || undefined },
+      })
+      if (res.error) throw new Error(res.error.message)
+      message.success('账号已更新')
+    } else {
+      const res: any = await $fetch('/api/users', {
+        method: 'POST',
+        body: { username: userForm.username, name: userForm.name, role: userForm.role, password: userForm.password },
+      })
+      if (res.error) throw new Error(res.error.message)
+      message.success('账号已创建')
+    }
+    userModalVisible.value = false
+    loadUsers()
+  } catch (e: any) {
+    message.error(e.message || '保存失败')
+  } finally {
+    savingUser.value = false
+  }
+}
+
+const toggleUserStatus = async (record: any) => {
+  const nextStatus = record.status === 'active' ? 'inactive' : 'active'
+  try {
+    await $fetch(`/api/users/${record.id}`, { method: 'PUT', body: { status: nextStatus } })
+    message.success(nextStatus === 'active' ? '账号已恢复' : '账号已停用')
+    loadUsers()
+  } catch (e: any) {
+    message.error(e.message || '操作失败')
+  }
+}
+
 // =============== 工具 ===============
 const formatDate = (iso: string | null | undefined) => {
   if (!iso) return ''
@@ -324,6 +479,7 @@ const formatDate = (iso: string | null | undefined) => {
 onMounted(() => {
   loadSettings()
   loadPromotions()
+  if (isStrictAdmin.value) loadUsers()
 })
 </script>
 

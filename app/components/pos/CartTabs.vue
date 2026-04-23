@@ -32,6 +32,9 @@
         <a-button type="dashed" class="mr-2" @click="cartStore.createCart">
           <PlusOutlined /> 新开一单
         </a-button>
+        <a-button class="mr-2" @click="goPreorder">
+          <CalendarOutlined /> 预售开单
+        </a-button>
       </template>
     </a-tabs>
   </div>
@@ -39,10 +42,14 @@
 
 <script setup lang="ts">
 import { useCartStore } from '~/stores/cart'
-import { PlusOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, CalendarOutlined } from '@ant-design/icons-vue'
 import { Modal } from 'ant-design-vue'
+import { useRouter } from 'vue-router'
 
 const cartStore = useCartStore()
+const router = useRouter()
+
+const goPreorder = () => router.push('/preorders/new')
 
 const onChange = (activeKey: string) => {
   cartStore.switchCart(activeKey)
