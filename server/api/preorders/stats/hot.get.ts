@@ -38,6 +38,7 @@ export default defineEventHandler(async (event) => {
   let pickupCount = 0
 
   for (const order of orders) {
+    totalAmount += Number(order.totalAmount || 0)
     if (!order.isMade) unmadeCount += 1
     if (order.fulfillmentType === 'pickup') pickupCount += 1
     else deliveryCount += 1
@@ -57,7 +58,6 @@ export default defineEventHandler(async (event) => {
       current.totalQty += Number(item.qty || 0)
       current.totalAmount += Number(item.subtotal || 0)
       totalQty += Number(item.qty || 0)
-      totalAmount += Number(item.subtotal || 0)
       productMap.set(item.productId, current)
     }
   }

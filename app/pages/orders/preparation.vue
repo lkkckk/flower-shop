@@ -62,7 +62,7 @@
 import { onMounted, ref } from 'vue'
 import dayjs from 'dayjs'
 import { message } from 'ant-design-vue'
-import HotProductTable from '~/components/orders/HotProductTable.vue'
+import HotProductTable from '~~/components/orders/HotProductTable.vue'
 
 definePageMeta({ layout: 'pos' })
 useHead({ title: '今日备货 - 花店管理系统' })

@@ -111,7 +111,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import dayjs from 'dayjs'
 import { message } from 'ant-design-vue'
-import OrderCard from '~/components/orders/OrderCard.vue'
+import OrderCard from '~~/components/orders/OrderCard.vue'
 
 definePageMeta({ layout: 'pos' })
 useHead({ title: '订单排单 - 花店管理系统' })

@@ -54,7 +54,9 @@ export default defineEventHandler(async (event) => {
           throw Object.assign(new Error('该状态下不允许修改商品清单'), { statusCode: 400 })
         }
         await tx.orderItem.deleteMany({ where: { orderId: id } })
-        const productIds = Array.from(new Set(body.items.map((i: any) => Number(i.productId))))
+        const productIds: number[] = Array.from(
+          new Set(body.items.map((i: any) => Number(i.productId)).filter(Boolean)),
+        )
         const products = await tx.product.findMany({
           where: { id: { in: productIds } },
           select: { id: true, defaultPrice: true, imageUrl: true, grade: true, color: true },
