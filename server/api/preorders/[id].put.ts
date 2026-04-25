@@ -6,7 +6,7 @@ import { isStockDeducted, type PreorderStatus } from '../../../shared/preorderSt
  * 编辑预售单基础信息（不含状态流转，状态流转走 advance.post）。
  *
  * 修改履约日期时会同步重算 reminderStage。
- * 已扣库存的订单（in_production 及以后）不允许修改商品清单，只能改配送/备注字段。
+ * 已扣库存的订单（in_production 及以后）不允许修改商品清单，只能改配送/备注/排单字段。
  */
 export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
@@ -30,6 +30,10 @@ export default defineEventHandler(async (event) => {
       if ('cardMessage' in body) update.cardMessage = body.cardMessage || null
       if ('sourceChannel' in body) update.sourceChannel = body.sourceChannel || null
       if ('customerId' in body) update.customerId = body.customerId || null
+      if ('fulfillmentType' in body) update.fulfillmentType = body.fulfillmentType === 'pickup' ? 'pickup' : 'delivery'
+      if ('isMade' in body) update.isMade = Boolean(body.isMade)
+      if ('isUrgent' in body) update.isUrgent = Boolean(body.isUrgent)
+      if ('sortIndex' in body) update.sortIndex = Number(body.sortIndex) || 0
 
       if ('deliveryTime' in body) {
         const t = new Date(body.deliveryTime)
@@ -65,8 +69,8 @@ export default defineEventHandler(async (event) => {
               orderId: id,
               productId: p.id,
               unit: it.unit || 'default',
-              qty,
               baseQty: Number(it.baseQty) || qty,
+              qty,
               unitPrice,
               originalPrice: p.defaultPrice,
               subtotal,
