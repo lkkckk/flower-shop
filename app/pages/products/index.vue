@@ -48,7 +48,7 @@
         :pagination="pagination"
         @change="handleTableChange"
         row-key="id"
-        :scroll="{ x: 1000 }"
+        :scroll="{ x: 1320 }"
         size="middle"
         :locale="{ emptyText: '暂无商品数据' }"
       >
@@ -92,7 +92,7 @@
           </template>
           
           <template v-else-if="column.key === 'action'">
-            <div class="flex gap-2 whitespace-nowrap">
+            <div class="product-action-buttons">
               <a-button type="link" size="small" class="text-indigo-600 hover:text-indigo-800 p-0" @click="openEditModal(record)">
                 编辑
               </a-button>
@@ -199,7 +199,7 @@ const columns = [
   { title: '价格体系', key: 'price', width: 160 },
   { title: '花期(天)', dataIndex: 'shelfLifeDays', key: 'shelfLifeDays', width: 90, align: 'center' },
   { title: '状态', key: 'status', width: 100 },
-  { title: '操作', key: 'action', width: 120, fixed: 'right' as const, align: 'center' },
+  { title: '操作', key: 'action', width: 160, fixed: 'right' as const, align: 'center' },
 ]
 
 // 辅助函数
@@ -307,5 +307,14 @@ onMounted(() => {
 
 :deep(.ant-table-wrapper) {
   border-radius: 0;
+}
+
+.product-action-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-width: 124px;
+  white-space: nowrap;
 }
 </style>
