@@ -28,6 +28,8 @@ const onSubmit = async (payload: any) => {
     const order = await createPreorder(payload)
     message.success(`预售单 ${order.orderNo} 创建成功`)
     router.replace(`/preorders/${order.id}`)
+  } catch {
+    // createPreorder already displays the server error.
   } finally {
     submitting.value = false
   }
