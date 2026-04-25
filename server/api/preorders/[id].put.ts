@@ -35,6 +35,11 @@ export default defineEventHandler(async (event) => {
       if ('isUrgent' in body) update.isUrgent = Boolean(body.isUrgent)
       if ('sortIndex' in body) update.sortIndex = Number(body.sortIndex) || 0
 
+      const allowedPriceModes = new Set(['retail', 'vip', 'wholesale', 'discount', 'promotion', 'custom'])
+      if ('priceMode' in body) update.priceMode = allowedPriceModes.has(body.priceMode) ? body.priceMode : 'retail'
+      if ('discountRate' in body) update.discountRate = body.discountRate === null ? null : Number(body.discountRate)
+      if ('promotionId' in body) update.promotionId = body.promotionId ? Number(body.promotionId) : null
+
       if ('deliveryTime' in body) {
         const t = new Date(body.deliveryTime)
         if (Number.isNaN(t.getTime())) throw new Error('履约日期格式错误')
@@ -56,20 +61,20 @@ export default defineEventHandler(async (event) => {
         })
         const productMap = new Map(products.map((p) => [p.id, p]))
 
-        let totalAmount = 0
+        let itemsSubtotal = 0
         for (const it of body.items) {
           const p = productMap.get(Number(it.productId))
           if (!p) throw new Error(`商品(id=${it.productId})不存在`)
-          const unitPrice = Number(it.unitPrice) > 0 ? Number(it.unitPrice) : p.defaultPrice
-          const qty = Number(it.qty) || 0
-          const subtotal = Number(it.subtotal) > 0 ? Number(it.subtotal) : unitPrice * qty
-          totalAmount += subtotal
+          const unitPrice = Math.max(0, Number(it.unitPrice) || p.defaultPrice)
+          const qty = Math.max(0, Number(it.qty) || 0)
+          const subtotal = Math.max(0, Number(it.subtotal) || unitPrice * qty)
+          itemsSubtotal += subtotal
           await tx.orderItem.create({
             data: {
               orderId: id,
               productId: p.id,
               unit: it.unit || 'default',
-              baseQty: Number(it.baseQty) || qty,
+              baseQty: Math.max(0, Number(it.baseQty) || qty),
               qty,
               unitPrice,
               originalPrice: p.defaultPrice,
@@ -81,7 +86,21 @@ export default defineEventHandler(async (event) => {
             },
           })
         }
+
+        let totalAmount = itemsSubtotal
+        const nextPriceMode = update.priceMode || existing.priceMode
+        const nextPromotionId = 'promotionId' in update ? update.promotionId : existing.promotionId
+        if (nextPriceMode === 'promotion' && nextPromotionId) {
+          const promotion = await tx.promotion.findUnique({ where: { id: nextPromotionId } })
+          if (!promotion || promotion.status !== 'active') throw new Error('满减活动不存在或已停用')
+          if (itemsSubtotal < promotion.threshold) throw new Error('当前商品小计未达到满减门槛')
+          totalAmount = Math.max(0, itemsSubtotal - promotion.reduction)
+        } else if (Number(body.totalAmount) >= 0) {
+          totalAmount = Number(body.totalAmount)
+        }
         update.totalAmount = totalAmount
+      } else if ('totalAmount' in body && Number(body.totalAmount) >= 0) {
+        update.totalAmount = Number(body.totalAmount)
       }
 
       const updated = await tx.order.update({
