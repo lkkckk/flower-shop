@@ -6,18 +6,20 @@ import { computeReminderStage } from '../../../shared/preorderReminder'
  *
  * 请求体：
  * {
- *   customerId?: number | null,        // 可选（散客可不绑定）
- *   customerName?: string,             // 未绑定客户时的手填姓名（存 notes 里或忽略，最小版本忽略）
- *   customerPhone?: string,
+ *   customerId?: number | null,
  *   receiverName?: string,
  *   receiverPhone?: string,
  *   deliveryAddress?: string,
- *   deliveryTime: ISOString,           // 履约日期+时间（必填）
+ *   deliveryTime: ISOString,
  *   fulfillmentType?: 'delivery' | 'pickup',
  *   isUrgent?: boolean,
- *   notes?: string,                    // 其他要求
- *   cardMessage?: string,              // 贺卡内容
- *   sourceChannel?: string,            // 来源标记
+ *   priceMode?: 'retail' | 'vip' | 'wholesale' | 'discount' | 'promotion' | 'custom',
+ *   discountRate?: number,
+ *   promotionId?: number | null,
+ *   totalAmount?: number,
+ *   notes?: string,
+ *   cardMessage?: string,
+ *   sourceChannel?: string,
  *   items: [
  *     { productId, qty, baseQty, unit, unitPrice, subtotal, imageUrl?, notes? }
  *   ]
@@ -42,10 +44,14 @@ export default defineEventHandler(async (event) => {
   }
 
   const fulfillmentType = body.fulfillmentType === 'pickup' ? 'pickup' : 'delivery'
+  const allowedPriceModes = new Set(['retail', 'vip', 'wholesale', 'discount', 'promotion', 'custom'])
+  const priceMode = allowedPriceModes.has(body.priceMode) ? body.priceMode : 'retail'
+  const discountRate = priceMode === 'discount' ? Number(body.discountRate || 100) : null
+  const promotionId = priceMode === 'promotion' && body.promotionId ? Number(body.promotionId) : null
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      // 权威价格：从 DB 取，避免前端篡改
+      // 权威商品信息：商品必须存在；预售场景允许前端传入最终成交单价，服务端做基础校验与快照保存。
       const productIds: number[] = Array.from(
         new Set(body.items.map((i: any) => Number(i.productId)).filter(Boolean)),
       )
@@ -71,16 +77,15 @@ export default defineEventHandler(async (event) => {
       })
       const orderNo = `PO${dateStr}${(todayCount + 1).toString().padStart(4, '0')}`
 
-      // 订单总金额（前端提供的 subtotal 为参考，服务端按 defaultPrice × qty 重算做兜底）
-      let totalAmount = 0
+      let itemsSubtotal = 0
       const itemRows = body.items.map((it: any) => {
         const p = productMap.get(Number(it.productId))
         if (!p) throw new Error(`商品(id=${it.productId})不存在`)
-        const unitPrice = Number(it.unitPrice) > 0 ? Number(it.unitPrice) : p.defaultPrice
-        const qty = Number(it.qty) || 0
-        const baseQty = Number(it.baseQty) || qty
-        const subtotal = Number(it.subtotal) > 0 ? Number(it.subtotal) : unitPrice * qty
-        totalAmount += subtotal
+        const unitPrice = Math.max(0, Number(it.unitPrice) || p.defaultPrice)
+        const qty = Math.max(0, Number(it.qty) || 0)
+        const baseQty = Math.max(0, Number(it.baseQty) || qty)
+        const subtotal = Math.max(0, Number(it.subtotal) || unitPrice * qty)
+        itemsSubtotal += subtotal
         return {
           productId: p.id,
           unit: it.unit || 'default',
@@ -92,10 +97,19 @@ export default defineEventHandler(async (event) => {
           grade: it.grade ?? p.grade ?? null,
           color: it.color ?? p.color ?? null,
           notes: it.notes ?? null,
-          // 预售下单时快照商品参考图
           imageUrl: it.imageUrl ?? p.imageUrl ?? null,
         }
       })
+
+      let totalAmount = itemsSubtotal
+      if (priceMode === 'promotion' && promotionId) {
+        const promotion = await tx.promotion.findUnique({ where: { id: promotionId } })
+        if (!promotion || promotion.status !== 'active') throw new Error('满减活动不存在或已停用')
+        if (itemsSubtotal < promotion.threshold) throw new Error('当前商品小计未达到满减门槛')
+        totalAmount = Math.max(0, itemsSubtotal - promotion.reduction)
+      } else if (Number(body.totalAmount) >= 0) {
+        totalAmount = Number(body.totalAmount)
+      }
 
       const reminderStage = computeReminderStage(deliveryTime)
 
@@ -112,6 +126,9 @@ export default defineEventHandler(async (event) => {
           isUrgent: Boolean(body.isUrgent),
           isMade: false,
           sortIndex: 0,
+          priceMode,
+          discountRate,
+          promotionId,
           notes: body.notes || null,
           cardMessage: body.cardMessage || null,
           sourceChannel: body.sourceChannel || null,
