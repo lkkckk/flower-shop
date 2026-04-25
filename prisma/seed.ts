@@ -1,6 +1,7 @@
-import { PrismaClient } from '@prisma/client'
+import prismaClientPkg from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
+const { PrismaClient } = prismaClientPkg
 const prisma = new PrismaClient()
 
 async function ensureUser(username: string, password: string, name: string, role: string) {
