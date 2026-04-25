@@ -164,6 +164,14 @@ model Order {
   deliveryAddress String?
   notes           String?
   status          String   @default("pending")
+  // 履约方式：delivery | pickup，供预售排单/备货看板使用
+  fulfillmentType String   @default("delivery")
+  // 是否已做好：轻量制作完成标记，不等同于完整订单状态流转
+  isMade          Boolean  @default(false)
+  // 是否加急/插单：用于排单优先展示
+  isUrgent        Boolean  @default(false)
+  // 手动排序预留字段
+  sortIndex       Int      @default(0)
   // 价格模式：retail | vip | wholesale | discount | promotion
   priceMode       String?
   // 整单折扣率（0-100），仅 priceMode=discount 时使用
@@ -193,6 +201,8 @@ model Order {
   @@index([createdAt])
   @@index([customerId])
   @@index([orderType, deliveryTime])
+  @@index([orderType, deliveryTime, isMade])
+  @@index([orderType, status])
 }
 
 model OrderItem {
