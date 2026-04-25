@@ -13,6 +13,8 @@ import { computeReminderStage } from '../../../shared/preorderReminder'
  *   receiverPhone?: string,
  *   deliveryAddress?: string,
  *   deliveryTime: ISOString,           // 履约日期+时间（必填）
+ *   fulfillmentType?: 'delivery' | 'pickup',
+ *   isUrgent?: boolean,
  *   notes?: string,                    // 其他要求
  *   cardMessage?: string,              // 贺卡内容
  *   sourceChannel?: string,            // 来源标记
@@ -38,6 +40,8 @@ export default defineEventHandler(async (event) => {
   if (Number.isNaN(deliveryTime.getTime())) {
     throw createError({ statusCode: 400, message: '履约日期格式错误' })
   }
+
+  const fulfillmentType = body.fulfillmentType === 'pickup' ? 'pickup' : 'delivery'
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -104,6 +108,10 @@ export default defineEventHandler(async (event) => {
           paidAmount: 0,
           owedAmount: 0,
           status: 'pending_confirm',
+          fulfillmentType,
+          isUrgent: Boolean(body.isUrgent),
+          isMade: false,
+          sortIndex: 0,
           notes: body.notes || null,
           cardMessage: body.cardMessage || null,
           sourceChannel: body.sourceChannel || null,
