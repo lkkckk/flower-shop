@@ -5,6 +5,5 @@
 </template>
 
 <script setup lang="ts">
-definePageMeta({ layout: 'pos' })
 useHead({ title: '库存盘点 - 收银台' })
 </script>

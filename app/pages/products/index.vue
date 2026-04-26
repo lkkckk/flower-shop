@@ -49,6 +49,7 @@
         @change="handleTableChange"
         row-key="id"
         :scroll="{ x: 1320 }"
+        table-layout="fixed"
         size="middle"
         :locale="{ emptyText: '暂无商品数据' }"
       >
@@ -62,6 +63,12 @@
             >
               <template v-if="!record.imageUrl">🌸</template>
             </a-avatar>
+          </template>
+
+          <template v-else-if="column.key === 'name'">
+            <a-tooltip :title="record.name">
+              <span class="product-name-cell">{{ record.name || '-' }}</span>
+            </a-tooltip>
           </template>
 
           <template v-else-if="column.key === 'grade'">
@@ -108,6 +115,7 @@
                 </a-button>
               </a-popconfirm>
               <a-popconfirm
+                v-if="!isCashier"
                 title="确定要永久删除该商品吗？（有订单或库存时会拒绝）"
                 @confirm="handleForceDelete(record.id)"
                 ok-text="确定删除"
@@ -127,6 +135,7 @@
     <ProductsProductForm
       v-model:visible="modalVisible"
       :product="editingProduct"
+      :hide-wholesale-price="isCashier"
       @success="loadData"
     />
 
@@ -152,6 +161,7 @@ import debounce from 'lodash-es/debounce'
 useHead({ title: '商品管理 - 花店管理系统' })
 
 const { fetchProducts, updateProduct, loading } = useProducts()
+const { isCashier } = useAuth()
 
 const categoryDrawerVisible = ref(false)
 
@@ -186,7 +196,7 @@ const editingProduct = ref<any | null>(null)
 // 表格列定义
 const columns = [
   { title: '图片', key: 'image', width: 60, fixed: 'left' as const },
-  { title: '商品名称', dataIndex: 'name', key: 'name', fixed: 'left' as const, width: 200 },
+  { title: '商品名称', dataIndex: 'name', key: 'name', fixed: 'left' as const, width: 120, ellipsis: true },
   { title: '分类', key: 'category', width: 120, customRender: ({ record }: any) => record.categoryRef?.name || record.category || '-' },
   { title: '等级/规格/颜色', key: 'specs', width: 180, customRender: ({ record }: any) => {
       const parts = []
@@ -195,8 +205,8 @@ const columns = [
       return parts.join(' / ') || '-'
   } },
   { title: '等级', key: 'grade', width: 80 },
-  { title: '单位配置', key: 'units', width: 180 },
-  { title: '价格体系', key: 'price', width: 160 },
+  { title: '单位配置', key: 'units', width: 120 },
+  { title: '价格体系', key: 'price', width: 120 },
   { title: '花期(天)', dataIndex: 'shelfLifeDays', key: 'shelfLifeDays', width: 90, align: 'center' },
   { title: '状态', key: 'status', width: 100 },
   { title: '操作', key: 'action', width: 160, fixed: 'right' as const, align: 'center' },
@@ -316,5 +326,20 @@ onMounted(() => {
   gap: 12px;
   min-width: 124px;
   white-space: nowrap;
+}
+
+.product-name-cell {
+  display: block;
+  max-width: 148px;
+  overflow: hidden;
+  color: var(--ink-900, #1f2618);
+  font-weight: 600;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:deep(.ant-table-cell-fix-left .product-name-cell) {
+  max-width: 148px;
 }
 </style>

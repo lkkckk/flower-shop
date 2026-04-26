@@ -1,7 +1,10 @@
 import { prisma } from '../../utils/prisma'
+import { productRecipeInclude, saveProductRecipe } from '../../utils/productRecipe'
+import { hideWholesalePriceForCashier, isCashierRequest } from '../../utils/productVisibility'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
+  const isCashier = isCashierRequest(event)
 
   try {
     const product = await prisma.$transaction(async (tx) => {
@@ -16,7 +19,7 @@ export default defineEventHandler(async (event) => {
           specification: body.specification,
           defaultPrice: body.defaultPrice,
           vipPrice: body.vipPrice,
-          wholesalePrice: body.wholesalePrice,
+          wholesalePrice: isCashier ? undefined : body.wholesalePrice,
           shelfLifeDays: body.shelfLifeDays,
           attributes: body.attributes,
           status: body.status || 'active',
@@ -29,13 +32,24 @@ export default defineEventHandler(async (event) => {
         },
         include: {
           unitConversions: true,
+          recipe: { include: productRecipeInclude },
         },
       })
+      await saveProductRecipe(tx, createdProduct.id, body.recipe)
+      if (body.recipe !== undefined) {
+        return await tx.product.findUnique({
+          where: { id: createdProduct.id },
+          include: {
+            unitConversions: true,
+            recipe: { include: productRecipeInclude },
+          },
+        })
+      }
       return createdProduct
     })
 
     return {
-      data: product,
+      data: hideWholesalePriceForCashier(event, product),
       error: null,
     }
   } catch (error: any) {

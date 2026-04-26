@@ -1,8 +1,11 @@
 import { prisma } from '../../utils/prisma'
+import { productRecipeInclude, saveProductRecipe } from '../../utils/productRecipe'
+import { hideWholesalePriceForCashier, isCashierRequest } from '../../utils/productVisibility'
 
 export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
   const body = await readBody(event)
+  const isCashier = isCashierRequest(event)
 
   if (isNaN(id)) {
     throw createError({
@@ -31,7 +34,7 @@ export default defineEventHandler(async (event) => {
           specification: body.specification,
           defaultPrice: body.defaultPrice,
           vipPrice: body.vipPrice,
-          wholesalePrice: body.wholesalePrice,
+          wholesalePrice: isCashier ? undefined : body.wholesalePrice,
           shelfLifeDays: body.shelfLifeDays,
           attributes: body.attributes,
           status: body.status,
@@ -44,14 +47,26 @@ export default defineEventHandler(async (event) => {
         },
         include: {
           unitConversions: true,
+          recipe: { include: productRecipeInclude },
         },
       })
+
+      await saveProductRecipe(tx, id, body.recipe)
+      if (body.recipe !== undefined) {
+        return await tx.product.findUnique({
+          where: { id },
+          include: {
+            unitConversions: true,
+            recipe: { include: productRecipeInclude },
+          },
+        })
+      }
 
       return product
     })
 
     return {
-      data: updatedProduct,
+      data: hideWholesalePriceForCashier(event, updatedProduct),
       error: null,
     }
   } catch (error: any) {

@@ -324,7 +324,7 @@ const kpis = computed(() => [
 ])
 
 const quickActions = [
-  { title: '开单收银', sub: '快速下单 / 收款', path: '/pos', icon: ShoppingCartOutlined },
+  { title: '收银台', sub: '快速下单 / 收款', path: '/pos', icon: ShoppingCartOutlined },
   { title: '新增入库', sub: '登记进货批次', path: '/stocks/inbound', icon: InboxOutlined },
   { title: '客户对账', sub: '生成 / 打印对账单', path: '/payments', icon: AccountBookOutlined },
   { title: '经营报表', sub: '销售 / 毛利 / 榜单', path: '/reports', icon: BarChartOutlined },

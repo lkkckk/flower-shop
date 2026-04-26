@@ -42,6 +42,8 @@ model Product {
   unitConversions UnitConversion[]
   stockBatches    StockBatch[]
   orderItems      OrderItem[]
+  recipe          ProductRecipe?   @relation("ProductRecipeProduct")
+  recipeComponents ProductRecipeItem[] @relation("ProductRecipeComponent")
 }
 
 model UnitConversion {
@@ -52,6 +54,34 @@ model UnitConversion {
   product     Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([productId, fromUnit])
+}
+
+model ProductRecipe {
+  id        Int      @id @default(autoincrement())
+  productId Int     @unique
+  enabled   Boolean @default(true)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product @relation("ProductRecipeProduct", fields: [productId], references: [id], onDelete: Cascade)
+  items   ProductRecipeItem[]
+}
+
+model ProductRecipeItem {
+  id                 Int     @id @default(autoincrement())
+  recipeId           Int
+  componentProductId Int
+  qty                Float
+  unit               String
+  sort               Int     @default(0)
+  notes              String?
+
+  recipe           ProductRecipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  componentProduct Product       @relation("ProductRecipeComponent", fields: [componentProductId], references: [id])
+
+  @@index([recipeId])
+  @@index([componentProductId])
 }
 
 model StockBatch {

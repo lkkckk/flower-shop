@@ -51,7 +51,10 @@
       </a-form>
 
       <div class="login-tip">
-        <span>首次使用默认账号：</span>
+        <span>管理员、员工、收银员统一从此入口登录</span>
+      </div>
+      <div class="login-tip muted-tip">
+        <span>默认管理员：</span>
         <span class="mono">admin / admin123</span>
       </div>
     </a-card>
@@ -68,7 +71,7 @@ useHead({ title: '登录 - 花店管理系统' })
 
 const router = useRouter()
 const route = useRoute()
-const { login } = useAuth()
+const { login, user } = useAuth()
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
@@ -87,8 +90,12 @@ const handleLogin = async () => {
   try {
     const ok = await login(formState.username, formState.password)
     if (ok) {
-      const redirect = (route.query.redirect as string) || '/'
-      router.push(redirect)
+      const redirect = route.query.redirect as string | undefined
+      if (redirect) {
+        router.push(redirect)
+        return
+      }
+      router.push(user.value?.role === 'cashier' ? '/pos' : '/')
     }
   } finally {
     loading.value = false
@@ -170,6 +177,10 @@ const handleLogin = async () => {
   margin-top: 16px;
   font-size: 12px;
   color: #9ca3af;
+}
+
+.muted-tip {
+  margin-top: 6px;
 }
 
 .mono {

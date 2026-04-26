@@ -105,7 +105,7 @@ const { user, isAdmin, logout } = useAuth()
 const { currentCashier, setActiveCashier } = useActiveCashier()
 
 const handleLogout = async () => {
-  await logout('pos')
+  await logout()
 }
 
 const switchCashierModalVisible = ref(false)
@@ -123,7 +123,7 @@ const handleSwitchCashier = async () => {
   try {
     const res: any = await $fetch('/api/auth/login', {
       method: 'POST',
-      body: { username: switchForm.username, password: switchForm.password, scope: 'pos' },
+      body: { username: switchForm.username, password: switchForm.password },
     })
     if (res.error) {
       switchError.value = res.error.message || '账号或密码错误'

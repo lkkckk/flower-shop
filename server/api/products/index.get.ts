@@ -1,4 +1,6 @@
 import { prisma } from '../../utils/prisma'
+import { productRecipeInclude } from '../../utils/productRecipe'
+import { hideWholesalePriceForCashier } from '../../utils/productVisibility'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
@@ -43,6 +45,7 @@ export default defineEventHandler(async (event) => {
         include: {
           unitConversions: true,
           categoryRef: true,
+          recipe: { include: productRecipeInclude },
         },
         orderBy: {
           updatedAt: 'desc',
@@ -55,7 +58,7 @@ export default defineEventHandler(async (event) => {
 
     return {
       data: {
-        list,
+        list: hideWholesalePriceForCashier(event, list),
         total,
         page,
         pageSize,

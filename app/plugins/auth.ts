@@ -1,7 +1,7 @@
 /**
  * 全局 $fetch 拦截器：
  * - 自动把 auth_token cookie 加到 Authorization 头
- * - 401 响应清空 token 并跳转 /login
+ * - 401 响应清空 token 并跳转统一登录页 /login
  *
  * 通过覆盖 globalThis.$fetch，让所有 useXxx composable 自动带上 token
  * 无需逐个改造。
@@ -32,11 +32,9 @@ export default defineNuxtPlugin((nuxtApp) => {
         if (import.meta.client) {
           try {
             const route = useRoute()
-            const isLoginPage = route.path === '/login' || route.path === '/pos/login'
+            const isLoginPage = route.path === '/login'
             if (!isLoginPage) {
-              // POS 相关路径跳 POS 登录，其余跳管理登录
-              const loginPath = route.path.startsWith('/pos') ? '/pos/login' : '/login'
-              return navigateTo(`${loginPath}?redirect=${encodeURIComponent(route.fullPath)}`)
+              return navigateTo(`/login?redirect=${encodeURIComponent(route.fullPath)}`)
             }
           } catch {
             // useRoute 可能在某些上下文不可用，静默忽略

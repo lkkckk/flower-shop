@@ -7,7 +7,7 @@ import { verifyToken } from '../utils/auth'
  * - 对白名单路径不强制要求登录
  * - 其余 /api/** 路径若无有效 token → 401
  * - 非 /api 的前端页面请求放行（由前端路由守卫处理）
- * - cashier 角色仅允许访问 POS 所需路径，其余 /api/* → 403
+ * - cashier 角色仅允许访问工作台、客户、商品录入和分类管理所需路径，其余 /api/* → 403
  */
 
 // 精确路径匹配（无参数）
@@ -23,17 +23,25 @@ const PREFIX_PUBLIC: string[] = [
 ]
 
 /**
- * 收银员（cashier）角色被允许访问的路径前缀
- * 仅 POS 所需：下单、商品列表（含库存）、客户搜索、盘点、促销查询、认证自查、低库存 settings
+ * 收银员（cashier）角色被允许访问的路径
+ * 工作台所需：下单、商品/分类管理、客户管理、排单/备货、盘点、促销查询、认证自查、低库存 settings、库存只读列表
  */
+const CASHIER_EXACT_ALLOW = new Set<string>([
+  '/api/categories',
+  '/api/customers',
+  '/api/products',
+  '/api/stocks',
+  '/api/preorders/schedule',
+  '/api/preorders/stats/hot',
+])
+
 const CASHIER_PREFIX_ALLOW: string[] = [
   '/api/auth/',
   '/api/orders',
-  '/api/products/with-stock',
-  '/api/customers/search',
+  '/api/categories/',
+  '/api/customers/',
+  '/api/products/',
   '/api/stocks/stocktake',
-  '/api/stocks/inbound',   // 允许店员录入库存
-  '/api/stocks',           // 允许店员查看库存（costPrice 字段由 API 内部过滤）
   '/api/promotions',
   '/api/settings',         // 允许读 lowStockThreshold；写操作由 API 内部角色校验
 ]
@@ -44,6 +52,8 @@ const isPublicPath = (path: string): boolean => {
 }
 
 const isCashierAllowed = (path: string): boolean => {
+  if (CASHIER_EXACT_ALLOW.has(path)) return true
+  if (/^\/api\/preorders\/\d+\/(made|urgent)$/.test(path)) return true
   return CASHIER_PREFIX_ALLOW.some((p) => path === p || path.startsWith(p))
 }
 

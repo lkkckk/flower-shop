@@ -1,4 +1,5 @@
 import { prisma } from '../../utils/prisma'
+import { hideWholesalePriceForCashier } from '../../utils/productVisibility'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
@@ -35,6 +36,23 @@ export default defineEventHandler(async (event) => {
       include: {
         unitConversions: true,
         categoryRef: true,
+        recipe: {
+          include: {
+            items: {
+              include: {
+                componentProduct: {
+                  include: {
+                    unitConversions: true,
+                    stockBatches: {
+                      where: { status: 'in_stock', currentQty: { gt: 0 } },
+                      select: { currentQty: true },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
         stockBatches: {
           where: { status: 'in_stock', currentQty: { gt: 0 } },
           select: { currentQty: true },
@@ -45,7 +63,20 @@ export default defineEventHandler(async (event) => {
 
     // 聚合库存
     const list = products.map((p) => {
-      const totalStock = p.stockBatches.reduce((sum, batch) => sum + batch.currentQty, 0)
+      const recipeItems = p.recipe?.enabled ? (p.recipe.items || []) : []
+      const recipeStock = recipeItems.length > 0
+        ? Math.min(...recipeItems.map((item: any) => {
+            const component = item.componentProduct
+            const componentStock = component.stockBatches.reduce((sum: number, batch: any) => sum + Number(batch.currentQty || 0), 0)
+            const required = item.unit === component.baseUnit
+              ? Number(item.qty || 0)
+              : Number(item.qty || 0) * Number(component.unitConversions.find((u: any) => u.fromUnit === item.unit)?.toBaseQty || 1)
+            return required > 0 ? componentStock / required : 0
+          }))
+        : null
+      const totalStock = recipeStock === null
+        ? p.stockBatches.reduce((sum, batch) => sum + batch.currentQty, 0)
+        : recipeStock
       const { stockBatches, ...rest } = p
       return {
         ...rest,
@@ -54,7 +85,7 @@ export default defineEventHandler(async (event) => {
     })
 
     return {
-      data: { list },
+      data: { list: hideWholesalePriceForCashier(event, list) },
       error: null,
     }
   } catch (error: any) {

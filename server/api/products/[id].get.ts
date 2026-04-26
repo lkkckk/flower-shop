@@ -1,4 +1,6 @@
 import { prisma } from '../../utils/prisma'
+import { productRecipeInclude } from '../../utils/productRecipe'
+import { hideWholesalePriceForCashier } from '../../utils/productVisibility'
 
 export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
@@ -15,6 +17,7 @@ export default defineEventHandler(async (event) => {
       where: { id },
       include: {
         unitConversions: true,
+        recipe: { include: productRecipeInclude },
       },
     })
 
@@ -27,7 +30,7 @@ export default defineEventHandler(async (event) => {
     }
 
     return {
-      data: product,
+      data: hideWholesalePriceForCashier(event, product),
       error: null,
     }
   } catch (error: any) {

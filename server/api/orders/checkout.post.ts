@@ -227,7 +227,11 @@ export default defineEventHandler(async (event) => {
     setResponseStatus(event, 400)
     return {
       data: null,
-      error: { message: error.message || '结账失败', code: error.code || 'CHECKOUT_FAILED' },
+      error: {
+        message: error.message || '结账失败',
+        code: error.code || 'CHECKOUT_FAILED',
+        shortages: error.shortages || undefined,
+      },
     }
   }
 })

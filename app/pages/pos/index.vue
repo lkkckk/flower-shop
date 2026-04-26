@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col h-screen overflow-hidden bg-[#fafaf9] pos-container">
+  <div class="pos-cashier-page flex flex-col overflow-hidden bg-[#fafaf9] pos-container">
     <PosCartTabs />
 
     <div class="flex flex-1 overflow-hidden relative">
@@ -55,8 +55,7 @@ import { ShoppingCartOutlined } from '@ant-design/icons-vue'
 import { useMagicKeys } from '@vueuse/core'
 import { useCartStore } from '~/stores/cart'
 
-definePageMeta({ layout: 'pos' })
-useHead({ title: '开单收银 - 花店管理系统' })
+useHead({ title: '收银台 - 花店管理系统' })
 
 const cartStore = useCartStore()
 
@@ -125,5 +124,10 @@ const onCheckoutSuccess = (orderId: number) => {
 <style scoped>
 :deep(.pos-container) {
   --header-height: 50px;
+}
+
+.pos-cashier-page {
+  height: 100%;
+  min-height: 0;
 }
 </style>

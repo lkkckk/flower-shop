@@ -1,5 +1,5 @@
 <template>
-  <div class="admin-shell">
+  <div class="admin-shell" :class="{ 'cashier-workspace': isCashierRoute }">
     <aside class="admin-sider" :class="{ collapsed }">
       <SiderContent
         :collapsed="collapsed"
@@ -61,10 +61,10 @@
             </button>
             <template #overlay>
               <a-menu>
-                <a-menu-item key="settings">
+                <a-menu-item v-if="!isCashier" key="settings">
                   <NuxtLink to="/settings">系统设置</NuxtLink>
                 </a-menu-item>
-                <a-menu-divider />
+                <a-menu-divider v-if="!isCashier" />
                 <a-menu-item key="logout" @click="handleLogout">
                   <LogoutOutlined /> 退出登录
                 </a-menu-item>
@@ -102,11 +102,11 @@ import {
   ShoppingOutlined,
   TeamOutlined,
 } from '@ant-design/icons-vue'
-import { computed, defineComponent, h, onMounted, onUnmounted, ref, resolveComponent } from 'vue'
+import { computed, defineComponent, h, onMounted, onUnmounted, ref } from 'vue'
 
 const route = useRoute()
 const router = useRouter()
-const { user, logout } = useAuth()
+const { user, logout, isCashier } = useAuth()
 
 const collapsed = ref(false)
 const drawerVisible = ref(false)
@@ -115,14 +115,12 @@ const menuGroups = [
   {
     label: '主要工作台',
     items: [
-      { key: '/', label: '首页', path: '/', icon: HomeOutlined },
       { key: '/reports', label: '每日复盘', path: '/reports', icon: BarChartOutlined },
     ],
   },
   {
     label: '销售',
     items: [
-      { key: '/pos', label: '开单收银', path: '/pos', icon: ShopOutlined },
       { key: '/orders', label: '订单记录', path: '/orders', icon: FileTextOutlined },
       { key: '/orders/schedule', label: '订单排单', path: '/orders/schedule', icon: CalendarOutlined },
       { key: '/orders/preparation', label: '今日备货', path: '/orders/preparation', icon: InboxOutlined },
@@ -147,17 +145,38 @@ const menuGroups = [
   },
 ]
 
-const flatItems = menuGroups.flatMap((group) => group.items)
+const primaryActions = [
+  { key: '/', label: '首页', path: '/', icon: HomeOutlined },
+  { key: '/pos', label: '收银台', path: '/pos', icon: ShopOutlined },
+]
+
+const cashierActions = [
+  { key: '/pos', label: '收银台', path: '/pos', icon: ShopOutlined },
+  { key: '/pos/schedule', label: '订单排单', path: '/pos/schedule', icon: CalendarOutlined },
+  { key: '/pos/preparation', label: '今日备货', path: '/pos/preparation', icon: InboxOutlined },
+  { key: '/pos/stocktake', label: '库存盘点', path: '/pos/stocktake', icon: InboxOutlined },
+  { key: '/customers', label: '客户管理', path: '/customers', icon: TeamOutlined },
+  { key: '/products', label: '商品管理', path: '/products', icon: ShoppingOutlined },
+]
+
+const visiblePrimaryActions = computed(() => (isCashier.value ? cashierActions : primaryActions))
+const visibleMenuGroups = computed(() => (isCashier.value ? [] : menuGroups))
+const flatItems = computed(() => [
+  ...visiblePrimaryActions.value,
+  ...visibleMenuGroups.value.flatMap((group) => group.items),
+])
 
 const selectedKey = computed(() => {
   const path = route.path
-  const matched = flatItems
+  const matched = flatItems.value
     .filter((item) => path === item.key || (item.key !== '/' && path.startsWith(item.key)))
     .sort((a, b) => b.key.length - a.key.length)
-  return matched[0]?.key || '/'
+  return matched[0]?.key || (isCashier.value ? '/pos' : '/')
 })
 
-const currentPage = computed(() => flatItems.find((item) => item.key === selectedKey.value)?.label || '')
+const currentPage = computed(() => flatItems.value.find((item) => item.key === selectedKey.value)?.label || '')
+
+const isCashierRoute = computed(() => route.path === '/pos')
 
 const userInitial = computed(() => (user.value?.name || user.value?.username || '管').slice(0, 1))
 
@@ -167,8 +186,7 @@ const navigate = async (path: string) => {
 }
 
 const handleLogout = async () => {
-  logout()
-  await router.push('/login')
+  await logout()
 }
 
 const handleSearch = (event: KeyboardEvent) => {
@@ -206,7 +224,25 @@ const SiderContent = defineComponent({
               ])
             : null,
         ]),
-        ...menuGroups.map((group) =>
+        h(
+          'div',
+          { class: 'primary-nav' },
+          visiblePrimaryActions.value.map((item) =>
+            h(
+              'button',
+              {
+                class: ['primary-nav-item', props.selectedKey === item.key ? 'active' : ''],
+                title: props.collapsed ? item.label : undefined,
+                onClick: () => emit('navigate', item.path),
+              },
+              [
+                h('span', { class: 'primary-nav-icon' }, h(item.icon)),
+                !props.collapsed ? h('span', { class: 'primary-nav-text' }, item.label) : null,
+              ],
+            ),
+          ),
+        ),
+        ...visibleMenuGroups.value.map((group) =>
           h('div', { class: 'nav-group' }, [
             !props.collapsed ? h('div', { class: 'nav-label' }, group.label) : null,
             ...group.items.map((item) =>
@@ -260,9 +296,9 @@ const SiderContent = defineComponent({
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 10px 22px;
+  padding: 6px 10px 18px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .brand-mark {
@@ -285,6 +321,57 @@ const SiderContent = defineComponent({
   margin-top: 2px;
   color: rgba(255, 255, 255, 0.5);
   font-size: 11px;
+}
+
+.primary-nav {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.primary-nav-item {
+  min-height: 82px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  font: inherit;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.primary-nav-item:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.primary-nav-item.active {
+  background: var(--avo-300);
+  color: var(--avo-900);
+  box-shadow: 0 10px 24px rgba(168, 185, 127, 0.22);
+}
+
+.primary-nav-icon {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.primary-nav-text {
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.1;
 }
 
 .nav-group {
@@ -337,6 +424,22 @@ const SiderContent = defineComponent({
 .is-collapsed .brand {
   justify-content: center;
   padding-inline: 0;
+}
+
+.is-collapsed .primary-nav {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.is-collapsed .primary-nav-item {
+  min-height: 52px;
+  padding: 9px 0;
+}
+
+.is-collapsed .primary-nav-icon {
+  width: 26px;
+  height: 26px;
+  font-size: 22px;
 }
 
 .is-collapsed .nav-item {
@@ -467,6 +570,12 @@ const SiderContent = defineComponent({
   padding: 28px;
 }
 
+.cashier-workspace .admin-content {
+  height: calc(100vh - 60px);
+  padding: 0;
+  overflow: hidden;
+}
+
 .mobile-only {
   display: none;
 }
@@ -499,6 +608,11 @@ const SiderContent = defineComponent({
 
   .admin-content {
     padding: 16px;
+  }
+
+  .cashier-workspace .admin-content {
+    height: calc(100vh - 58px);
+    padding: 0;
   }
 
   .user-name {

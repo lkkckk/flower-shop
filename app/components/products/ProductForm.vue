@@ -97,7 +97,7 @@
               placeholder="请输入VIP 价"
             />
           </a-form-item>
-          <a-form-item label="批发价" name="wholesalePrice">
+          <a-form-item v-if="!hideWholesalePrice" label="批发价" name="wholesalePrice">
             <a-input-number
               v-model:value="formState.wholesalePrice"
               :min="0"
@@ -189,6 +189,43 @@
         </a-card>
 
         <!-- 第六组：状态 -->
+        <a-card title="花束配方" size="small" class="form-card col-span-full">
+          <template #extra>
+            <a-switch v-model:checked="formState.recipe.enabled" size="small" />
+          </template>
+          <div class="recipe-intro">
+            有配方的商品在销售或预售制作时会扣减配方组件库存，不再扣减成品库存。
+          </div>
+          <a-form-item label="配方备注" class="mb-3">
+            <a-textarea v-model:value="formState.recipe.notes" :rows="2" placeholder="如：标准生日花束配方" />
+          </a-form-item>
+          <div v-for="(item, index) in formState.recipe.items" :key="index" class="recipe-row">
+            <a-select
+              v-model:value="item.componentProductId"
+              class="recipe-product"
+              show-search
+              placeholder="选择花材 / 包装商品"
+              :options="componentOptions"
+              :filter-option="selectFilterOption"
+              @change="onRecipeComponentChange(index)"
+            />
+            <a-input-number v-model:value="item.qty" :min="0.01" :step="0.1" class="recipe-qty" placeholder="数量" />
+            <a-select
+              v-model:value="item.unit"
+              class="recipe-unit"
+              placeholder="单位"
+              :options="recipeUnitOptions(item.componentProductId)"
+            />
+            <a-input v-model:value="item.notes" class="recipe-notes" placeholder="备注" />
+            <a-button type="text" danger @click="removeRecipeItem(index)">
+              <template #icon><DeleteOutlined /></template>
+            </a-button>
+          </div>
+          <a-button type="dashed" block @click="addRecipeItem">
+            <PlusOutlined /> 添加配方组件
+          </a-button>
+        </a-card>
+
         <a-card title="状态" size="small" class="form-card col-span-full">
           <a-form-item name="status" class="mb-0">
             <a-radio-group v-model:value="formState.status">
@@ -203,7 +240,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, reactive, onMounted } from 'vue'
+import { computed, ref, watch, reactive, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { DeleteOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
@@ -236,6 +273,7 @@ const findCategoryPath = (tree: any[], targetId: number, path: number[] = []): n
 const props = defineProps<{
   visible: boolean
   product: any | null
+  hideWholesalePrice?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -243,7 +281,17 @@ const emit = defineEmits<{
   'success': []
 }>()
 
-const { createProduct, updateProduct, uploadProductImage, loading } = useProducts()
+const { createProduct, updateProduct, uploadProductImage, fetchProducts, loading } = useProducts()
+const productOptions = ref<any[]>([])
+
+const loadProductOptions = async () => {
+  try {
+    const data = await fetchProducts({ pageSize: 500, status: 'active' })
+    productOptions.value = data.list || []
+  } catch {
+    productOptions.value = []
+  }
+}
 
 // 图片相关
 const imageFile = ref<File | null>(null)
@@ -276,6 +324,17 @@ interface FormState {
   shelfLifeDays: number
   status: string
   unitConversions: { fromUnit: string; toBaseQty: number | null }[]
+  recipe: {
+    enabled: boolean
+    notes: string
+    items: {
+      componentProductId: number | undefined
+      qty: number | null
+      unit: string
+      notes: string
+      sort: number
+    }[]
+  }
 }
 
 const getInitialState = (): FormState => ({
@@ -293,7 +352,39 @@ const getInitialState = (): FormState => ({
   shelfLifeDays: 7,
   status: 'active',
   unitConversions: [],
+  recipe: {
+    enabled: false,
+    notes: '',
+    items: [],
+  },
 })
+
+const componentOptions = computed(() =>
+  productOptions.value
+    .filter((p: any) => !props.product || p.id !== props.product.id)
+    .map((p: any) => ({
+      value: p.id,
+      label: `${p.name}（${p.baseUnit}）`,
+    })),
+)
+
+const selectedComponent = (id: number | undefined) =>
+  productOptions.value.find((p: any) => p.id === id) || null
+
+const recipeUnitOptions = (id: number | undefined) => {
+  const product = selectedComponent(id)
+  if (!product) return []
+  return [
+    { value: product.baseUnit, label: product.baseUnit },
+    ...(product.unitConversions || []).map((uc: any) => ({
+      value: uc.fromUnit,
+      label: `${uc.fromUnit} (= ${uc.toBaseQty}${product.baseUnit})`,
+    })),
+  ]
+}
+
+const selectFilterOption = (input: string, option: any) =>
+  String(option?.label || '').toLowerCase().includes(input.toLowerCase())
 
 const formState = reactive<FormState>(getInitialState())
 
@@ -303,6 +394,7 @@ watch(
   async (val) => {
     if (val) {
       await loadCategories()
+      await loadProductOptions()
       if (props.product) {
         const pid = props.product.categoryId ?? null
         const path = pid ? (findCategoryPath(categoryOptions.value, pid) || []) : []
@@ -324,6 +416,17 @@ watch(
             fromUnit: uc.fromUnit,
             toBaseQty: uc.toBaseQty,
           })) || [],
+          recipe: {
+            enabled: Boolean(props.product.recipe?.enabled),
+            notes: props.product.recipe?.notes || '',
+            items: props.product.recipe?.items?.map((item: any, index: number) => ({
+              componentProductId: item.componentProductId,
+              qty: item.qty,
+              unit: item.unit || item.componentProduct?.baseUnit || '',
+              notes: item.notes || '',
+              sort: item.sort ?? index,
+            })) || [],
+          },
         })
         previewUrl.value = props.product.imageUrl || null
       } else {
@@ -357,6 +460,26 @@ const removeUnitConversion = (index: number) => {
   formState.unitConversions.splice(index, 1)
 }
 
+const addRecipeItem = () => {
+  formState.recipe.items.push({
+    componentProductId: undefined,
+    qty: null,
+    unit: '',
+    notes: '',
+    sort: formState.recipe.items.length,
+  })
+}
+
+const removeRecipeItem = (index: number) => {
+  formState.recipe.items.splice(index, 1)
+}
+
+const onRecipeComponentChange = (index: number) => {
+  const item = formState.recipe.items[index]
+  const product = selectedComponent(item.componentProductId)
+  item.unit = product?.baseUnit || ''
+}
+
 // 提交和取消
 const handleCancel = () => {
   emit('update:visible', false)
@@ -379,6 +502,27 @@ const handleOk = async () => {
       return
     }
 
+    const recipeItems = formState.recipe.items.filter((item) => item.componentProductId || item.qty || item.unit)
+    if (formState.recipe.enabled && recipeItems.length === 0) {
+      message.error('启用配方后至少需要添加一个组件')
+      return
+    }
+    const componentIds = recipeItems.map((item) => item.componentProductId).filter(Boolean)
+    if (props.product && componentIds.includes(props.product.id)) {
+      message.error('配方组件不能选择商品自身')
+      return
+    }
+    if (new Set(componentIds).size !== componentIds.length) {
+      message.error('配方组件不能重复')
+      return
+    }
+    for (const item of recipeItems) {
+      if (!item.componentProductId || !item.qty || item.qty <= 0 || !item.unit) {
+        message.error('请完整填写配方组件、数量和单位')
+        return
+      }
+    }
+
     // 根据级联选择，取末端节点 ID 作为 categoryId
     const pickedId = formState.categoryPath?.length
       ? formState.categoryPath[formState.categoryPath.length - 1]
@@ -398,7 +542,25 @@ const handleOk = async () => {
       }
       pickedName = finder(categoryOptions.value)?.name
     }
-    const payload = { ...formState, categoryId: pickedId, category: pickedName ?? formState.category }
+    const payload = {
+      ...formState,
+      categoryId: pickedId,
+      category: pickedName ?? formState.category,
+      recipe: {
+        enabled: formState.recipe.enabled,
+        notes: formState.recipe.notes || null,
+        items: recipeItems.map((item, index) => ({
+          componentProductId: item.componentProductId,
+          qty: item.qty,
+          unit: item.unit,
+          notes: item.notes || null,
+          sort: index,
+        })),
+      },
+    }
+    if (props.hideWholesalePrice) {
+      delete (payload as any).wholesalePrice
+    }
 
     let savedId: number | null = null
     if (props.product) {
@@ -474,6 +636,35 @@ const handleOk = async () => {
   align-items: center;
 }
 
+.recipe-intro {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-soft, #efe9d9);
+  border-radius: 8px;
+  background: var(--avo-50, #f0f2dd);
+  color: var(--ink-500, #6b7159);
+  font-size: 12px;
+}
+
+.recipe-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) 110px 130px minmax(140px, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--line-soft, #f0f0f0);
+  border-radius: 8px;
+  background: var(--paper-2, #fafafa);
+}
+
+.recipe-product,
+.recipe-qty,
+.recipe-unit,
+.recipe-notes {
+  width: 100%;
+}
+
 .w-full {
   width: 100%;
 }
@@ -499,5 +690,11 @@ const handleOk = async () => {
 
 .no-image {
   font-size: 28px;
+}
+
+@media (max-width: 768px) {
+  .recipe-row {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

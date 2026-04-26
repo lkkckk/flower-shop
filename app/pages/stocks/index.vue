@@ -36,7 +36,7 @@
           </span>
         </div>
 
-        <div class="toolbar-right">
+        <div v-if="!isCashier" class="toolbar-right">
           <a-button type="primary" @click="goInbound">
             <template #icon><PlusOutlined /></template>
             新增入库
@@ -139,7 +139,7 @@
               <a-tag :color="statusColor(record.status)">{{ statusText(record.status) }}</a-tag>
             </template>
 
-            <template v-else-if="column.key === 'action'">
+            <template v-else-if="column.key === 'action' && !isCashier">
               <a-space :size="4">
                 <a-button type="link" size="small" danger @click="openScrapModal(record)">报损</a-button>
                 <a-button type="link" size="small" @click="openDiscountModal(record)">折价</a-button>
@@ -262,6 +262,7 @@ const route = useRoute()
 const router = useRouter()
 const { fetchStocks, scrapBatch, discountBatch, loading } = useStocks()
 const { fetchProducts } = useProducts()
+const { isCashier } = useAuth()
 
 const view = ref<'by_product' | 'by_batch'>('by_product')
 const filterProductId = ref<number | undefined>(undefined)
@@ -290,7 +291,7 @@ const productColumns = [
   { title: '操作', key: 'action', width: 100, fixed: 'right' as const },
 ]
 
-const batchColumns = [
+const batchBaseColumns = [
   { title: '批次号', key: 'batchNo', width: 150 },
   { title: '商品', key: 'productName', width: 200 },
   { title: '入库日期', key: 'inboundDate', width: 110 },
@@ -301,7 +302,11 @@ const batchColumns = [
   { title: '操作', key: 'action', width: 150, fixed: 'right' as const },
 ]
 
-const currentColumns = computed(() => (view.value === 'by_product' ? productColumns : batchColumns))
+const batchColumns = computed(() =>
+  batchBaseColumns.filter((column) => !isCashier.value || (column.key !== 'costPrice' && column.key !== 'action')),
+)
+
+const currentColumns = computed(() => (view.value === 'by_product' ? productColumns : batchColumns.value))
 
 // 加载商品筛选下拉
 const loadProductOptions = async () => {

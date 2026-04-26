@@ -97,6 +97,24 @@ export const usePreorders = () => {
     }
   }
 
+  const setMade = async (id: number, isMade: boolean) => {
+    loading.value = true
+    try {
+      const res = await $fetch(`/api/preorders/${id}/made`, {
+        method: 'PATCH',
+        body: { isMade },
+      }) as any
+      if (res.error) throw new Error(res.error.message)
+      return res.data
+    } catch (e: any) {
+      error.value = normalizeError(e, '更新制作状态失败')
+      message.error(error.value!)
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
   const fetchUpcoming = async (days: number = 7) => {
     try {
       const res = await $fetch('/api/preorders/upcoming', { query: { days } }) as any
@@ -107,5 +125,5 @@ export const usePreorders = () => {
     }
   }
 
-  return { loading, error, fetchList, fetchOne, createPreorder, updatePreorder, advance, fetchUpcoming }
+  return { loading, error, fetchList, fetchOne, createPreorder, updatePreorder, advance, setMade, fetchUpcoming }
 }

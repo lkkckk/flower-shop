@@ -10,15 +10,15 @@ export interface StaffUser {
 export type LoginScope = 'admin' | 'pos'
 
 export interface LoginOptions {
-  scope?: LoginScope
+  scope?: LoginScope // 兼容旧调用；权限仅由账号角色决定
   silent?: boolean // 不显示 message 提示
 }
 
 /**
- * 收银台/后台鉴权状态
+ * 员工鉴权状态
  * - token 持久化在 useCookie('auth_token')
  * - user 使用 useState 跨组件共享
- * - scope 区分：POS 登录（允许 cashier）与 后台登录（不允许 cashier）
+ * - 统一从 /login 登录，权限由 user.role 决定
  */
 export const useAuth = () => {
   const token = useCookie<string | null>('auth_token', {
@@ -39,11 +39,11 @@ export const useAuth = () => {
     password: string,
     opts: LoginOptions = {},
   ): Promise<boolean> => {
-    const { scope = 'admin', silent = false } = opts
+    const { silent = false } = opts
     try {
       const res: any = await $fetch('/api/auth/login', {
         method: 'POST',
-        body: { username, password, scope },
+        body: { username, password },
       })
       if (res.error) {
         if (!silent) message.error(res.error.message || '登录失败')
@@ -79,16 +79,11 @@ export const useAuth = () => {
 
   /**
    * 退出登录
-   * @param scope 若提供，跳转到对应的登录页；否则由调用方自行 navigateTo
    */
-  const logout = async (scope?: LoginScope) => {
+  const logout = async (_scope?: LoginScope) => {
     token.value = null
     user.value = null
-    if (scope === 'pos') {
-      await navigateTo('/pos/login')
-    } else if (scope === 'admin') {
-      await navigateTo('/login')
-    }
+    await navigateTo('/login')
   }
 
   return {

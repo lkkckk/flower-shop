@@ -59,7 +59,11 @@ export default defineEventHandler(async (event) => {
     setResponseStatus(event, code)
     return {
       data: null,
-      error: { message: error.message || '状态流转失败', code: error.code || 'ADVANCE_FAILED' },
+      error: {
+        message: error.message || '状态流转失败',
+        code: error.code || 'ADVANCE_FAILED',
+        shortages: error.shortages || undefined,
+      },
     }
   }
 })
