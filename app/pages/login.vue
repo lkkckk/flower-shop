@@ -3,7 +3,7 @@
     <a-card class="login-card" :bordered="false">
       <div class="login-header">
         <div class="logo">花</div>
-        <h1 class="title">花间集</h1>
+        <h1 class="title">万花芳庭</h1>
         <div class="subtitle">花店管理系统</div>
       </div>
 
@@ -50,12 +50,13 @@
         </a-form-item>
       </a-form>
 
-      <div class="login-tip">
-        <span>管理员、员工、收银员统一从此入口登录</span>
-      </div>
+
       <div class="login-tip muted-tip">
         <span>默认管理员：</span>
         <span class="mono">admin / admin123</span>
+       <br /> 
+        <span>收银员：</span>
+        <span class="mono">cashier / cashier123</span>
       </div>
     </a-card>
   </div>
