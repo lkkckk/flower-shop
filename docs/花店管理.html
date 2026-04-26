@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<title>花店管理 · Avocado Admin</title>
+<meta name="viewport" content="width=1280"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="components/atoms.jsx"></script>
+<script type="text/babel" src="components/shell.jsx"></script>
+<script type="text/babel" src="components/home.jsx"></script>
+<script type="text/babel" src="components/data-modules.jsx"></script>
+<script type="text/babel" src="components/sales-modules.jsx"></script>
+<script type="text/babel" src="components/admin-modules.jsx"></script>
+<script type="text/babel" src="components/extra-modules.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+const { Sidebar, Topbar, HomePage, ProductsPage, CustomersPage, StockPage, OpenOrderPage, OrdersPage, SortPage, PrepPage, PresalePage, ReconPage, ReportPage, SettingsPage, InboundPage, PreorderDetailPage, CustomerDetailPage, StocktakePage, MovementsPage, ClosingPage, RestockPage, PricingPage } = window;
+const { TweaksPanel, useTweaks, TweakSection, TweakSlider, TweakRadio } = window;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "primaryDepth": "deep",
+  "radius": 14,
+  "density": "compact"
+}/*EDITMODE-END*/;
+
+const PAGES = {
+  home:      {label:"首页",     comp: HomePage},
+  closing:   {label:"每日复盘", comp: ClosingPage},
+  open:      {label:"开单收银", comp: OpenOrderPage},
+  orders:    {label:"订单记录", comp: OrdersPage},
+  sort:      {label:"订单排单", comp: SortPage},
+  prep:      {label:"今日备货", comp: PrepPage},
+  presale:   {label:"预售管理", comp: PresalePage},
+  presale_detail: {label:"预售单详情", comp: PreorderDetailPage},
+  products:  {label:"商品管理", comp: ProductsPage},
+  customers: {label:"客户管理", comp: CustomersPage},
+  customer_detail: {label:"客户详情", comp: CustomerDetailPage},
+  stock:     {label:"库存管理", comp: StockPage},
+  inbound:   {label:"入库登记", comp: InboundPage},
+  stocktake: {label:"库存盘点", comp: StocktakePage},
+  movements: {label:"库存流水", comp: MovementsPage},
+  restock:   {label:"采购建议", comp: RestockPage},
+  pricing:   {label:"价格策略", comp: PricingPage},
+  recon:     {label:"对账单",   comp: ReconPage},
+  report:    {label:"报表",     comp: ReportPage},
+  settings:  {label:"系统设置", comp: SettingsPage},
+};
+
+function applyTweaks(t) {
+  const root = document.documentElement;
+  // primary depth
+  const palettes = {
+    deep: {p600:"#5C7148", p700:"#4F6336", p800:"#3F4F2A", p300:"#A8B97F"},
+    bright: {p600:"#7A9A5C", p700:"#6B8E4E", p800:"#5C7148", p300:"#C8D9A8"},
+    forest: {p600:"#3F4F2A", p700:"#2E3A1F", p800:"#1F2515", p300:"#8AA068"},
+  };
+  const p = palettes[t.primaryDepth] || palettes.deep;
+  root.style.setProperty("--avo-600", p.p600);
+  root.style.setProperty("--avo-700", p.p700);
+  root.style.setProperty("--avo-800", p.p800);
+  root.style.setProperty("--avo-300", p.p300);
+  // radius
+  const r = t.radius;
+  root.style.setProperty("--r-sm", (r * 0.5) + "px");
+  root.style.setProperty("--r-md", (r * 0.85) + "px");
+  root.style.setProperty("--r-lg", r + "px");
+  root.style.setProperty("--r-xl", (r * 1.4) + "px");
+}
+
+function App() {
+  const [active, setActive] = useState("home");
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  useEffect(() => { applyTweaks(tweaks); }, [tweaks]);
+
+  const Page = PAGES[active].comp;
+  const crumb = ["花店管理", PAGES[active].label];
+
+  const densityClass = tweaks.density === "compact" ? "density-compact"
+                     : tweaks.density === "relaxed" ? "density-relaxed"
+                     : "";
+
+  return (
+    <div className={"app " + densityClass}>
+      <Sidebar active={active} onSelect={setActive}/>
+      <div className="main">
+        <Topbar crumb={crumb}/>
+        <Page key={active}/>
+      </div>
+      <TweaksPanel>
+        <TweakSection label="外观"/>
+        <TweakRadio  label="主色深浅" value={tweaks.primaryDepth}
+          options={["bright","deep","forest"]}
+          onChange={v=>setTweak("primaryDepth", v)}/>
+        <TweakSlider label="圆角" min={4} max={24} step={2} unit="px"
+          value={tweaks.radius} onChange={v=>setTweak("radius", v)}/>
+        <TweakSection label="布局"/>
+        <TweakRadio  label="卡片密度" value={tweaks.density}
+          options={["compact","normal","relaxed"]}
+          onChange={v=>setTweak("density", v)}/>
+      </TweaksPanel>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>

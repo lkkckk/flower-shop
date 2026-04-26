@@ -117,14 +117,14 @@ definePageMeta({ layout: 'pos' })
 useHead({ title: '订单排单 - 花店管理系统' })
 
 const viewOptions = [
+  { label: '全部', value: 'all' },
   { label: '今日', value: 'today' },
   { label: '明日', value: 'tomorrow' },
   { label: '未来', value: 'future' },
-  { label: '全部', value: 'all' },
 ]
 
 const filters = reactive({
-  view: 'today',
+  view: 'all',
   date: dayjs().format('YYYY-MM-DD'),
   keyword: '',
   fulfillmentType: '',
