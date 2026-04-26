@@ -10,21 +10,21 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Nunito', 'system-ui', '-apple-system', 'sans-serif'],
-        display: ['Outfit', 'system-ui', 'sans-serif'],
+        sans: ['Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['Noto Sans SC', 'Outfit', 'system-ui', 'sans-serif'],
       },
       colors: {
         primary: {
-          50: '#fdf2f8',
-          100: '#fce7f3',
-          200: '#fbcfe8',
-          300: '#f9a8d4',
-          400: '#f472b6',
-          500: '#ec4899',
-          600: '#db2777',
-          700: '#be185d',
-          800: '#9d174d',
-          900: '#831843',
+          50: '#f0f2dd',
+          100: '#e2e8c8',
+          200: '#c7d29f',
+          300: '#a8b97f',
+          400: '#8aa068',
+          500: '#6e8654',
+          600: '#5c7148',
+          700: '#4f6336',
+          800: '#3f4f2a',
+          900: '#2e3a1f',
         },
         sage: {
           50: '#f4f7f4',
@@ -37,6 +37,23 @@ export default {
           700: '#3d563a',
           800: '#324531',
           900: '#2a3929',
+        },
+        avocado: {
+          50: '#f0f2dd',
+          100: '#e2e8c8',
+          200: '#c7d29f',
+          300: '#a8b97f',
+          400: '#8aa068',
+          500: '#6e8654',
+          600: '#5c7148',
+          700: '#4f6336',
+          800: '#3f4f2a',
+          900: '#2e3a1f',
+        },
+        paper: {
+          DEFAULT: '#f5f1e8',
+          light: '#faf7ee',
+          card: '#fffef7',
         }
       },
     },

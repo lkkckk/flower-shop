@@ -1,8 +1,14 @@
 <template>
-  <a-layout class="min-h-screen">
-    <!-- 移动端抽屉侧边栏 -->
+  <div class="admin-shell">
+    <aside class="admin-sider" :class="{ collapsed }">
+      <SiderContent
+        :collapsed="collapsed"
+        :selected-key="selectedKey"
+        @navigate="navigate"
+      />
+    </aside>
+
     <a-drawer
-      v-if="isMobile"
       :open="drawerVisible"
       placement="left"
       :closable="false"
@@ -12,69 +18,47 @@
     >
       <SiderContent
         :collapsed="false"
-        :selected-keys="selectedKeys"
-        @menu-click="handleMenuClick"
+        :selected-key="selectedKey"
+        @navigate="navigate"
       />
     </a-drawer>
 
-    <!-- 桌面端侧边栏 -->
-    <a-layout-sider
-      v-else
-      v-model:collapsed="collapsed"
-      :width="240"
-      :collapsed-width="80"
-      collapsible
-      :trigger="null"
-      class="sider"
-    >
-      <SiderContent
-        :collapsed="collapsed"
-        :selected-keys="selectedKeys"
-        @menu-click="handleMenuClick"
-      />
-    </a-layout-sider>
-
-    <a-layout>
-      <!-- 顶部栏 -->
-      <a-layout-header class="header">
-        <div class="header-left">
-          <!-- 移动端汉堡按钮 -->
-          <a-button
-            v-if="isMobile"
-            type="text"
-            class="trigger-btn"
-            @click="drawerVisible = true"
-          >
+    <section class="admin-main" :class="{ collapsed }">
+      <header class="admin-topbar">
+        <div class="topbar-left">
+          <a-button type="text" class="icon-trigger mobile-only" @click="drawerVisible = true">
             <MenuUnfoldOutlined />
           </a-button>
-          <!-- 桌面端折叠按钮 -->
-          <a-button
-            v-else
-            type="text"
-            class="trigger-btn"
-            @click="collapsed = !collapsed"
-          >
+          <a-button type="text" class="icon-trigger desktop-only" @click="collapsed = !collapsed">
             <MenuFoldOutlined v-if="!collapsed" />
             <MenuUnfoldOutlined v-else />
           </a-button>
-          <a-breadcrumb class="breadcrumb">
-            <a-breadcrumb-item>
-              <NuxtLink to="/">首页</NuxtLink>
-            </a-breadcrumb-item>
-            <a-breadcrumb-item v-if="currentPage">{{ currentPage }}</a-breadcrumb-item>
-          </a-breadcrumb>
+          <div class="crumb">
+            <AppstoreOutlined />
+            <span>花店管理</span>
+            <span class="sep">/</span>
+            <b>{{ currentPage || '首页' }}</b>
+          </div>
         </div>
-        <div class="header-right">
-          <a-badge :count="0" :show-zero="false">
-            <a-button type="text" shape="circle">
-              <BellOutlined />
-            </a-button>
-          </a-badge>
+
+        <div class="topbar-right">
+          <div class="topbar-search">
+            <SearchOutlined />
+            <input placeholder="搜索订单、客户、商品..." @keydown.enter="handleSearch" />
+          </div>
+          <a-button type="text" class="topbar-icon">
+            <BellOutlined />
+            <i />
+          </a-button>
+          <a-button type="text" class="topbar-icon" @click="router.go(0)">
+            <ReloadOutlined />
+          </a-button>
           <a-dropdown>
-            <a-button type="text" class="user-btn">
-              <UserOutlined />
-              <span class="user-name">{{ user?.name || user?.username || '店长' }}</span>
-            </a-button>
+            <button class="user-pill">
+              <span class="avatar">{{ userInitial }}</span>
+              <span class="user-name">{{ user?.name || user?.username || '管理员' }}</span>
+              <DownOutlined />
+            </button>
             <template #overlay>
               <a-menu>
                 <a-menu-item key="settings">
@@ -88,52 +72,112 @@
             </template>
           </a-dropdown>
         </div>
-      </a-layout-header>
+      </header>
 
-      <!-- 主内容区 -->
-      <a-layout-content class="content">
+      <main class="admin-content">
         <slot />
-      </a-layout-content>
-    </a-layout>
-  </a-layout>
+      </main>
+    </section>
+  </div>
 </template>
 
 <script setup lang="ts">
 import {
+  AccountBookOutlined,
+  AppstoreOutlined,
+  BarChartOutlined,
+  BellOutlined,
+  CalendarOutlined,
+  DownOutlined,
+  FileTextOutlined,
+  HomeOutlined,
+  InboxOutlined,
+  LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  BellOutlined,
-  UserOutlined,
-  LogoutOutlined,
-  HomeOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  SettingOutlined,
+  ShopOutlined,
   ShoppingOutlined,
   TeamOutlined,
-  InboxOutlined,
-  ShopOutlined,
-  FileTextOutlined,
-  AccountBookOutlined,
-  BarChartOutlined,
-  SettingOutlined,
 } from '@ant-design/icons-vue'
+import { computed, defineComponent, h, onMounted, onUnmounted, ref, resolveComponent } from 'vue'
 
 const route = useRoute()
 const router = useRouter()
-
 const { user, logout } = useAuth()
+
+const collapsed = ref(false)
+const drawerVisible = ref(false)
+
+const menuGroups = [
+  {
+    label: '主要工作台',
+    items: [
+      { key: '/', label: '首页', path: '/', icon: HomeOutlined },
+      { key: '/reports', label: '每日复盘', path: '/reports', icon: BarChartOutlined },
+    ],
+  },
+  {
+    label: '销售',
+    items: [
+      { key: '/pos', label: '开单收银', path: '/pos', icon: ShopOutlined },
+      { key: '/orders', label: '订单记录', path: '/orders', icon: FileTextOutlined },
+      { key: '/orders/schedule', label: '订单排单', path: '/orders/schedule', icon: CalendarOutlined },
+      { key: '/orders/preparation', label: '今日备货', path: '/orders/preparation', icon: InboxOutlined },
+      { key: '/preorders', label: '预售管理', path: '/preorders', icon: CalendarOutlined },
+    ],
+  },
+  {
+    label: '客户与商品',
+    items: [
+      { key: '/products', label: '商品管理', path: '/products', icon: ShoppingOutlined },
+      { key: '/customers', label: '客户管理', path: '/customers', icon: TeamOutlined },
+      { key: '/payments', label: '对账单', path: '/payments', icon: AccountBookOutlined },
+    ],
+  },
+  {
+    label: '库存',
+    items: [
+      { key: '/stocks', label: '库存管理', path: '/stocks', icon: InboxOutlined },
+      { key: '/stocks/inbound', label: '入库登记', path: '/stocks/inbound', icon: InboxOutlined },
+      { key: '/settings', label: '系统设置', path: '/settings', icon: SettingOutlined },
+    ],
+  },
+]
+
+const flatItems = menuGroups.flatMap((group) => group.items)
+
+const selectedKey = computed(() => {
+  const path = route.path
+  const matched = flatItems
+    .filter((item) => path === item.key || (item.key !== '/' && path.startsWith(item.key)))
+    .sort((a, b) => b.key.length - a.key.length)
+  return matched[0]?.key || '/'
+})
+
+const currentPage = computed(() => flatItems.find((item) => item.key === selectedKey.value)?.label || '')
+
+const userInitial = computed(() => (user.value?.name || user.value?.username || '管').slice(0, 1))
+
+const navigate = async (path: string) => {
+  await router.push(path)
+  drawerVisible.value = false
+}
 
 const handleLogout = async () => {
   logout()
   await router.push('/login')
 }
 
-const collapsed = ref(false)
-const drawerVisible = ref(false)
-
-// 响应式检测
-const isMobile = ref(false)
+const handleSearch = (event: KeyboardEvent) => {
+  const keyword = (event.target as HTMLInputElement).value.trim()
+  if (keyword) router.push({ path: '/orders', query: { q: keyword } })
+}
 
 const checkMobile = () => {
-  isMobile.value = window.innerWidth < 768
+  if (window.innerWidth < 768) collapsed.value = false
 }
 
 onMounted(() => {
@@ -141,248 +185,324 @@ onMounted(() => {
   window.addEventListener('resize', checkMobile)
 })
 
-onUnmounted(() => {
-  window.removeEventListener('resize', checkMobile)
-})
-
-// 菜单配置
-interface MenuItem {
-  key: string
-  icon: string
-  label: string
-  path: string
-}
-
-const menuItems: MenuItem[] = [
-  { key: '/', icon: 'HomeOutlined', label: '首页', path: '/' },
-  { key: '/products', icon: 'ShoppingOutlined', label: '商品管理', path: '/products' },
-  { key: '/customers', icon: 'TeamOutlined', label: '客户管理', path: '/customers' },
-  { key: '/stocks', icon: 'InboxOutlined', label: '库存管理', path: '/stocks' },
-  { key: '/pos', icon: 'ShopOutlined', label: '开单收银', path: '/pos' },
-  { key: '/orders', icon: 'FileTextOutlined', label: '订单记录', path: '/orders' },
-  { key: '/orders/schedule', icon: 'CalendarOutlined', label: '订单排单', path: '/orders/schedule' },
-  { key: '/orders/preparation', icon: 'InboxOutlined', label: '今日备货', path: '/orders/preparation' },
-  { key: '/preorders', icon: 'CalendarOutlined', label: '预售管理', path: '/preorders' },
-  { key: '/payments', icon: 'AccountBookOutlined', label: '对账单', path: '/payments' },
-  { key: '/reports', icon: 'BarChartOutlined', label: '报表', path: '/reports' },
-  { key: '/settings', icon: 'SettingOutlined', label: '系统设置', path: '/settings' },
-]
-
-// 当前选中菜单
-const selectedKeys = computed(() => {
-  const path = route.path
-  // 匹配前缀最长的菜单项
-  const matched = menuItems
-    .filter(item => path === item.key || (item.key !== '/' && path.startsWith(item.key)))
-    .sort((a, b) => b.key.length - a.key.length)
-  return matched.length > 0 ? [matched[0].key] : ['/']
-})
-
-// 当前页面名称
-const pageMap: Record<string, string> = {
-  '/products': '商品管理',
-  '/customers': '客户管理',
-  '/stocks': '库存管理',
-  '/pos': '开单收银',
-  '/orders': '订单记录',
-  '/orders/schedule': '订单排单',
-  '/orders/preparation': '今日备货',
-  '/preorders': '预售管理',
-  '/payments': '对账单',
-  '/reports': '报表',
-  '/settings': '系统设置',
-}
-
-const currentPage = computed(() => {
-  const path = route.path
-  return pageMap[path] || ''
-})
-
-const handleMenuClick = (path: string) => {
-  router.push(path)
-  if (isMobile.value) {
-    drawerVisible.value = false
-  }
-}
-</script>
-
-<script lang="ts">
-// SiderContent 子组件（避免重复代码）
-import { defineComponent, h } from 'vue'
-
-const iconComponents: Record<string, any> = {}
+onUnmounted(() => window.removeEventListener('resize', checkMobile))
 
 const SiderContent = defineComponent({
   name: 'SiderContent',
   props: {
     collapsed: Boolean,
-    selectedKeys: { type: Array as () => string[], default: () => [] },
+    selectedKey: { type: String, default: '/' },
   },
-  emits: ['menuClick'],
+  emits: ['navigate'],
   setup(props, { emit }) {
-    const menuItems = [
-      { key: '/', label: '首页', path: '/' },
-      { key: '/products', label: '商品管理', path: '/products' },
-      { key: '/customers', label: '客户管理', path: '/customers' },
-      { key: '/stocks', label: '库存管理', path: '/stocks' },
-      { key: '/pos', label: '开单收银', path: '/pos' },
-      { key: '/orders', label: '订单记录', path: '/orders' },
-      { key: '/orders/schedule', label: '订单排单', path: '/orders/schedule' },
-      { key: '/orders/preparation', label: '今日备货', path: '/orders/preparation' },
-      { key: '/preorders', label: '预售管理', path: '/preorders' },
-      { key: '/payments', label: '对账单', path: '/payments' },
-      { key: '/reports', label: '报表', path: '/reports' },
-      { key: '/settings', label: '系统设置', path: '/settings' },
-    ]
-
     return () =>
-      h('div', { class: 'sider-inner' }, [
-        h('div', { class: 'logo' }, [
-          h('span', { class: 'logo-icon' }, '🌸'),
-          !props.collapsed ? h('span', { class: 'logo-text' }, '花店管理') : null,
+      h('div', { class: ['sider-content', props.collapsed ? 'is-collapsed' : ''] }, [
+        h('div', { class: 'brand' }, [
+          h('div', { class: 'brand-mark' }, h(AppstoreOutlined)),
+          !props.collapsed
+            ? h('div', { class: 'brand-text' }, [
+                h('div', { class: 'brand-name' }, '花店管理'),
+                h('div', { class: 'brand-sub' }, 'Avocado · v2.4'),
+              ])
+            : null,
         ]),
-        h(
-          resolveComponent('a-menu') as any,
-          {
-            mode: 'inline',
-            selectedKeys: props.selectedKeys,
-            theme: 'light',
-          },
-          () =>
-            menuItems.map(item =>
+        ...menuGroups.map((group) =>
+          h('div', { class: 'nav-group' }, [
+            !props.collapsed ? h('div', { class: 'nav-label' }, group.label) : null,
+            ...group.items.map((item) =>
               h(
-                resolveComponent('a-menu-item') as any,
+                'button',
                 {
-                  key: item.key,
-                  onClick: () => emit('menuClick', item.path),
+                  class: ['nav-item', props.selectedKey === item.key ? 'active' : ''],
+                  title: props.collapsed ? item.label : undefined,
+                  onClick: () => emit('navigate', item.path),
                 },
-                () => h('span', item.label)
-              )
-            )
+                [
+                  h('span', { class: 'nav-icon' }, h(item.icon)),
+                  !props.collapsed ? h('span', { class: 'nav-text' }, item.label) : null,
+                ],
+              ),
+            ),
+          ]),
         ),
       ])
   },
 })
-
-export default defineComponent({
-  components: { SiderContent },
-})
 </script>
 
-<style scoped>
-.sider {
-  background: #ffffff;
-  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.02);
-  border-right: 1px solid rgba(0,0,0,0.04);
-  overflow: auto;
-  height: 100vh;
+<style>
+.admin-shell {
+  min-height: 100vh;
+  background: var(--paper);
+}
+
+.admin-sider {
   position: fixed;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  z-index: 10;
+  inset: 0 auto 0 0;
+  z-index: 20;
+  width: 240px;
+  background: linear-gradient(180deg, var(--avo-800), var(--avo-900));
+  color: #f4f2e5;
+  transition: width 0.2s ease;
 }
 
-.sider-inner {
-  display: flex;
-  flex-direction: column;
+.admin-sider.collapsed {
+  width: 82px;
+}
+
+.sider-content {
   height: 100%;
+  padding: 22px 14px;
+  overflow-y: auto;
 }
 
-.logo {
+.brand {
   display: flex;
   align-items: center;
-  justify-content: center;
-  height: 64px;
-  padding: 0 16px;
-  gap: 8px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  gap: 10px;
+  padding: 6px 10px 22px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 14px;
 }
 
-.logo-icon {
-  font-size: 28px;
+.brand-mark {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--avo-300);
+  color: var(--avo-900);
 }
 
-.logo-text {
-  font-family: 'Outfit', sans-serif;
-  font-size: 18px;
+.brand-name {
+  font-size: 15px;
   font-weight: 700;
-  color: #1f2937;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
 }
 
-.header {
+.brand-sub {
+  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+}
+
+.nav-group {
+  margin-top: 6px;
+}
+
+.nav-label {
+  padding: 14px 12px 6px;
+  color: rgba(255, 255, 255, 0.36);
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.nav-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.78);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+}
+
+.nav-item.active {
+  background: var(--avo-300);
+  color: var(--avo-900);
+  font-weight: 700;
+}
+
+.nav-icon {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.is-collapsed .brand {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.is-collapsed .nav-item {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.admin-main {
+  min-height: 100vh;
+  margin-left: 240px;
+  transition: margin-left 0.2s ease;
+}
+
+.admin-main.collapsed {
+  margin-left: 82px;
+}
+
+.admin-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  height: 60px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
-  height: 64px;
-  position: sticky;
-  top: 0;
-  z-index: 9;
+  gap: 16px;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 254, 247, 0.88);
+  backdrop-filter: blur(10px);
 }
 
-.header-left {
+.topbar-left,
+.topbar-right,
+.crumb,
+.topbar-search,
+.user-pill {
   display: flex;
   align-items: center;
+}
+
+.topbar-left {
   gap: 12px;
+  min-width: 0;
 }
 
-.header-right {
-  display: flex;
-  align-items: center;
+.topbar-right {
+  gap: 10px;
+}
+
+.icon-trigger,
+.topbar-icon {
+  color: var(--ink-500) !important;
+}
+
+.crumb {
   gap: 8px;
+  color: var(--ink-500);
+  font-size: 13px;
 }
 
-.trigger-btn {
-  font-size: 18px;
+.crumb b {
+  color: var(--ink-900);
+}
+
+.sep {
+  color: var(--ink-400);
+}
+
+.topbar-search {
+  width: min(300px, 26vw);
+  gap: 8px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: var(--avo-50);
+  color: var(--ink-500);
+}
+
+.topbar-search input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink-900);
+}
+
+.topbar-icon {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px !important;
+}
+
+.topbar-icon i {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 7px;
+  height: 7px;
+  border: 2px solid var(--paper-3);
+  border-radius: 50%;
+  background: var(--danger);
+}
+
+.user-pill {
+  gap: 9px;
+  padding: 5px 12px 5px 5px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper-3);
+  color: var(--ink-700);
   cursor: pointer;
 }
 
-.breadcrumb {
+.avatar {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--avo-300);
+  color: var(--avo-900);
+  font-weight: 700;
+}
+
+.admin-content {
+  padding: 28px;
+}
+
+.mobile-only {
   display: none;
 }
 
-@media (min-width: 768px) {
-  .breadcrumb {
-    display: block;
+@media (max-width: 767px) {
+  .admin-sider {
+    display: none;
   }
-}
 
-.user-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
+  .admin-main,
+  .admin-main.collapsed {
+    margin-left: 0;
+  }
 
-.user-name {
-  display: none;
-}
+  .admin-topbar {
+    height: auto;
+    min-height: 58px;
+    padding: 10px 14px;
+    flex-wrap: wrap;
+  }
 
-@media (min-width: 768px) {
+  .desktop-only,
+  .topbar-search {
+    display: none;
+  }
+
+  .mobile-only {
+    display: inline-flex;
+  }
+
+  .admin-content {
+    padding: 16px;
+  }
+
   .user-name {
-    display: inline;
-  }
-}
-
-.content {
-  margin: 24px;
-  min-height: calc(100vh - 64px - 48px);
-}
-
-/* 桌面端内容区偏移 */
-@media (min-width: 768px) {
-  :deep(.ant-layout) {
-    margin-left: 240px;
-    transition: margin-left 0.2s;
-  }
-
-  :deep(.ant-layout-sider-collapsed) ~ .ant-layout {
-    margin-left: 80px;
+    display: none;
   }
 }
 </style>

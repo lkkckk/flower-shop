@@ -1,38 +1,39 @@
 <template>
   <div class="pos-layout">
-    <!-- POS 顶部栏 -->
     <header class="pos-header">
       <div class="pos-header-left">
-        <a-button
-          v-if="isAdmin"
-          type="link"
-          class="back-btn"
-          @click="navigateTo('/')"
-        >
+        <a-button v-if="isAdmin" type="text" class="back-btn" @click="navigateTo('/')">
           <ArrowLeftOutlined />
           <span class="back-text">返回后台</span>
         </a-button>
-        <a-divider v-if="isAdmin" type="vertical" />
-        <span class="shop-name">🌸 花店收银台</span>
+        <div class="pos-brand">
+          <span class="pos-mark"><ShopOutlined /></span>
+          <div>
+            <div class="shop-name">花店收银台</div>
+            <div class="shop-sub">Avocado POS</div>
+          </div>
+        </div>
       </div>
+
       <div class="pos-header-right">
-        <!-- 当前收银员显示与切换 -->
+        <a-button type="text" size="small" class="tool-btn" @click="navigateTo('/pos/schedule')">
+          <CalendarOutlined />
+          <span class="tool-label">排单</span>
+        </a-button>
+        <a-button type="text" size="small" class="tool-btn" @click="navigateTo('/pos/preparation')">
+          <InboxOutlined />
+          <span class="tool-label">备货</span>
+        </a-button>
+        <a-button type="text" size="small" class="tool-btn" @click="navigateTo('/pos/stocktake')">
+          <InboxOutlined />
+          <span class="tool-label">盘点</span>
+        </a-button>
         <a-button type="text" size="small" class="tool-btn" @click="switchCashierModalVisible = true">
           <UserOutlined />
           <span class="tool-label">
             {{ currentCashier?.name || '未知' }}
-            <span class="text-xs opacity-60 ml-1">切换</span>
+            <span class="muted">切换</span>
           </span>
-        </a-button>
-        <a-divider type="vertical" />
-        <a-button
-          type="text"
-          size="small"
-          class="tool-btn"
-          @click="navigateTo('/pos/stocktake')"
-        >
-          <InboxOutlined />
-          <span class="tool-label">盘点</span>
         </a-button>
         <a-dropdown>
           <a-button type="text" size="small" class="user-btn">
@@ -54,14 +55,13 @@
       </div>
     </header>
 
-    <!-- 切换收银员 Modal -->
     <a-modal
       v-model:open="switchCashierModalVisible"
       title="切换收银员"
-      @ok="handleSwitchCashier"
-      @cancel="switchCashierModalVisible = false"
       :confirm-loading="switchingCashier"
       ok-text="确认切换"
+      @ok="handleSwitchCashier"
+      @cancel="switchCashierModalVisible = false"
     >
       <div class="py-4">
         <div class="text-gray-500 text-sm mb-4">
@@ -79,12 +79,10 @@
       </div>
     </a-modal>
 
-    <!-- 多单 Tab 占位 -->
     <div class="pos-tabs">
       <slot name="tabs" />
     </div>
 
-    <!-- 主工作区 -->
     <main class="pos-main">
       <slot />
     </main>
@@ -94,9 +92,11 @@
 <script setup lang="ts">
 import {
   ArrowLeftOutlined,
-  UserOutlined,
+  CalendarOutlined,
   InboxOutlined,
   LogoutOutlined,
+  ShopOutlined,
+  UserOutlined,
 } from '@ant-design/icons-vue'
 import { reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
@@ -108,7 +108,6 @@ const handleLogout = async () => {
   await logout('pos')
 }
 
-// 切换收银员
 const switchCashierModalVisible = ref(false)
 const switchingCashier = ref(false)
 const switchError = ref('')
@@ -146,121 +145,118 @@ const handleSwitchCashier = async () => {
 
 <style scoped>
 .pos-layout {
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  height: 100vh;
   overflow: hidden;
-  background: #f5f5f5;
+  background: var(--paper);
 }
 
 .pos-header {
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 48px;
-  padding: 0 16px;
-  background: linear-gradient(135deg, #1a1a2e, #16213e);
-  color: #fff;
   flex-shrink: 0;
+  gap: 12px;
+  padding: 0 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(135deg, var(--avo-800), var(--avo-900));
+  color: #f4f2e5;
+}
+
+.pos-header-left,
+.pos-header-right,
+.pos-brand {
+  display: flex;
+  align-items: center;
 }
 
 .pos-header-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
 .pos-header-right {
-  display: flex;
-  align-items: center;
   gap: 4px;
 }
 
-.back-btn {
-  color: rgba(255, 255, 255, 0.85) !important;
-  padding: 0 8px;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
+.pos-brand {
+  gap: 10px;
 }
 
-.back-btn:hover {
-  color: #f472b6 !important;
-}
-
-.back-text {
-  display: none;
-}
-
-@media (min-width: 768px) {
-  .back-text {
-    display: inline;
-  }
+.pos-mark {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--avo-300);
+  color: var(--avo-900);
 }
 
 .shop-name {
   font-size: 15px;
-  font-weight: 600;
-  background: linear-gradient(135deg, #f472b6, #ec4899);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-weight: 700;
+  line-height: 1.1;
 }
 
-:deep(.ant-divider-vertical) {
-  border-color: rgba(255, 255, 255, 0.2);
+.shop-sub {
+  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
 }
 
+.back-btn,
 .tool-btn,
 .user-btn {
-  color: rgba(255, 255, 255, 0.85) !important;
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 13px;
+  gap: 5px;
+  color: rgba(255, 255, 255, 0.82) !important;
+  border-radius: 9px !important;
 }
 
+.back-btn:hover,
 .tool-btn:hover,
 .user-btn:hover {
-  color: #f472b6 !important;
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
 }
 
-.tool-label,
-.user-label {
-  display: none;
-}
-
-@media (min-width: 768px) {
-  .tool-label,
-  .user-label {
-    display: inline;
-  }
+.muted {
+  margin-left: 4px;
+  opacity: 0.58;
+  font-size: 12px;
 }
 
 .pos-tabs {
   flex-shrink: 0;
-  background: #fff;
-  border-bottom: 1px solid #f0f0f0;
   min-height: 0;
+  background: var(--paper-3);
+  border-bottom: 1px solid var(--line);
 }
 
 .pos-main {
   flex: 1;
+  min-height: 0;
   overflow: auto;
   display: flex;
   flex-direction: column;
 }
 
-/* 手机端：单列垂直流 */
 @media (max-width: 767px) {
   .pos-header {
-    padding: 0 8px;
-    height: 44px;
+    height: auto;
+    min-height: 52px;
+    flex-wrap: wrap;
+    padding: 8px;
   }
 
-  .pos-main {
-    flex-direction: column;
+  .shop-sub,
+  .back-text,
+  .tool-label,
+  .user-label {
+    display: none;
   }
 }
 </style>

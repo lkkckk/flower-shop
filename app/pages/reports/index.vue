@@ -597,7 +597,7 @@ onMounted(() => {
 .metric-card :deep(.ant-statistic-content) {
   font-size: 26px;
   font-weight: bold;
-  color: #db2777;
+  color: var(--avo-700);
 }
 
 .rank-badge {
@@ -626,7 +626,7 @@ onMounted(() => {
 
 .bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #ec4899, #f472b6);
+  background: linear-gradient(90deg, var(--avo-700), var(--avo-300));
   transition: width 0.3s ease;
 }
 

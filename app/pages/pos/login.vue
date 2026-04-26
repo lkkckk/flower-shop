@@ -2,7 +2,7 @@
   <div class="login-bg">
     <a-card class="login-card" :bordered="false">
       <div class="login-header">
-        <div class="logo">💐</div>
+        <div class="logo">收</div>
         <h1 class="title">花店收银台</h1>
         <div class="subtitle">POS 收银系统</div>
       </div>
@@ -105,15 +105,19 @@ const handleLogin = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #db2777 100%);
+  background:
+    radial-gradient(circle at 18% 20%, rgba(168, 185, 127, 0.22), transparent 34%),
+    linear-gradient(135deg, var(--avo-900) 0%, var(--avo-800) 52%, var(--paper) 100%);
   padding: 20px;
 }
 
 .login-card {
   width: 100%;
   max-width: 400px;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--paper-3);
+  box-shadow: var(--shadow-md);
 }
 
 :deep(.ant-card-body) {
@@ -126,15 +130,23 @@ const handleLogin = async () => {
 }
 
 .logo {
-  font-size: 48px;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 12px;
+  border-radius: 16px;
+  background: var(--avo-300);
+  color: var(--avo-900);
+  font-size: 24px;
+  font-weight: 800;
   line-height: 1;
-  margin-bottom: 12px;
 }
 
 .title {
   font-size: 24px;
   font-weight: 700;
-  color: #db2777;
+  color: var(--avo-800);
   margin: 0 0 4px 0;
 }
 
@@ -144,14 +156,14 @@ const handleLogin = async () => {
 }
 
 .login-btn {
-  background: linear-gradient(135deg, #ec4899, #db2777);
+  background: linear-gradient(135deg, var(--avo-700), var(--avo-800));
   border: none;
   font-weight: 600;
   height: 44px;
 }
 
 .login-btn:hover {
-  background: linear-gradient(135deg, #db2777, #be185d);
+  background: linear-gradient(135deg, var(--avo-800), var(--avo-900));
 }
 
 .login-tip {
@@ -173,12 +185,12 @@ const handleLogin = async () => {
 }
 
 .login-alt a:hover {
-  color: #db2777;
+  color: var(--avo-700);
 }
 
 .mono {
   font-family: monospace;
-  color: #db2777;
+  color: var(--avo-700);
   font-weight: 600;
 }
 </style>

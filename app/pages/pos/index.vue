@@ -15,7 +15,7 @@
 
       <!-- 移动端悬浮按钮 & 抽屉 -->
       <div class="md:hidden fixed bottom-6 right-6 z-10" v-if="cartStore.activeCart?.items.length">
-        <a-badge :count="cartStore.activeCart.items.length" :number-style="{ backgroundColor: '#ec4899' }">
+        <a-badge :count="cartStore.activeCart.items.length" :number-style="{ backgroundColor: '#5C7148' }">
           <a-button
             type="primary"
             shape="circle"

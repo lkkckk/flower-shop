@@ -2,7 +2,7 @@
   <div class="login-bg">
     <a-card class="login-card" :bordered="false">
       <div class="login-header">
-        <div class="logo">🌸</div>
+        <div class="logo">花</div>
         <h1 class="title">花间集</h1>
         <div class="subtitle">花店管理系统</div>
       </div>
@@ -102,15 +102,20 @@ const handleLogin = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #fce7f3 0%, #f9a8d4 50%, #f472b6 100%);
+  background:
+    radial-gradient(circle at 12% 18%, rgba(168, 185, 127, 0.26), transparent 34%),
+    radial-gradient(circle at 86% 80%, rgba(122, 98, 56, 0.18), transparent 38%),
+    linear-gradient(135deg, var(--paper) 0%, var(--avo-50) 45%, var(--avo-700) 100%);
   padding: 20px;
 }
 
 .login-card {
   width: 100%;
   max-width: 400px;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--paper-3);
+  box-shadow: var(--shadow-md);
 }
 
 :deep(.ant-card-body) {
@@ -123,7 +128,16 @@ const handleLogin = async () => {
 }
 
 .logo {
-  font-size: 48px;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 12px;
+  border-radius: 16px;
+  background: var(--avo-300);
+  color: var(--avo-900);
+  font-size: 24px;
+  font-weight: 800;
   line-height: 1;
   margin-bottom: 12px;
 }
@@ -131,7 +145,7 @@ const handleLogin = async () => {
 .title {
   font-size: 24px;
   font-weight: 700;
-  color: #db2777;
+  color: var(--avo-800);
   margin: 0 0 4px 0;
 }
 
@@ -141,14 +155,14 @@ const handleLogin = async () => {
 }
 
 .login-btn {
-  background: linear-gradient(135deg, #ec4899, #db2777);
+  background: linear-gradient(135deg, var(--avo-700), var(--avo-800));
   border: none;
   font-weight: 600;
   height: 44px;
 }
 
 .login-btn:hover {
-  background: linear-gradient(135deg, #db2777, #be185d);
+  background: linear-gradient(135deg, var(--avo-800), var(--avo-900));
 }
 
 .login-tip {
@@ -160,7 +174,7 @@ const handleLogin = async () => {
 
 .mono {
   font-family: monospace;
-  color: #db2777;
+  color: var(--avo-700);
   font-weight: 600;
 }
 </style>

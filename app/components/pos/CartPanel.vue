@@ -14,7 +14,7 @@
         </div>
         <div v-else class="flex justify-between items-center bg-white p-2 rounded shadow-sm">
           <div class="flex items-center gap-3">
-            <a-avatar :style="{ backgroundColor: '#ec4899' }">{{ (cart.customerName || '?').slice(0, 1) }}</a-avatar>
+            <a-avatar :style="{ backgroundColor: '#5C7148' }">{{ (cart.customerName || '?').slice(0, 1) }}</a-avatar>
             <div>
               <div class="font-bold text-gray-800">{{ cart.customerName }}</div>
               <div class="flex items-center gap-2 mt-1">

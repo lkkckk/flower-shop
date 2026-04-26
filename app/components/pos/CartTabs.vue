@@ -19,7 +19,7 @@
             <a-badge
               v-if="cart.items.length > 0"
               :count="cart.items.length"
-              :number-style="{ backgroundColor: '#ec4899' }"
+              :number-style="{ backgroundColor: '#5C7148' }"
               size="small"
             />
             <span v-if="cart.items.length > 0" class="text-gray-500 text-xs ml-1">
@@ -103,13 +103,13 @@ const onEdit = (targetKey: string | MouseEvent, action: string) => {
 }
 
 :deep(.ant-tabs-card > .ant-tabs-nav .ant-tabs-tab-active) {
-  background: #fdf2f8 !important; /* pink-50 */
-  border-color: #fbcfe8 !important; /* pink-200 */
+  background: var(--avo-50) !important;
+  border-color: var(--avo-100) !important;
   box-shadow: 0 4px 6px -1px rgba(236, 72, 153, 0.1), 0 2px 4px -1px rgba(236, 72, 153, 0.06) !important;
 }
 
 :deep(.ant-tabs-card > .ant-tabs-nav .ant-tabs-tab-active .font-medium) {
-  color: #db2777; /* pink-600 */
+  color: var(--avo-700);
 }
 
 :deep(.ant-tabs-tab-remove) {
