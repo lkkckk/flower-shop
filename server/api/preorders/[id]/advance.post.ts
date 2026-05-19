@@ -1,5 +1,6 @@
 import { prisma } from '../../../utils/prisma'
 import { allocatePreorderItems } from '../../../utils/stockAllocator'
+import { requireStaff } from '../../../utils/auth'
 import {
   canTransition,
   isStockDeducted,
@@ -17,12 +18,13 @@ import {
  * - 取消（cancelled）：若已扣库存，本阶段返回 400，提示人工处理（留 TODO：补偿库存）。
  */
 export default defineEventHandler(async (event) => {
+  requireStaff(event)
   const id = Number(getRouterParam(event, 'id'))
-  if (!id) throw createError({ statusCode: 400, message: '无效的订单 id' })
+  if (!id) return { data: null, error: { message: '无效的订单 id', code: 'INVALID_PARAMS' } }
   const body = await readBody(event)
   const to = body?.to as PreorderStatus
 
-  if (!to) throw createError({ statusCode: 400, message: '目标状态必填' })
+  if (!to) return { data: null, error: { message: '目标状态必填', code: 'INVALID_PARAMS' } }
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -55,8 +57,6 @@ export default defineEventHandler(async (event) => {
 
     return { data: result, error: null }
   } catch (error: any) {
-    const code = error.statusCode || 400
-    setResponseStatus(event, code)
     return {
       data: null,
       error: { message: error.message || '状态流转失败', code: error.code || 'ADVANCE_FAILED' },

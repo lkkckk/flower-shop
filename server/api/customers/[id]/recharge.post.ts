@@ -1,9 +1,11 @@
 import { prisma } from '../../../utils/prisma'
+import { respondWithPrismaError } from '../../../utils/prismaError'
+import { requireStaff } from '../../../utils/auth'
 
 export default defineEventHandler(async (event) => {
+  requireStaff(event)
   const id = Number(getRouterParam(event, 'id'))
   if (!id) {
-    setResponseStatus(event, 400)
     return { data: null, error: { message: '无效的客户 ID', code: 'INVALID_PARAMS' } }
   }
 
@@ -13,12 +15,10 @@ export default defineEventHandler(async (event) => {
   const notes = body.notes ? String(body.notes) : null
 
   if (!(amount > 0)) {
-    setResponseStatus(event, 400)
     return { data: null, error: { message: '充值金额必须大于 0', code: 'INVALID_PARAMS' } }
   }
 
   if (!['cash', 'wechat', 'alipay'].includes(paymentMethod)) {
-    setResponseStatus(event, 400)
     return { data: null, error: { message: '支付方式不合法', code: 'INVALID_PARAMS' } }
   }
 
@@ -50,11 +50,7 @@ export default defineEventHandler(async (event) => {
     })
 
     return { data: result, error: null }
-  } catch (error: any) {
-    setResponseStatus(event, 400)
-    return {
-      data: null,
-      error: { message: error.message || '充值失败', code: 'RECHARGE_ERROR' },
-    }
+  } catch (error) {
+    return respondWithPrismaError(event, error, '充值失败')
   }
 })

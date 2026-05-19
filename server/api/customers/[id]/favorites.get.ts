@@ -3,7 +3,6 @@ import { prisma } from '../../../utils/prisma'
 export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
   if (!id) {
-    setResponseStatus(event, 400)
     return { data: null, error: { message: '无效的客户 ID', code: 'INVALID_PARAMS' } }
   }
 
@@ -55,7 +54,6 @@ export default defineEventHandler(async (event) => {
 
     return { data: favorites, error: null }
   } catch (error: any) {
-    setResponseStatus(event, 400)
     return {
       data: null,
       error: { message: error.message || '获取常购花材失败', code: 'FAVORITES_ERROR' },

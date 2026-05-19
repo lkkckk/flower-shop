@@ -1,6 +1,9 @@
 import { prisma } from '../../utils/prisma'
+import { respondWithPrismaError } from '../../utils/prismaError'
+import { requireStaff } from '../../utils/auth'
 
 export default defineEventHandler(async (event) => {
+  requireStaff(event)
   const body = await readBody(event)
 
   try {
@@ -38,11 +41,7 @@ export default defineEventHandler(async (event) => {
       data: product,
       error: null,
     }
-  } catch (error: any) {
-    setResponseStatus(event, 400)
-    return {
-      data: null,
-      error: { message: error.message || '创建商品失败', code: 'CREATE_ERROR' },
-    }
+  } catch (error) {
+    return respondWithPrismaError(event, error, '创建商品失败')
   }
 })

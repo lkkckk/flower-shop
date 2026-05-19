@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
 
   if (keyword) {
     where.OR = [
-      { name: { contains: keyword } },
+      { name: { contains: keyword, mode: 'insensitive' } },
       { phone: { contains: keyword } },
     ]
   }

@@ -1,18 +1,19 @@
 import { prisma } from '../../utils/prisma'
+import { respondWithPrismaError } from '../../utils/prismaError'
+import { requireStaff } from '../../utils/auth'
 
 export default defineEventHandler(async (event) => {
+  requireStaff(event)
   const body = await readBody(event)
   const batchId = Number(body.batchId)
   const qty = Number(body.qty)
   const reason = body.reason ? String(body.reason) : null
 
   if (!batchId || isNaN(batchId)) {
-    setResponseStatus(event, 400)
     return { data: null, error: { message: '无效的批次 ID', code: 'INVALID_PARAMS' } }
   }
 
   if (!(qty > 0)) {
-    setResponseStatus(event, 400)
     return { data: null, error: { message: '报损数量必须大于 0', code: 'INVALID_PARAMS' } }
   }
 
@@ -46,11 +47,7 @@ export default defineEventHandler(async (event) => {
     })
 
     return { data: result, error: null }
-  } catch (error: any) {
-    setResponseStatus(event, 400)
-    return {
-      data: null,
-      error: { message: error.message || '报损失败', code: 'SCRAP_FAILED' },
-    }
+  } catch (error) {
+    return respondWithPrismaError(event, error, '报损失败')
   }
 })

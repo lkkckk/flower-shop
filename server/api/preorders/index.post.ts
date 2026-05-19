@@ -1,5 +1,6 @@
 import { prisma } from '../../utils/prisma'
 import { computeReminderStage } from '../../../shared/preorderReminder'
+import { requireStaff } from '../../utils/auth'
 
 /**
  * 创建预售单
@@ -25,18 +26,19 @@ import { computeReminderStage } from '../../../shared/preorderReminder'
  * OrderItem.batchId 保持 null，直到状态推进到 in_production 时由 allocatePreorderItems 分配。
  */
 export default defineEventHandler(async (event) => {
+  requireStaff(event)
   const body = await readBody(event)
 
   if (!body?.deliveryTime) {
-    throw createError({ statusCode: 400, message: '履约日期必填' })
+    return { data: null, error: { message: '履约日期必填', code: 'INVALID_PARAMS' } }
   }
   if (!Array.isArray(body.items) || body.items.length === 0) {
-    throw createError({ statusCode: 400, message: '商品不能为空' })
+    return { data: null, error: { message: '商品不能为空', code: 'INVALID_PARAMS' } }
   }
 
   const deliveryTime = new Date(body.deliveryTime)
   if (Number.isNaN(deliveryTime.getTime())) {
-    throw createError({ statusCode: 400, message: '履约日期格式错误' })
+    return { data: null, error: { message: '履约日期格式错误', code: 'INVALID_PARAMS' } }
   }
 
   try {
@@ -123,7 +125,6 @@ export default defineEventHandler(async (event) => {
 
     return { data: result, error: null }
   } catch (error: any) {
-    setResponseStatus(event, 400)
     return {
       data: null,
       error: { message: error.message || '创建预售单失败', code: error.code || 'CREATE_FAILED' },

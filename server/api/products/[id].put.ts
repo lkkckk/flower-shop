@@ -1,14 +1,14 @@
 import { prisma } from '../../utils/prisma'
+import { respondWithPrismaError } from '../../utils/prismaError'
+import { requireStaff } from '../../utils/auth'
 
 export default defineEventHandler(async (event) => {
+  requireStaff(event)
   const id = Number(getRouterParam(event, 'id'))
   const body = await readBody(event)
 
   if (isNaN(id)) {
-    throw createError({
-      statusCode: 400,
-      message: '无效的商品 ID',
-    })
+    return { data: null, error: { message: '无效的商品 ID', code: 'INVALID_PARAMS' } }
   }
 
   try {
@@ -54,11 +54,7 @@ export default defineEventHandler(async (event) => {
       data: updatedProduct,
       error: null,
     }
-  } catch (error: any) {
-    setResponseStatus(event, 400)
-    return {
-      data: null,
-      error: { message: error.message || '更新商品失败', code: 'UPDATE_ERROR' },
-    }
+  } catch (error) {
+    return respondWithPrismaError(event, error, '更新商品失败')
   }
 })

@@ -11,10 +11,20 @@ export interface TokenPayload {
 
 const TOKEN_EXPIRES_IN = '7d'
 
+// .env.example 里的示例值，绝不能在生产环境继续使用
+const DEFAULT_SECRET_BLOCKLIST = new Set([
+  'dev-secret-change-me-min-32-chars-please-change',
+])
+
 const getSecret = () => {
   const secret = process.env.JWT_SECRET
   if (!secret || secret.length < 16) {
     throw new Error('JWT_SECRET 未配置或长度不足 16 字符，请检查 .env')
+  }
+  if (process.env.NODE_ENV === 'production' && DEFAULT_SECRET_BLOCKLIST.has(secret)) {
+    throw new Error(
+      'JWT_SECRET 仍为 .env.example 中的示例值，生产环境必须改为强随机字符串（建议 64+ 字符）',
+    )
   }
   return secret
 }

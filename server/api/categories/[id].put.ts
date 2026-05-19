@@ -13,7 +13,6 @@ export default defineEventHandler(async (event) => {
   const { name, parentId, sort } = body || {}
 
   if (!name?.trim()) {
-    setResponseStatus(event, 400)
     return { data: null, error: { message: '分类名称不能为空', code: 'VALIDATION_ERROR' } }
   }
 

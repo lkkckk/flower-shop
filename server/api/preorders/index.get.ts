@@ -37,10 +37,10 @@ export default defineEventHandler(async (event) => {
   }
   if (keyword) {
     where.OR = [
-      { orderNo: { contains: keyword } },
-      { receiverName: { contains: keyword } },
+      { orderNo: { contains: keyword, mode: 'insensitive' } },
+      { receiverName: { contains: keyword, mode: 'insensitive' } },
       { receiverPhone: { contains: keyword } },
-      { customer: { is: { name: { contains: keyword } } } },
+      { customer: { is: { name: { contains: keyword, mode: 'insensitive' } } } },
       { customer: { is: { phone: { contains: keyword } } } },
     ]
   }

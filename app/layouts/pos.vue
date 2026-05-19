@@ -137,7 +137,7 @@ const handleSwitchCashier = async () => {
     switchForm.username = ''
     switchForm.password = ''
   } catch (e: any) {
-    switchError.value = e.data?.message || '验证失败，请重试'
+    switchError.value = e.data?.error?.message || e.message || '验证失败，请重试'
   } finally {
     switchingCashier.value = false
   }

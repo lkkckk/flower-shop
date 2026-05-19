@@ -1,22 +1,22 @@
 import { prisma } from '../../utils/prisma'
+import { respondWithPrismaError } from '../../utils/prismaError'
+import { requireStaff } from '../../utils/auth'
 
 export default defineEventHandler(async (event) => {
+  requireStaff(event)
   const id = Number(getRouterParam(event, 'id'))
   if (!id) {
-    setResponseStatus(event, 400)
     return { data: null, error: { message: '无效的客户 ID', code: 'INVALID_PARAMS' } }
   }
 
   try {
     const existing = await prisma.customer.findUnique({ where: { id } })
     if (!existing) {
-      setResponseStatus(event, 404)
       return { data: null, error: { message: '客户不存在', code: 'NOT_FOUND' } }
     }
 
     const orderCount = await prisma.order.count({ where: { customerId: id } })
     if (orderCount > 0) {
-      setResponseStatus(event, 400)
       return {
         data: null,
         error: {
@@ -33,11 +33,7 @@ export default defineEventHandler(async (event) => {
     })
 
     return { data: { success: true }, error: null }
-  } catch (error: any) {
-    setResponseStatus(event, 400)
-    return {
-      data: null,
-      error: { message: error.message || '删除客户失败', code: 'DELETE_ERROR' },
-    }
+  } catch (error) {
+    return respondWithPrismaError(event, error, '删除客户失败')
   }
 })

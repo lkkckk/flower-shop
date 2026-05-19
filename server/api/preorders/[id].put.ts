@@ -1,6 +1,7 @@
 import { prisma } from '../../utils/prisma'
 import { computeReminderStage } from '../../../shared/preorderReminder'
 import { isStockDeducted, type PreorderStatus } from '../../../shared/preorderStatus'
+import { requireStaff } from '../../utils/auth'
 
 /**
  * 编辑预售单基础信息（不含状态流转，状态流转走 advance.post）。
@@ -9,8 +10,9 @@ import { isStockDeducted, type PreorderStatus } from '../../../shared/preorderSt
  * 已扣库存的订单（in_production 及以后）不允许修改商品清单，只能改配送/备注字段。
  */
 export default defineEventHandler(async (event) => {
+  requireStaff(event)
   const id = Number(getRouterParam(event, 'id'))
-  if (!id) throw createError({ statusCode: 400, message: '无效的订单 id' })
+  if (!id) return { data: null, error: { message: '无效的订单 id', code: 'INVALID_PARAMS' } }
   const body = await readBody(event)
 
   try {
@@ -90,8 +92,6 @@ export default defineEventHandler(async (event) => {
 
     return { data: result, error: null }
   } catch (error: any) {
-    const code = error.statusCode || 400
-    setResponseStatus(event, code)
     return {
       data: null,
       error: { message: error.message || '更新预售单失败', code: 'UPDATE_FAILED' },

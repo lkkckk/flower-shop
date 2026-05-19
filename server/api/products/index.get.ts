@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
   const where: any = {}
 
   if (keyword) {
-    where.name = { contains: keyword }
+    where.name = { contains: keyword, mode: 'insensitive' }
   }
   if (categoryId) {
     // 支持按分类（含子分类）过滤：查出该分类及其所有后代分类 ID

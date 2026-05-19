@@ -1,6 +1,7 @@
 import { prisma } from '../../utils/prisma'
 import { allocateAndDeduct, type AllocationItem } from '../../utils/stockAllocator'
 import { computeOrder, type PriceMode } from '../../../shared/priceMode'
+import { requireStaff } from '../../utils/auth'
 
 /**
  * 结算接口
@@ -25,15 +26,16 @@ import { computeOrder, type PriceMode } from '../../../shared/priceMode'
  * 不信任前端传来的 unitPrice（防篡改），再落单。
  */
 export default defineEventHandler(async (event) => {
+  requireStaff(event)
   const body = await readBody(event)
   const cart = body?.cart
   const payment = body?.payment
 
   if (!cart || !payment) {
-    throw createError({ statusCode: 400, message: '无效的请求数据' })
+    return { data: null, error: { message: '无效的请求数据', code: 'INVALID_PARAMS' } }
   }
   if (!Array.isArray(cart.items) || cart.items.length === 0) {
-    throw createError({ statusCode: 400, message: '购物车为空' })
+    return { data: null, error: { message: '购物车为空', code: 'EMPTY_CART' } }
   }
 
   const priceMode: PriceMode = (
@@ -224,7 +226,6 @@ export default defineEventHandler(async (event) => {
       error: null,
     }
   } catch (error: any) {
-    setResponseStatus(event, 400)
     return {
       data: null,
       error: { message: error.message || '结账失败', code: error.code || 'CHECKOUT_FAILED' },

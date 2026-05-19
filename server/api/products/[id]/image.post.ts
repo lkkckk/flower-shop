@@ -1,8 +1,10 @@
 import { readMultipartFormData, getRouterParam } from 'h3'
 import { writeFile, unlink, mkdir } from 'fs/promises'
 import path from 'path'
+import { requireStaff } from '../../../utils/auth'
 
 export default defineEventHandler(async (event) => {
+  requireStaff(event)
   const productId = parseInt(getRouterParam(event, 'id') || '0')
   if (!productId) {
     return { data: null, error: { message: '参数错误', code: 'BAD_PARAMS' } }

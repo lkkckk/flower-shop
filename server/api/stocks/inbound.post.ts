@@ -1,7 +1,10 @@
 import dayjs from 'dayjs'
 import { prisma } from '../../utils/prisma'
+import { respondWithPrismaError } from '../../utils/prismaError'
+import { requireStaff } from '../../utils/auth'
 
 export default defineEventHandler(async (event) => {
+  requireStaff(event)
   const body = await readBody(event)
   const productId = Number(body.productId)
   const inboundQty = Number(body.inboundQty)
@@ -10,7 +13,6 @@ export default defineEventHandler(async (event) => {
   const inboundDateRaw = body.inboundDate
 
   if (!productId || !inboundDateRaw || !(inboundQty > 0) || costPrice < 0 || Number.isNaN(costPrice)) {
-    setResponseStatus(event, 400)
     return {
       data: null,
       error: { message: '入库参数不合法', code: 'INVALID_PARAMS' },
@@ -79,11 +81,7 @@ export default defineEventHandler(async (event) => {
       data: batch,
       error: null,
     }
-  } catch (error: any) {
-    setResponseStatus(event, 400)
-    return {
-      data: null,
-      error: { message: error.message || '入库失败', code: 'INBOUND_FAILED' },
-    }
+  } catch (error) {
+    return respondWithPrismaError(event, error, '入库失败')
   }
 })

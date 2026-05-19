@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
   const where: any = { status: 'active' }
 
   if (keyword) {
-    where.name = { contains: keyword }
+    where.name = { contains: keyword, mode: 'insensitive' }
   }
   if (categoryId) {
     const allCats = await prisma.category.findMany({ select: { id: true, parentId: true } })

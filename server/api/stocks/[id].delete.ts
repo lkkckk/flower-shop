@@ -1,5 +1,6 @@
 import { prisma } from '../../utils/prisma'
 import { getCurrentUser } from '../../utils/auth'
+import { respondWithPrismaError } from '../../utils/prismaError'
 
 export default defineEventHandler(async (event) => {
   const payload = getCurrentUser(event)
@@ -10,7 +11,6 @@ export default defineEventHandler(async (event) => {
 
   const id = Number(getRouterParam(event, 'id'))
   if (isNaN(id)) {
-    setResponseStatus(event, 400)
     return { data: null, error: { message: '无效的批次 ID', code: 'INVALID_ID' } }
   }
 
@@ -18,7 +18,6 @@ export default defineEventHandler(async (event) => {
     // 检查是否有销售关联
     const orderItemCount = await prisma.orderItem.count({ where: { batchId: id } })
     if (orderItemCount > 0) {
-      setResponseStatus(event, 409)
       return {
         data: null,
         error: { message: `该批次已有 ${orderItemCount} 条销售记录，不能删除`, code: 'HAS_ORDER_ITEMS' },
@@ -32,11 +31,7 @@ export default defineEventHandler(async (event) => {
     })
 
     return { data: { success: true }, error: null }
-  } catch (error: any) {
-    setResponseStatus(event, 400)
-    return {
-      data: null,
-      error: { message: error.message || '删除失败', code: 'DELETE_ERROR' },
-    }
+  } catch (error) {
+    return respondWithPrismaError(event, error, '删除失败')
   }
 })
