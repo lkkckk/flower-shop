@@ -49,15 +49,6 @@
           </a-button>
         </a-form-item>
       </a-form>
-
-
-      <div class="login-tip muted-tip">
-        <span>默认管理员：</span>
-        <span class="mono">admin / admin123</span>
-       <br /> 
-        <span>收银员：</span>
-        <span class="mono">cashier / cashier123</span>
-      </div>
     </a-card>
   </div>
 </template>
@@ -171,22 +162,5 @@ const handleLogin = async () => {
 
 .login-btn:hover {
   background: linear-gradient(135deg, var(--avo-800), var(--avo-900));
-}
-
-.login-tip {
-  text-align: center;
-  margin-top: 16px;
-  font-size: 12px;
-  color: #9ca3af;
-}
-
-.muted-tip {
-  margin-top: 6px;
-}
-
-.mono {
-  font-family: monospace;
-  color: var(--avo-700);
-  font-weight: 600;
 }
 </style>
