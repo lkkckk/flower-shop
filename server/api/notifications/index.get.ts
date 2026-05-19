@@ -6,6 +6,7 @@ import { prisma } from '../../utils/prisma'
  * query:
  *   onlyUnread  — 'true' 只看未读
  *   type        — 按类型过滤
+ *   level       — 按级别过滤
  *   page, pageSize
  *
  * 返回：{ list, total, unreadCount }
@@ -17,12 +18,14 @@ export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const onlyUnread = String(query.onlyUnread || '') === 'true'
   const type = query.type ? String(query.type) : undefined
+  const level = query.level ? String(query.level) : undefined
   const page = Number(query.page) || 1
   const pageSize = Number(query.pageSize) || 50
 
   const where: any = { userId: null }
   if (onlyUnread) where.readAt = null
   if (type) where.type = type
+  if (level) where.level = level
 
   try {
     const [list, total, unreadCount] = await Promise.all([

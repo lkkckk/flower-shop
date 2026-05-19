@@ -19,7 +19,19 @@
         <a-tab-pane key="low_stock" tab="低库存" />
         <a-tab-pane key="expiring_batch" tab="临期批次" />
         <a-tab-pane key="debt_overdue" tab="欠款逾期" />
+        <a-tab-pane key="anomaly_order" tab="异常订单" />
       </a-tabs>
+
+      <div class="filter-row">
+        <a-select
+          v-model:value="activeLevel"
+          allow-clear
+          placeholder="全部级别"
+          class="level-filter"
+          :options="levelOptions"
+          @change="onLevelChange"
+        />
+      </div>
 
       <a-spin :spinning="loading">
         <a-empty v-if="!loading && list.length === 0" description="暂无通知" />
@@ -84,6 +96,7 @@ const isAdmin = computed(() => user.value?.role === 'admin')
 const { unreadCount, loading, fetchList, markRead, markAllRead, regenerate } = useNotifications()
 
 const activeType = ref<string>('all')
+const activeLevel = ref<string | undefined>(undefined)
 const list = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -91,6 +104,9 @@ const pageSize = ref(30)
 const regenerating = ref(false)
 
 const showTotal = (t: number) => `共 ${t} 条`
+const levelOptions = computed(() =>
+  Object.entries(NOTIFICATION_LEVELS).map(([value, item]) => ({ value, label: item.label })),
+)
 
 const loadList = async () => {
   try {
@@ -100,6 +116,7 @@ const loadList = async () => {
     } else if (activeType.value !== 'all') {
       query.type = activeType.value
     }
+    if (activeLevel.value) query.level = activeLevel.value
     const data = await fetchList(query)
     list.value = data.list
     total.value = data.total
@@ -110,6 +127,11 @@ const loadList = async () => {
 }
 
 const onTabChange = () => {
+  page.value = 1
+  loadList()
+}
+
+const onLevelChange = () => {
   page.value = 1
   loadList()
 }
@@ -178,6 +200,15 @@ onMounted(() => loadList())
   font-size: 18px;
   font-weight: 700;
   margin: 0;
+}
+
+.filter-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: -4px 0 12px;
+}
+.level-filter {
+  width: 140px;
 }
 
 .notif-page-list :deep(.ant-list-item) {

@@ -154,6 +154,60 @@ async function genDebtOverdue(settings: SettingMap) {
   }
 }
 
+/** 4) 异常订单：近 24 小时内的大额、重折扣或大额未收订单 */
+async function genAnomalyOrder() {
+  const since = dayjs().subtract(24, 'hour').toDate()
+  const avgAgg = await prisma.order.aggregate({
+    where: {
+      orderType: { not: 'preorder' },
+      status: { not: 'cancelled' },
+      createdAt: { gte: dayjs().subtract(30, 'day').toDate() },
+    },
+    _avg: { totalAmount: true },
+  })
+  const avgAmount = avgAgg._avg.totalAmount || 0
+  const largeAmountThreshold = Math.max(1000, avgAmount * 3)
+
+  const orders = await prisma.order.findMany({
+    where: {
+      orderType: { not: 'preorder' },
+      status: { not: 'cancelled' },
+      createdAt: { gte: since },
+      OR: [
+        { totalAmount: { gte: largeAmountThreshold } },
+        { discountRate: { lte: 70 } },
+        { owedAmount: { gte: 300 } },
+      ],
+    },
+    include: { customer: { select: { name: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+  })
+
+  for (const o of orders) {
+    const reasons: string[] = []
+    if (o.totalAmount >= largeAmountThreshold) {
+      reasons.push(`金额 ¥${o.totalAmount.toFixed(2)} 高于异常阈值 ¥${largeAmountThreshold.toFixed(2)}`)
+    }
+    if (o.discountRate !== null && o.discountRate !== undefined && o.discountRate <= 70) {
+      reasons.push(`折扣率 ${o.discountRate}% 偏低`)
+    }
+    if (o.owedAmount >= 300) {
+      reasons.push(`未收 ¥${o.owedAmount.toFixed(2)}`)
+    }
+    if (reasons.length === 0) continue
+
+    await upsertNotification({
+      type: 'anomaly_order',
+      level: o.owedAmount >= 300 || o.totalAmount >= largeAmountThreshold * 1.5 ? 'urgent' : 'warn',
+      title: `订单 ${o.orderNo} 可能异常`,
+      body: `${o.customer?.name || '散客'} · ${reasons.join('；')}。`,
+      refType: 'order',
+      refId: o.id,
+    })
+  }
+}
+
 /** 清理 90 天前的旧通知 */
 async function pruneOldNotifications() {
   const cutoff = dayjs().subtract(90, 'day').toDate()
@@ -166,6 +220,7 @@ export async function generateNotifications() {
     genLowStock(settings),
     genExpiringBatch(settings),
     genDebtOverdue(settings),
+    genAnomalyOrder(),
   ])
   await pruneOldNotifications()
 }

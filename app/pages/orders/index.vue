@@ -94,6 +94,9 @@
           <a-form-item label="渠道">
             <a-input v-model:value="filters.sourceChannel" class="w-32" placeholder="如 美团/抖音" allow-clear @change="onFilterChange" />
           </a-form-item>
+          <a-form-item label="标签">
+            <a-input v-model:value="filters.tag" class="w-32" placeholder="订单标签" allow-clear @change="onFilterChange" />
+          </a-form-item>
           <a-form-item label="金额范围">
             <a-input-number v-model:value="filters.minAmount" class="w-24" placeholder="≥" :min="0" @change="onFilterChange" />
             <span class="mx-1">—</span>
@@ -114,6 +117,7 @@
         <a-space>
           <a-button size="small" @click="bulkPrint">批量打印</a-button>
           <a-button size="small" @click="bulkExport">导出选中</a-button>
+          <a-button size="small" @click="openBulkTag">批量打标</a-button>
           <a-button size="small" type="link" @click="selectedRowKeys = []">清空选择</a-button>
         </a-space>
       </div>
@@ -135,6 +139,9 @@
             <a class="font-mono text-sm text-pink-600" @click="viewOrder(record.id)">{{ record.orderNo }}</a>
             <a-tag v-if="record.isUrgent" color="red" class="ml-1">加急</a-tag>
             <a-tag v-if="record.owedAmount > 0" color="orange" class="ml-1">欠</a-tag>
+            <div v-if="splitTags(record.tags).length" class="order-tags">
+              <a-tag v-for="tag in splitTags(record.tags)" :key="tag" color="blue">{{ tag }}</a-tag>
+            </div>
           </template>
 
           <template v-else-if="column.key === 'createdAt'">
@@ -208,6 +215,30 @@
       :order-id="drawerOrderId"
       @refresh="loadList"
     />
+
+    <a-modal
+      v-model:open="bulkTagOpen"
+      title="批量打标"
+      :confirm-loading="bulkTagSubmitting"
+      ok-text="保存"
+      @ok="submitBulkTag"
+      @cancel="bulkTagOpen = false"
+      destroy-on-close
+    >
+      <a-form layout="vertical">
+        <a-form-item label="标签" required>
+          <a-input v-model:value="bulkTagForm.tag" placeholder="例如：需回访、问题单、大客户" maxlength="20" />
+        </a-form-item>
+        <a-form-item label="处理方式">
+          <a-radio-group v-model:value="bulkTagForm.mode">
+            <a-radio value="append">追加标签</a-radio>
+            <a-radio value="replace">替换标签</a-radio>
+            <a-radio value="remove">移除标签</a-radio>
+          </a-radio-group>
+        </a-form-item>
+        <div class="text-xs text-gray-500">将作用于已选的 {{ selectedRowKeys.length }} 个订单。</div>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
@@ -233,6 +264,7 @@ const filters = reactive<any>({
   cashierId: undefined as number | undefined,
   paymentMethod: undefined as string | undefined,
   sourceChannel: '',
+  tag: '',
   minAmount: undefined as number | undefined,
   maxAmount: undefined as number | undefined,
   hasDebt: false,
@@ -246,6 +278,12 @@ const list = ref<any[]>([])
 const summary = reactive({ count: 0, totalAmount: 0, paidAmount: 0, owedAmount: 0 })
 const loading = ref(false)
 const selectedRowKeys = ref<number[]>([])
+const bulkTagOpen = ref(false)
+const bulkTagSubmitting = ref(false)
+const bulkTagForm = reactive({
+  tag: '',
+  mode: 'append' as 'append' | 'remove' | 'replace',
+})
 
 const drawerOpen = ref(false)
 const drawerOrderId = ref<number | null>(null)
@@ -287,6 +325,7 @@ const buildQuery = () => {
   if (filters.cashierId) q.cashierId = filters.cashierId
   if (filters.paymentMethod) q.paymentMethod = filters.paymentMethod
   if (filters.sourceChannel) q.sourceChannel = filters.sourceChannel
+  if (filters.tag) q.tag = filters.tag
   if (filters.minAmount !== undefined && filters.minAmount !== null) q.minAmount = filters.minAmount
   if (filters.maxAmount !== undefined && filters.maxAmount !== null) q.maxAmount = filters.maxAmount
   if (filters.hasDebt) q.hasDebt = 'true'
@@ -402,9 +441,15 @@ const statusColor = (s: string) => {
   return map[s] || 'default'
 }
 
+const splitTags = (value?: string | null) =>
+  (value || '')
+    .split(',')
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+
 // 导出
 const buildCsvRows = (rows: any[]) => {
-  const headers = ['单号', '下单时间', '客户', '电话', '收银员', '总额', '已付', '未付', '状态', '渠道', '备注']
+  const headers = ['单号', '下单时间', '客户', '电话', '收银员', '总额', '已付', '未付', '状态', '标签', '渠道', '备注']
   const data = rows.map((r: any) => [
     r.orderNo,
     formatDateTime(r.createdAt),
@@ -415,6 +460,7 @@ const buildCsvRows = (rows: any[]) => {
     r.paidAmount.toFixed(2),
     r.owedAmount.toFixed(2),
     statusText(r.status),
+    splitTags(r.tags).join(' / '),
     r.sourceChannel || '',
     (r.notes || '').replace(/\n/g, ' '),
   ])
@@ -446,6 +492,40 @@ const bulkExport = () => {
 }
 const bulkPrint = () => {
   selectedRowKeys.value.forEach((id) => window.open(`/orders/${id}/print`, '_blank'))
+}
+
+const openBulkTag = () => {
+  bulkTagForm.tag = ''
+  bulkTagForm.mode = 'append'
+  bulkTagOpen.value = true
+}
+
+const submitBulkTag = async () => {
+  const tag = bulkTagForm.tag.trim()
+  if (!tag) {
+    message.warning('请输入标签')
+    return
+  }
+  bulkTagSubmitting.value = true
+  try {
+    const res: any = await $fetch('/api/orders/bulk-tag', {
+      method: 'POST',
+      body: {
+        ids: selectedRowKeys.value,
+        tag,
+        mode: bulkTagForm.mode,
+      },
+    })
+    if (res.error) throw new Error(res.error.message)
+    message.success(`已更新 ${res.data?.updated || 0} 个订单`)
+    bulkTagOpen.value = false
+    selectedRowKeys.value = []
+    loadList()
+  } catch (e: any) {
+    message.error(e.message || '批量打标失败')
+  } finally {
+    bulkTagSubmitting.value = false
+  }
 }
 
 onMounted(async () => {
@@ -566,6 +646,16 @@ import { h } from 'vue'
   text-align: left;
   font-weight: 500;
   color: #9ca3af;
+}
+
+.order-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.order-tags :deep(.ant-tag) {
+  margin-inline-end: 0;
 }
 
 @media (max-width: 768px) {

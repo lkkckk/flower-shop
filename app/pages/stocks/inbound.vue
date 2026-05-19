@@ -101,7 +101,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import dayjs, { type Dayjs } from 'dayjs'
 import { useStocks } from '~/composables/useStocks'
@@ -109,12 +109,14 @@ import { useStocks } from '~/composables/useStocks'
 useHead({ title: '新增入库 - 花店管理系统' })
 
 const router = useRouter()
+const route = useRoute()
 const { createInbound, fetchProductsWithStock } = useStocks()
 
 const formRef = ref<any>(null)
 const submitting = ref(false)
 const productsLoading = ref(false)
 const productList = ref<any[]>([])
+const queryApplied = ref(false)
 
 interface InboundForm {
   productId: number | undefined
@@ -189,6 +191,7 @@ const loadProducts = async () => {
   try {
     const data = await fetchProductsWithStock()
     productList.value = data.list || []
+    applyQueryDefaults()
   } catch (e) {
     productList.value = []
   } finally {
@@ -198,6 +201,30 @@ const loadProducts = async () => {
 
 const onProductChange = () => {
   recalcExpiry()
+}
+
+const parsePositiveNumber = (value: unknown) => {
+  const raw = Array.isArray(value) ? value[0] : value
+  const n = Number(raw)
+  return Number.isFinite(n) && n > 0 ? n : undefined
+}
+
+const applyQueryDefaults = () => {
+  if (queryApplied.value) return
+  const productId = parsePositiveNumber(route.query.productId)
+  const suggestQty = parsePositiveNumber(route.query.suggestQty)
+
+  if (productId && productList.value.some((p) => p.id === productId)) {
+    form.productId = productId
+  }
+  if (suggestQty) {
+    form.inboundQty = Number(suggestQty.toFixed(2))
+  }
+  if (productId || suggestQty) {
+    form.notes = '采购建议预填'
+    recalcExpiry()
+    queryApplied.value = true
+  }
 }
 
 const recalcExpiry = () => {

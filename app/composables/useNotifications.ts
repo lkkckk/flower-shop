@@ -16,6 +16,7 @@ export interface NotificationItem {
 export interface NotificationListParams {
   onlyUnread?: string
   type?: string
+  level?: string
   page?: number
   pageSize?: number
 }

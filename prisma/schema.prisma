@@ -215,6 +215,8 @@ model Order {
   deliveryTime    DateTime?
   deliveryAddress String?
   notes           String?
+  // 订单标签，逗号分隔存储，用于列表批量打标与快速筛选
+  tags            String?
   status          String   @default("pending")
   // 履约方式：delivery | pickup，供预售排单/备货看板使用
   fulfillmentType String   @default("delivery")

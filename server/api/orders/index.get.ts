@@ -14,6 +14,7 @@ import { prisma } from '../../utils/prisma'
  *   keyword          — 单号 / 客户名 / 收货人 / 联系电话 OR 匹配
  *   hasDebt          — 'true' 时仅看欠款单
  *   hasDiscount      — 'true' 时仅看带折扣/促销的单
+ *   tag              — 订单标签 contains
  *
  * 返回：{ list, total, page, pageSize, summary }
  */
@@ -31,6 +32,7 @@ export default defineEventHandler(async (event) => {
   const keyword = query.keyword ? String(query.keyword).trim() : undefined
   const hasDebt = String(query.hasDebt || '') === 'true'
   const hasDiscount = String(query.hasDiscount || '') === 'true'
+  const tag = query.tag ? String(query.tag).trim() : undefined
   const startDate = query.startDate ? dayjs(query.startDate as string).startOf('day').toDate() : undefined
   const endDate = query.endDate ? dayjs(query.endDate as string).endOf('day').toDate() : undefined
   // 订单类型过滤：默认排除预售单（预售单走独立页面管理）。
@@ -58,6 +60,7 @@ export default defineEventHandler(async (event) => {
   }
   if (hasDebt) where.owedAmount = { gt: 0 }
   if (hasDiscount) where.priceMode = { in: ['discount', 'promotion'] }
+  if (tag) where.tags = { contains: tag, mode: 'insensitive' }
   if (paymentMethod) {
     where.payments = { some: { paymentMethod } }
   }
@@ -66,6 +69,7 @@ export default defineEventHandler(async (event) => {
       { orderNo: { contains: keyword, mode: 'insensitive' } },
       { receiverName: { contains: keyword, mode: 'insensitive' } },
       { receiverPhone: { contains: keyword } },
+      { tags: { contains: keyword, mode: 'insensitive' } },
       { customer: { is: { name: { contains: keyword, mode: 'insensitive' } } } },
       { customer: { is: { phone: { contains: keyword } } } },
     ]
