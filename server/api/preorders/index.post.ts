@@ -138,7 +138,6 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  setResponseStatus(event, 400)
   return {
     data: null,
     error: { message: getErrorMessage(lastError), code: lastError?.code || 'CREATE_FAILED' },

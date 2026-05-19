@@ -53,7 +53,6 @@ export default defineEventHandler(async (event) => {
       error: null,
     }
   } catch (error: any) {
-    setResponseStatus(event, 400)
     return {
       data: null,
       error: { message: error.message || '创建商品失败', code: 'CREATE_ERROR' },

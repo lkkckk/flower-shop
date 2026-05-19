@@ -35,10 +35,37 @@ export default defineEventHandler(async (event) => {
         throw Object.assign(new Error(`不允许从 ${from} 流转到 ${to}`), { statusCode: 400 })
       }
 
+      // 已扣库存的预售单取消：按 OrderItem.batchId 反向回补 currentQty + 写 StockMovement
       if (to === 'cancelled' && isStockDeducted(from)) {
-        throw Object.assign(new Error('已扣库存的预售单暂不支持直接取消，请联系管理员补偿库存'), {
-          statusCode: 400,
+        const items = await tx.orderItem.findMany({
+          where: { orderId: id },
+          select: { id: true, batchId: true, baseQty: true },
         })
+        for (const it of items) {
+          if (!it.batchId || !(it.baseQty > 0)) continue
+          const batch = await tx.stockBatch.findUnique({ where: { id: it.batchId } })
+          if (!batch) {
+            // 极端情况：批次已被删除，无法补偿，提示人工介入
+            throw Object.assign(
+              new Error(`关联批次(id=${it.batchId})已不存在，无法自动回补，请联系管理员`),
+              { statusCode: 400, code: 'STOCK_REFUND_BATCH_MISSING' },
+            )
+          }
+          await tx.stockBatch.update({
+            where: { id: it.batchId },
+            data: { currentQty: { increment: it.baseQty }, status: 'in_stock' },
+          })
+          await tx.stockMovement.create({
+            data: {
+              batchId: it.batchId,
+              type: 'cancel_refund',
+              qtyChange: it.baseQty,
+              relatedOrderId: id,
+              operator: 'system',
+              notes: `预售单取消回补 OrderItem#${it.id}`,
+            },
+          })
+        }
       }
 
       if (to === 'in_production' && !isStockDeducted(from)) {
@@ -55,8 +82,6 @@ export default defineEventHandler(async (event) => {
 
     return { data: result, error: null }
   } catch (error: any) {
-    const code = error.statusCode || 400
-    setResponseStatus(event, code)
     return {
       data: null,
       error: {

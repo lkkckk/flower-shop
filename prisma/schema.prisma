@@ -32,7 +32,7 @@ model Product {
   vipPrice        Float?
   wholesalePrice  Float?
   shelfLifeDays   Int      @default(7)
-  attributes      String?   // JSON string, SQLite 不支持 Json 类型
+  attributes      String?   // JSON string（暂保留字符串形态，未来可迁移为 Json 类型）
   status          String   @default("active")
   imageUrl        String?
   createdAt       DateTime @default(now())

@@ -1,5 +1,4 @@
-import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+// defineStore / ref / computed 由 @pinia/nuxt + Nuxt 自动导入提供
 
 export interface CartItem {
   id: string

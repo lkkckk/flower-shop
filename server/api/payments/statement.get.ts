@@ -5,7 +5,6 @@ export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const customerId = Number(query.customerId)
   if (!customerId) {
-    setResponseStatus(event, 400)
     return { data: null, error: { message: '缺少 customerId 参数', code: 'INVALID_PARAMS' } }
   }
 
@@ -73,7 +72,6 @@ export default defineEventHandler(async (event) => {
     ])
 
     if (!customer) {
-      setResponseStatus(event, 404)
       return { data: null, error: { message: '客户不存在', code: 'NOT_FOUND' } }
     }
 

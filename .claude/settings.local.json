@@ -3,7 +3,14 @@
     "allow": [
       "Bash(npx prisma *)",
       "Bash(npx tsc *)",
-      "Bash(npx nuxi *)"
+      "Bash(npx nuxi *)",
+      "PowerShell(Get-ChildItem -Force f:\\\\flower-shop | Where-Object { $_.Name -notmatch \"node_modules|\\\\.output|\\\\.nuxt|\\\\.git$\" } | Select-Object Name, Mode)",
+      "Bash(grep -v \"^\\\\.output$\")",
+      "Bash(grep -v \"^\\\\.nuxt$\")",
+      "Bash(Get-ChildItem -Path \"F:\\\\flower-shop\\\\app\\\\plugins\" -Force)",
+      "Bash(findstr /R \"error TS\")",
+      "Bash(findstr /V \"node_modules\")",
+      "Bash(findstr \"^??\")"
     ]
   }
 }

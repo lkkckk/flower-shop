@@ -10,7 +10,6 @@ export default defineEventHandler(async (event) => {
   const inboundDateRaw = body.inboundDate
 
   if (!productId || !inboundDateRaw || !(inboundQty > 0) || costPrice < 0 || Number.isNaN(costPrice)) {
-    setResponseStatus(event, 400)
     return {
       data: null,
       error: { message: '入库参数不合法', code: 'INVALID_PARAMS' },
@@ -80,7 +79,6 @@ export default defineEventHandler(async (event) => {
       error: null,
     }
   } catch (error: any) {
-    setResponseStatus(event, 400)
     return {
       data: null,
       error: { message: error.message || '入库失败', code: 'INBOUND_FAILED' },

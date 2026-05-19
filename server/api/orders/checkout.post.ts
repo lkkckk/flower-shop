@@ -50,7 +50,9 @@ export default defineEventHandler(async (event) => {
   const promotionId: number | null =
     priceMode === 'promotion' && cart.promotionId ? Number(cart.promotionId) : null
 
-  try {
+  let lastError: any = null
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+   try {
     const result = await prisma.$transaction(async (tx) => {
       // === 1. 拉取权威商品价格 + 促销规则 ===
       const productIds: number[] = Array.from(
@@ -122,12 +124,14 @@ export default defineEventHandler(async (event) => {
       })
       const orderNo = `O${dateStr}${(orderCount + 1).toString().padStart(4, '0')}`
 
-      // === 4. balance 支付：校验余额 ===
+      // === 4. balance 支付：原子校验 + 扣预存（防并发） ===
       if (payment.method === 'balance') {
         if (!cart.customerId) throw new Error('扣预存需要选择客户')
-        const customer = await tx.customer.findUnique({ where: { id: cart.customerId } })
-        if (!customer || customer.balance <= 0) throw new Error('客户预存余额不足')
-        if (customer.balance < payment.paidAmount) throw new Error('预存余额不足以支付全额')
+        const r = await tx.customer.updateMany({
+          where: { id: cart.customerId, balance: { gte: payment.paidAmount } },
+          data: { balance: { decrement: payment.paidAmount } },
+        })
+        if (r.count === 0) throw new Error('预存余额不足以支付全额（或已被并发扣除）')
       }
 
       // === 5. 订单状态 ===
@@ -177,14 +181,11 @@ export default defineEventHandler(async (event) => {
       }))
       await allocateAndDeduct(tx, order.id, allocInputs, 'system')
 
-      // === 8. 客户余额/欠款/积分 ===
+      // === 8. 客户欠款/积分（balance 扣款已在 step 4 原子完成） ===
       if (cart.customerId) {
         const customerUpdate: any = {}
-        if (payment.method === 'balance' && payment.paidAmount > 0) {
-          // 扣预存：balance 直接减去已付金额
-          customerUpdate.balance = { decrement: payment.paidAmount }
-        }
         if (payment.owedAmount > 0) {
+          // 历史语义：欠款单也从 balance 扣（同时 totalOwed +）
           customerUpdate.balance = { decrement: payment.owedAmount }
           customerUpdate.totalOwed = { increment: payment.owedAmount }
         }
@@ -223,15 +224,19 @@ export default defineEventHandler(async (event) => {
       },
       error: null,
     }
-  } catch (error: any) {
-    setResponseStatus(event, 400)
-    return {
-      data: null,
-      error: {
-        message: error.message || '结账失败',
-        code: error.code || 'CHECKOUT_FAILED',
-        shortages: error.shortages || undefined,
-      },
-    }
+   } catch (error: any) {
+    lastError = error
+    // 仅 orderNo 唯一约束冲突时重试，其他错误直接结束
+    if (error?.code !== 'P2002') break
+   }
+  }
+
+  return {
+    data: null,
+    error: {
+      message: lastError?.code === 'P2002' ? '订单号冲突，请重试' : (lastError?.message || '结账失败'),
+      code: lastError?.code || 'CHECKOUT_FAILED',
+      shortages: lastError?.shortages || undefined,
+    },
   }
 })

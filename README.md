@@ -22,7 +22,7 @@
 # 1. 安装依赖
 pnpm install
 
-# 2. 初始化数据库（创建 SQLite 数据库并应用迁移）
+# 2. 初始化数据库（PostgreSQL，应用迁移）
 pnpm prisma migrate dev
 
 # 3. 启动开发服务器
@@ -96,5 +96,18 @@ flower-shop/
 | 原子 CSS | Tailwind CSS |
 | 状态管理 | Pinia |
 | ORM | Prisma 5.x |
-| 数据库 | SQLite |
+| 数据库 | PostgreSQL |
 | 包管理 | pnpm |
+
+## VPS 部署建议
+
+开发模式 (`pnpm dev`) 在 VPS 上会有明显卡顿（无压缩、无 minify、HMR 开销）。
+生产环境建议：
+
+```bash
+pnpm build
+node .output/server/index.mjs   # 或 pm2 start .output/server/index.mjs --name flower-shop
+```
+
+`@nuxtjs/google-fonts` 模块会在 build 时把字体下载到本地，避开境外 CDN。
+若需进一步加速，前面挂 nginx 做静态资源缓存。

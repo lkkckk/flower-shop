@@ -4,7 +4,6 @@ import { getCurrentUser } from '../../utils/auth'
 export default defineEventHandler(async (event) => {
   const payload = getCurrentUser(event)
   if (!payload || payload.type !== 'staff') {
-    setResponseStatus(event, 403)
     return { data: null, error: { message: '权限不足', code: 'FORBIDDEN' } }
   }
 
@@ -13,7 +12,6 @@ export default defineEventHandler(async (event) => {
   const { name, parentId, sort } = body || {}
 
   if (!name?.trim()) {
-    setResponseStatus(event, 400)
     return { data: null, error: { message: '分类名称不能为空', code: 'VALIDATION_ERROR' } }
   }
 

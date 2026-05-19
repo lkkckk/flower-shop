@@ -115,8 +115,6 @@ export default defineEventHandler(async (event) => {
 
     return { data: result, error: null }
   } catch (error: any) {
-    const code = error.statusCode || 400
-    setResponseStatus(event, code)
     return {
       data: null,
       error: { message: error.message || '更新预售单失败', code: 'UPDATE_FAILED' },

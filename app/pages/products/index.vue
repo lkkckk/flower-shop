@@ -355,7 +355,7 @@ const handleCategoryDrawerOpenChange = (open: boolean) => {
 // 停售 / 恢复
 const handleToggleStatus = async (record: any) => {
   try {
-    await $fetch(`/api/products/${record.id}`, {
+    await ($fetch as any)(`/api/products/${record.id}`, {
       method: 'PUT',
       body: { ...record, status: record.status === 'active' ? 'inactive' : 'active' },
     })

@@ -7,12 +7,10 @@ export default defineEventHandler(async (event) => {
   const reason = body.reason ? String(body.reason) : null
 
   if (!batchId || isNaN(batchId)) {
-    setResponseStatus(event, 400)
     return { data: null, error: { message: '无效的批次 ID', code: 'INVALID_PARAMS' } }
   }
 
   if (isNaN(discountPrice) || discountPrice < 0) {
-    setResponseStatus(event, 400)
     return { data: null, error: { message: '折价金额不合法', code: 'INVALID_PARAMS' } }
   }
 
@@ -44,7 +42,6 @@ export default defineEventHandler(async (event) => {
 
     return { data: result, error: null }
   } catch (error: any) {
-    setResponseStatus(event, 400)
     return {
       data: null,
       error: { message: error.message || '折价失败', code: 'DISCOUNT_FAILED' },

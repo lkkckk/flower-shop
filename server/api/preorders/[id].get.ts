@@ -40,8 +40,6 @@ export default defineEventHandler(async (event) => {
       error: null,
     }
   } catch (error: any) {
-    const code = error.statusCode || 500
-    setResponseStatus(event, code)
     return {
       data: null,
       error: { message: error.message || '获取预售单失败', code: 'FETCH_ERROR' },

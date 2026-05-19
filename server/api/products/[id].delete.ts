@@ -4,13 +4,11 @@ import { getCurrentUser } from '../../utils/auth'
 export default defineEventHandler(async (event) => {
   const payload = getCurrentUser(event)
   if (!payload || payload.type !== 'staff' || payload.role === 'cashier') {
-    setResponseStatus(event, 403)
     return { data: null, error: { message: '权限不足', code: 'FORBIDDEN' } }
   }
 
   const id = Number(getRouterParam(event, 'id'))
   if (isNaN(id)) {
-    setResponseStatus(event, 400)
     return { data: null, error: { message: '无效的商品 ID', code: 'INVALID_ID' } }
   }
 
@@ -27,7 +25,6 @@ export default defineEventHandler(async (event) => {
     // 真删除：先做安全检查
     const orderItemCount = await prisma.orderItem.count({ where: { productId: id } })
     if (orderItemCount > 0) {
-      setResponseStatus(event, 409)
       return {
         data: null,
         error: { message: `该商品已有 ${orderItemCount} 条订单记录，不能删除`, code: 'HAS_ORDER_ITEMS' },
@@ -38,7 +35,6 @@ export default defineEventHandler(async (event) => {
       where: { productId: id, currentQty: { gt: 0 } },
     })
     if (stockCount > 0) {
-      setResponseStatus(event, 409)
       return {
         data: null,
         error: { message: `该商品尚有 ${stockCount} 个批次有剩余库存，不能删除`, code: 'HAS_STOCK' },
@@ -49,7 +45,6 @@ export default defineEventHandler(async (event) => {
     await prisma.product.delete({ where: { id } })
     return { data: { success: true, action: 'deleted' }, error: null }
   } catch (error: any) {
-    setResponseStatus(event, 400)
     return {
       data: null,
       error: { message: error.message || '删除商品失败', code: 'DELETE_ERROR' },

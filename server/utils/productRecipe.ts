@@ -18,6 +18,29 @@ export const productRecipeInclude = {
   },
 }
 
+async function detectRecipeCycle(
+  tx: Prisma.TransactionClient,
+  rootProductId: number,
+  initialComponentIds: number[],
+) {
+  const visited = new Set<number>([rootProductId])
+  const queue: number[] = [...initialComponentIds]
+  while (queue.length) {
+    const current = queue.shift() as number
+    if (current === rootProductId) {
+      throw Object.assign(new Error('配方存在循环引用'), { code: 'RECIPE_CYCLE' })
+    }
+    if (visited.has(current)) continue
+    visited.add(current)
+    const sub = await tx.productRecipe.findUnique({
+      where: { productId: current },
+      include: { items: { select: { componentProductId: true } } },
+    })
+    if (!sub) continue
+    for (const item of sub.items) queue.push(item.componentProductId)
+  }
+}
+
 function normalizeRecipeItems(recipe: any) {
   return Array.isArray(recipe?.items)
     ? recipe.items
@@ -56,6 +79,9 @@ export async function saveProductRecipe(
   if (uniqueComponentIds.size !== componentIds.length) {
     throw Object.assign(new Error('配方组件不能重复'), { code: 'INVALID_RECIPE' })
   }
+
+  // 循环依赖检测：BFS 沿组件配方向下扩展，若途经 productId 自身即为环
+  await detectRecipeCycle(tx, productId, componentIds)
 
   const components = await tx.product.findMany({
     where: { id: { in: componentIds } },

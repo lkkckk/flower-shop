@@ -478,6 +478,7 @@ const removeRecipeItem = (index: number) => {
 
 const onRecipeComponentChange = (index: number) => {
   const item = formState.recipe.items[index]
+  if (!item) return
   const product = selectedComponent(item.componentProductId)
   item.unit = product?.baseUnit || ''
 }

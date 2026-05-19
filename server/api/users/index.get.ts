@@ -4,7 +4,6 @@ import { getCurrentUser } from '../../utils/auth'
 export default defineEventHandler(async (event) => {
   const payload = getCurrentUser(event)
   if (!payload || payload.type !== 'staff' || payload.role !== 'admin') {
-    setResponseStatus(event, 403)
     return { data: null, error: { message: '仅管理员可操作', code: 'FORBIDDEN' } }
   }
 

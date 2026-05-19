@@ -4,7 +4,6 @@ import { getCurrentUser } from '../../utils/auth'
 export default defineEventHandler(async (event) => {
   const payload = getCurrentUser(event)
   if (!payload || payload.type !== 'staff') {
-    setResponseStatus(event, 401)
     return { data: null, error: { message: '未登录', code: 'UNAUTHORIZED' } }
   }
 
