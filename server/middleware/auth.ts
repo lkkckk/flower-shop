@@ -44,6 +44,7 @@ const CASHIER_PREFIX_ALLOW: string[] = [
   '/api/stocks/stocktake',
   '/api/promotions',
   '/api/settings',         // 允许读 lowStockThreshold；写操作由 API 内部角色校验
+  '/api/notifications',    // 铃铛 + 通知列表（生成/regenerate 在 handler 内做 admin 校验）
 ]
 
 const isPublicPath = (path: string): boolean => {

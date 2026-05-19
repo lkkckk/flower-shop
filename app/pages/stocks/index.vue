@@ -1,6 +1,30 @@
 <template>
   <div>
     <a-card class="page-card">
+      <!-- KPI 卡 -->
+      <div v-if="!isCashier" class="kpi-grid mb-4">
+        <a-card class="kpi-card" :body-style="{ padding: '14px 18px' }">
+          <div class="kpi-label">在售 SKU</div>
+          <div class="kpi-value">{{ kpi.skuCount }}</div>
+        </a-card>
+        <a-card class="kpi-card" :body-style="{ padding: '14px 18px' }">
+          <div class="kpi-label">库存货值</div>
+          <div class="kpi-value text-pink-600">¥{{ kpi.totalValue.toFixed(2) }}</div>
+        </a-card>
+        <a-card class="kpi-card kpi-clickable" :body-style="{ padding: '14px 18px' }" @click="onlyExpiring = true; onFilterChange()">
+          <div class="kpi-label">临期批次 (3 天内)</div>
+          <div class="kpi-value" :class="kpi.expiringCount > 0 ? 'text-orange-600' : 'text-gray-400'">
+            {{ kpi.expiringCount }}
+          </div>
+        </a-card>
+        <a-card class="kpi-card" :body-style="{ padding: '14px 18px' }">
+          <div class="kpi-label">缺货品种</div>
+          <div class="kpi-value" :class="kpi.outOfStockCount > 0 ? 'text-red-600' : 'text-gray-400'">
+            {{ kpi.outOfStockCount }}
+          </div>
+        </a-card>
+      </div>
+
       <!-- 顶部工具栏 -->
       <div class="toolbar">
         <div class="toolbar-left">
@@ -37,6 +61,10 @@
         </div>
 
         <div v-if="!isCashier" class="toolbar-right">
+          <a-button @click="suggestionOpen = true">
+            <template #icon><ShoppingOutlined /></template>
+            采购建议
+          </a-button>
           <a-button type="primary" @click="goInbound">
             <template #icon><PlusOutlined /></template>
             新增入库
@@ -244,13 +272,15 @@
         </a-form>
       </div>
     </a-modal>
+
+    <StocksPurchaseSuggestionDrawer v-model:open="suggestionOpen" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { PlusOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, ShoppingOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import { useStocks } from '~/composables/useStocks'
@@ -266,6 +296,7 @@ const { isCashier } = useAuth()
 
 const view = ref<'by_product' | 'by_batch'>('by_product')
 const filterProductId = ref<number | undefined>(undefined)
+const filterBatchId = ref<number | undefined>(undefined)
 const filterStatus = ref<string | undefined>(undefined)
 const onlyExpiring = ref(false)
 const page = ref(1)
@@ -273,6 +304,17 @@ const pageSize = ref(20)
 const total = ref(0)
 const list = ref<any[]>([])
 const productOptions = ref<{ value: number; label: string }[]>([])
+const suggestionOpen = ref(false)
+const kpi = reactive({ skuCount: 0, totalValue: 0, expiringCount: 0, outOfStockCount: 0 })
+
+const loadKpi = async () => {
+  try {
+    const res: any = await $fetch('/api/stocks/summary')
+    if (res?.data) Object.assign(kpi, res.data)
+  } catch {
+    // 收银员等无权限角色静默
+  }
+}
 
 const statusOptions = [
   { value: 'in_stock', label: '在库' },
@@ -329,6 +371,7 @@ const loadList = async () => {
       page: page.value,
       pageSize: pageSize.value,
       productId: filterProductId.value,
+      batchId: filterBatchId.value,
       status: filterStatus.value,
       expiringSoon: onlyExpiring.value,
     })
@@ -351,6 +394,7 @@ const onViewChange = () => {
 
 const onFilterChange = () => {
   page.value = 1
+  filterBatchId.value = undefined
   loadList()
 }
 
@@ -521,15 +565,26 @@ const filterOption = (input: string, option: any) => {
 watch(
   () => route.query,
   (q) => {
+    const shouldReload = Boolean(q.expiringSoon || q.productId || q.batchId || q.view)
     if (q.expiringSoon === 'true') {
       onlyExpiring.value = true
       view.value = 'by_batch'
     }
     if (q.productId) {
       filterProductId.value = Number(q.productId)
+      filterBatchId.value = undefined
+    }
+    if (q.batchId) {
+      filterBatchId.value = Number(q.batchId)
+      view.value = 'by_batch'
+      onlyExpiring.value = false
     }
     if (q.view === 'by_batch' || q.view === 'by_product') {
       view.value = q.view
+    }
+    if (shouldReload) {
+      page.value = 1
+      loadList()
     }
   },
   { immediate: true }
@@ -538,12 +593,45 @@ watch(
 onMounted(async () => {
   await loadProductOptions()
   await loadList()
+  loadKpi()
 })
 </script>
 
 <style scoped>
 .page-card {
   border-radius: 8px;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.kpi-card {
+  border-radius: 8px;
+}
+.kpi-clickable {
+  cursor: pointer;
+  transition: box-shadow 0.15s ease;
+}
+.kpi-clickable:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+.kpi-label {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-bottom: 4px;
+}
+.kpi-value {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+@media (max-width: 768px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .toolbar {

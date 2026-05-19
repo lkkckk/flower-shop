@@ -46,10 +46,7 @@
             <SearchOutlined />
             <input placeholder="搜索订单、客户、商品..." @keydown.enter="handleSearch" />
           </div>
-          <a-button type="text" class="topbar-icon">
-            <BellOutlined />
-            <i />
-          </a-button>
+          <CommonNotificationBell />
           <a-button type="text" class="topbar-icon" @click="router.go(0)">
             <ReloadOutlined />
           </a-button>
@@ -86,7 +83,6 @@ import {
   AccountBookOutlined,
   AppstoreOutlined,
   BarChartOutlined,
-  BellOutlined,
   CalendarOutlined,
   DownOutlined,
   FileTextOutlined,

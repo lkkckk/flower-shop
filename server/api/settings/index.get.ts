@@ -19,7 +19,19 @@ export default defineEventHandler(async (event) => {
     for (const r of rows) map[r.key] = r.value
 
     // 补上默认值（防止数据库未初始化）
-    if (!('lowStockThreshold' in map)) map.lowStockThreshold = '20'
+    const defaults: Record<string, string> = isCashier
+      ? { lowStockThreshold: '20' }
+      : {
+          lowStockThreshold: '20',
+          expiringDays: '3',
+          debtOverdueDays: '30',
+          safetyStockDays: '5',
+          notificationQuietStart: '22:00',
+          notificationQuietEnd: '08:00',
+        }
+    for (const [key, value] of Object.entries(defaults)) {
+      if (!(key in map)) map[key] = value
+    }
 
     return { data: map, error: null }
   } catch (e: any) {

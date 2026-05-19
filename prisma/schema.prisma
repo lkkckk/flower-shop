@@ -165,6 +165,28 @@ model Setting {
   updatedAt DateTime @updatedAt
 }
 
+/// 站内通知（铃铛 + /notifications 页）
+/// 由 server/utils/notificationGenerator.ts 定时生成，按 dedupeKey 去重避免刷屏
+model Notification {
+  id         Int       @id @default(autoincrement())
+  type       String    // 'low_stock' | 'expiring_batch' | 'debt_overdue' | 'anomaly_order'
+  level      String    @default("info") // 'info' | 'warn' | 'urgent'
+  title      String
+  body       String
+  /// 关联对象类型
+  refType    String?   // 'product' | 'batch' | 'customer' | 'order'
+  refId      Int?
+  /// 接收者：null 表示全店通知；指定 userId 时仅该用户可见
+  userId     Int?
+  readAt     DateTime?
+  /// 去重键 `{type}:{refId}:{YYYY-MM-DD}` — 同一类同一对象同一天只生成一条
+  dedupeKey  String    @unique
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, readAt])
+  @@index([type, createdAt])
+}
+
 /// 促销活动：满 X 减 Y
 model Promotion {
   id         Int       @id @default(autoincrement())

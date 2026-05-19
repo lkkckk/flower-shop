@@ -11,12 +11,14 @@ export default defineEventHandler(async (event) => {
   const pageSize = Number(query.pageSize) || 20
   const view = (query.view as string) || 'by_batch'
   const productId = query.productId ? Number(query.productId) : undefined
+  const batchId = query.batchId ? Number(query.batchId) : undefined
   const status = query.status as string | undefined
   const expiringSoon = query.expiringSoon === 'true' || query.expiringSoon === '1'
 
   try {
     if (view === 'by_batch') {
       const where: any = {}
+      if (batchId) where.id = batchId
       if (productId) where.productId = productId
       if (status) where.status = status
       if (expiringSoon) {

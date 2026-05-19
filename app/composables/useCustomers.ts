@@ -6,6 +6,15 @@ export interface CustomerListParams {
   pageSize?: number
   keyword?: string
   level?: string
+  rfmTag?: string
+  hasDebt?: string
+}
+
+export interface CustomerListSummary {
+  count: number
+  totalOwed: number
+  totalBalance: number
+  debtCount: number
 }
 
 export interface CustomerInput {
@@ -55,7 +64,7 @@ export const useCustomers = () => {
   }
 
   const fetchCustomers = (params: CustomerListParams = {}) =>
-    handle<{ list: any[]; total: number; page: number; pageSize: number }>(
+    handle<{ list: any[]; total: number; page: number; pageSize: number; summary?: CustomerListSummary }>(
       () => fetchAny('/api/customers', { query: params }),
       '获取客户列表失败'
     )

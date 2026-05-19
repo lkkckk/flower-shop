@@ -30,6 +30,85 @@
       </a-form>
     </a-card>
 
+    <!-- 通知配置 -->
+    <a-card title="通知配置" :bordered="false" class="page-card">
+      <a-form
+        :model="settingsForm"
+        layout="vertical"
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 12 }"
+      >
+        <div class="settings-grid">
+          <a-form-item label="临期提醒天数">
+            <a-input-number
+              v-model:value="settingsForm.expiringDays"
+              :min="1"
+              :max="30"
+              :precision="0"
+              class="w-48"
+            />
+            <span class="text-xs text-gray-400 ml-3">
+              批次在此天数内到期时生成临期通知
+            </span>
+          </a-form-item>
+          <a-form-item label="欠款逾期天数">
+            <a-input-number
+              v-model:value="settingsForm.debtOverdueDays"
+              :min="1"
+              :max="365"
+              :precision="0"
+              class="w-48"
+            />
+            <span class="text-xs text-gray-400 ml-3">
+              欠款客户超过此天数未下单/未还款时提醒
+            </span>
+          </a-form-item>
+          <a-form-item label="安全库存天数">
+            <a-input-number
+              v-model:value="settingsForm.safetyStockDays"
+              :min="1"
+              :max="60"
+              :precision="0"
+              class="w-48"
+            />
+            <span class="text-xs text-gray-400 ml-3">
+              采购建议按近 7 天销量推算此天数的备货量
+            </span>
+          </a-form-item>
+          <a-form-item label="通知静默时段">
+            <a-time-picker
+              v-model:value="quietStart"
+              format="HH:mm"
+              value-format="HH:mm"
+              class="w-32"
+              :allow-clear="false"
+            />
+            <span class="mx-2 text-gray-400">至</span>
+            <a-time-picker
+              v-model:value="quietEnd"
+              format="HH:mm"
+              value-format="HH:mm"
+              class="w-32"
+              :allow-clear="false"
+            />
+            <span class="text-xs text-gray-400 ml-3">
+              仅作为前端弹窗/桌面提醒预留，铃铛红点仍会正常累计
+            </span>
+          </a-form-item>
+        </div>
+        <a-form-item>
+          <a-space>
+            <a-button type="primary" :loading="savingSettings" @click="saveSettings">
+              保存通知配置
+            </a-button>
+            <a-button v-if="isStrictAdmin" @click="regenerateNotifications" :loading="regeneratingNotifications">
+              立即扫描通知
+            </a-button>
+          </a-space>
+        </a-form-item>
+      </a-form>
+    </a-card>
+
     <!-- 促销活动管理 -->
     <a-card :bordered="false" class="page-card">
       <template #title>
@@ -202,8 +281,14 @@ const { isStrictAdmin } = useAuth()
 const settingsForm = reactive({
   storeName: '',
   lowStockThreshold: 20,
+  expiringDays: 3,
+  debtOverdueDays: 30,
+  safetyStockDays: 5,
 })
+const quietStart = ref('22:00')
+const quietEnd = ref('08:00')
 const savingSettings = ref(false)
+const regeneratingNotifications = ref(false)
 
 const loadSettings = async () => {
   try {
@@ -211,6 +296,11 @@ const loadSettings = async () => {
     if (!data) return
     settingsForm.storeName = data.storeName ?? ''
     settingsForm.lowStockThreshold = Number(data.lowStockThreshold ?? 20) || 20
+    settingsForm.expiringDays = Number(data.expiringDays ?? 3) || 3
+    settingsForm.debtOverdueDays = Number(data.debtOverdueDays ?? 30) || 30
+    settingsForm.safetyStockDays = Number(data.safetyStockDays ?? 5) || 5
+    quietStart.value = data.notificationQuietStart || '22:00'
+    quietEnd.value = data.notificationQuietEnd || '08:00'
   } catch (e: any) {
     message.error(e.message || '加载设置失败')
   }
@@ -222,6 +312,11 @@ const saveSettings = async () => {
     const payload = [
       { key: 'storeName', value: String(settingsForm.storeName ?? '') },
       { key: 'lowStockThreshold', value: String(settingsForm.lowStockThreshold ?? 20) },
+      { key: 'expiringDays', value: String(settingsForm.expiringDays ?? 3) },
+      { key: 'debtOverdueDays', value: String(settingsForm.debtOverdueDays ?? 30) },
+      { key: 'safetyStockDays', value: String(settingsForm.safetyStockDays ?? 5) },
+      { key: 'notificationQuietStart', value: quietStart.value || '22:00' },
+      { key: 'notificationQuietEnd', value: quietEnd.value || '08:00' },
     ]
     const { error }: any = await $fetch('/api/settings', {
       method: 'PUT',
@@ -236,6 +331,22 @@ const saveSettings = async () => {
     message.error(e.message || '保存失败')
   } finally {
     savingSettings.value = false
+  }
+}
+
+const regenerateNotifications = async () => {
+  regeneratingNotifications.value = true
+  try {
+    const { error }: any = await $fetch('/api/notifications/regenerate', { method: 'POST' })
+    if (error) {
+      message.error(error.message || '扫描失败')
+      return
+    }
+    message.success('通知扫描完成')
+  } catch (e: any) {
+    message.error(e.message || '扫描失败')
+  } finally {
+    regeneratingNotifications.value = false
   }
 }
 
@@ -486,5 +597,11 @@ onMounted(() => {
 <style scoped>
 .page-card {
   border-radius: 8px;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
 }
 </style>

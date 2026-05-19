@@ -6,6 +6,7 @@ export interface StockQueryParams {
   pageSize?: number
   view?: 'by_product' | 'by_batch'
   productId?: number
+  batchId?: number
   status?: string
   expiringSoon?: boolean
 }

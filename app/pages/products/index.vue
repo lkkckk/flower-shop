@@ -52,7 +52,24 @@
           default-expand-all
           class="product-category-tree"
           @select="handleCategorySelect"
-        />
+        >
+          <template #title="node">
+            <div class="cat-node-row">
+              <span class="cat-name" :title="node.name">{{ node.name }}</span>
+              <span v-if="node.productCount > 0" class="cat-count">{{ node.productCount }}</span>
+              <a-tooltip :title="`在「${node.name}」下新增商品`">
+                <a-button
+                  type="text"
+                  size="small"
+                  class="cat-add-btn"
+                  @click.stop="openAddInCategory(node)"
+                >
+                  <PlusOutlined />
+                </a-button>
+              </a-tooltip>
+            </div>
+          </template>
+        </a-tree>
         <a-empty v-else description="暂无分类" class="category-empty" />
       </a-card>
 
@@ -67,8 +84,25 @@
           :scroll="{ x: 1320 }"
           table-layout="fixed"
           size="middle"
-          :locale="{ emptyText: '暂无商品数据' }"
         >
+          <template #emptyText>
+            <div class="empty-state">
+              <div class="empty-state-emoji">🌸</div>
+              <div class="empty-state-text">
+                {{ filters.categoryPath.length
+                  ? `「${selectedCategoryName}」分类下还没有商品`
+                  : '暂无商品数据' }}
+              </div>
+              <a-button
+                type="primary"
+                class="bg-pink-500 hover:bg-pink-600 border-none"
+                @click="openAddModal"
+              >
+                <PlusOutlined />
+                <span>{{ addButtonText }}</span>
+              </a-button>
+            </div>
+          </template>
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'image'">
               <a-avatar
@@ -137,7 +171,7 @@
                   ok-text="确定删除"
                   cancel-text="取消"
                   placement="topLeft"
-                  ok-button-props="{ danger: true }"
+                  :ok-button-props="{ danger: true }"
                 >
                   <a-button type="link" size="small" danger class="p-0">删除</a-button>
                 </a-popconfirm>
@@ -152,9 +186,10 @@
     <ProductsProductForm
       v-model:visible="modalVisible"
       :product="editingProduct"
-      :default-category-path="editingProduct ? [] : filters.categoryPath"
+      :default-category-path="editingProduct ? [] : (pendingAddCategoryPath.length ? pendingAddCategoryPath : filters.categoryPath)"
       :hide-wholesale-price="isCashier"
-      @success="loadData"
+      @success="onProductSaved"
+      @update:visible="onModalVisibleChange"
     />
 
     <!-- 分类管理抽屉 -->
@@ -263,6 +298,28 @@ const pagination = reactive<TablePaginationConfig>({
 
 const modalVisible = ref(false)
 const editingProduct = ref<any | null>(null)
+// 从分类节点 + 进入时记录的临时路径（弹窗关闭即清空）；优先级高于 filters.categoryPath
+const pendingAddCategoryPath = ref<number[]>([])
+
+const openAddInCategory = (node: any) => {
+  editingProduct.value = null
+  const path = findCategoryPath(categoryOptions.value, node.id)
+  pendingAddCategoryPath.value = path.length ? path : []
+  modalVisible.value = true
+}
+
+const onModalVisibleChange = (open: boolean) => {
+  if (!open) {
+    // 关闭时清空临时路径，下次从顶部按钮打开就回退到 filters.categoryPath
+    pendingAddCategoryPath.value = []
+  }
+}
+
+const onProductSaved = () => {
+  // 写操作后同时刷新表格与分类（分类计数需要同步）
+  loadData()
+  loadCategories()
+}
 
 // 表格列定义
 const columns = [
@@ -278,9 +335,9 @@ const columns = [
   { title: '等级', key: 'grade', width: 80 },
   { title: '单位配置', key: 'units', width: 120 },
   { title: '价格体系', key: 'price', width: 120 },
-  { title: '花期(天)', dataIndex: 'shelfLifeDays', key: 'shelfLifeDays', width: 90, align: 'center' },
+  { title: '花期(天)', dataIndex: 'shelfLifeDays', key: 'shelfLifeDays', width: 90, align: 'center' as const },
   { title: '状态', key: 'status', width: 100 },
-  { title: '操作', key: 'action', width: 160, fixed: 'right' as const, align: 'center' },
+  { title: '操作', key: 'action', width: 160, fixed: 'right' as const, align: 'center' as const },
 ]
 
 // 辅助函数
@@ -361,6 +418,7 @@ const handleToggleStatus = async (record: any) => {
     })
     message.success(record.status === 'active' ? '已停售' : '已恢复在售')
     loadData()
+    loadCategories()
   } catch (e: any) {
     message.error(e.message || '操作失败')
   }
@@ -375,6 +433,7 @@ const handleForceDelete = async (id: number) => {
     } else {
       message.success('商品已永久删除')
       loadData()
+      loadCategories()
     }
   } catch (e: any) {
     message.error(e.data?.error?.message || e.message || '删除失败')
@@ -444,6 +503,75 @@ onMounted(() => {
 
 .category-empty {
   margin-top: 16px;
+}
+
+.cat-node-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding-right: 2px;
+}
+
+.cat-node-row .cat-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cat-node-row .cat-count {
+  flex: 0 0 auto;
+  color: #9ca3af;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  background: #f3f4f6;
+  border-radius: 999px;
+  padding: 0 6px;
+  line-height: 18px;
+}
+
+.cat-node-row .cat-add-btn {
+  flex: 0 0 auto;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  color: #ec4899;
+  padding: 0 4px;
+  height: 22px;
+  line-height: 22px;
+}
+
+.cat-node-row:hover .cat-add-btn {
+  opacity: 1;
+}
+
+:deep(.product-category-tree .ant-tree-node-content-wrapper) {
+  width: 100%;
+}
+:deep(.product-category-tree .ant-tree-title) {
+  width: 100%;
+  display: block;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 16px;
+  gap: 8px;
+}
+
+.empty-state-emoji {
+  font-size: 36px;
+  line-height: 1;
+}
+
+.empty-state-text {
+  color: #6b7280;
+  font-size: 14px;
+  margin-bottom: 4px;
 }
 
 .product-action-buttons {

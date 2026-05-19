@@ -8,32 +8,40 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const order = await prisma.order.findUnique({
-      where: { id },
-      include: {
-        customer: true,
-        items: {
-          include: {
-            product: true
-          }
-        }
-      }
-    })
+    const [order, payments] = await Promise.all([
+      prisma.order.findUnique({
+        where: { id },
+        include: {
+          customer: true,
+          cashier: { select: { id: true, name: true, username: true } },
+          promotion: { select: { id: true, name: true, threshold: true, reduction: true } },
+          items: {
+            include: {
+              product: { select: { id: true, name: true, baseUnit: true, imageUrl: true } },
+              batch: { select: { id: true, batchNo: true } },
+            },
+          },
+        },
+      }),
+      prisma.payment.findMany({
+        where: { orderId: id },
+        orderBy: { createdAt: 'asc' },
+      }),
+    ])
 
     if (!order) {
       throw createError({ statusCode: 404, message: '订单不存在' })
     }
 
     return {
-      data: order,
-      error: null
+      data: { ...order, paymentLogs: payments },
+      error: null,
     }
-
   } catch (error: any) {
     if (error.statusCode) throw error
     return {
       data: null,
-      error: { message: error.message || '获取订单失败', code: 'FETCH_ERROR' }
+      error: { message: error.message || '获取订单失败', code: 'FETCH_ERROR' },
     }
   }
 })
