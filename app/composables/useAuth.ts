@@ -5,6 +5,7 @@ export interface StaffUser {
   username: string
   name: string
   role: string // 'admin' | 'staff' | 'cashier'
+  status?: string
 }
 
 export type LoginScope = 'admin' | 'pos'
@@ -16,13 +17,13 @@ export interface LoginOptions {
 
 /**
  * 员工鉴权状态
- * - token 持久化在 useCookie('auth_token')
+ * - token 持久化 1 天，admin/staff/cashier 统一过期策略
  * - user 使用 useState 跨组件共享
  * - 统一从 /login 登录，权限由 user.role 决定
  */
 export const useAuth = () => {
   const token = useCookie<string | null>('auth_token', {
-    maxAge: 60 * 60 * 24 * 7, // 7 天
+    maxAge: 60 * 60 * 24,
     sameSite: 'lax',
   })
   const user = useState<StaffUser | null>('auth_user', () => null)
@@ -33,6 +34,22 @@ export const useAuth = () => {
   const isAdmin = computed(() => user.value?.role === 'admin' || user.value?.role === 'staff')
   // isStrictAdmin：仅限 admin 角色，用于用户管理、高级设置
   const isStrictAdmin = computed(() => user.value?.role === 'admin')
+
+  const clearAuthState = () => {
+    token.value = null
+    user.value = null
+    if (import.meta.client) {
+      localStorage.removeItem('auth_token')
+      localStorage.removeItem('auth_user')
+      sessionStorage.removeItem('auth_token')
+      sessionStorage.removeItem('auth_user')
+    }
+  }
+
+  const redirectToLogin = async (redirect?: string) => {
+    const target = redirect ? `/login?redirect=${encodeURIComponent(redirect)}` : '/login'
+    await navigateTo(target)
+  }
 
   const login = async (
     username: string,
@@ -60,19 +77,23 @@ export const useAuth = () => {
   }
 
   const fetchMe = async (): Promise<boolean> => {
-    if (!token.value) return false
+    if (!token.value) {
+      clearAuthState()
+      return false
+    }
     try {
       const res: any = await $fetch('/api/auth/me', {
         headers: { Authorization: `Bearer ${token.value}` },
       })
-      if (res.error || !res.data || res.data.type !== 'staff') {
-        logout()
+      const currentUser = res.data?.user
+      if (res.error || !currentUser || res.data.type !== 'staff' || currentUser.status !== 'active') {
+        clearAuthState()
         return false
       }
-      user.value = res.data.user
+      user.value = currentUser
       return true
     } catch {
-      logout()
+      clearAuthState()
       return false
     }
   }
@@ -81,9 +102,8 @@ export const useAuth = () => {
    * 退出登录
    */
   const logout = async (_scope?: LoginScope) => {
-    token.value = null
-    user.value = null
-    await navigateTo('/login')
+    clearAuthState()
+    await redirectToLogin()
   }
 
   return {
@@ -96,5 +116,7 @@ export const useAuth = () => {
     login,
     logout,
     fetchMe,
+    clearAuthState,
+    redirectToLogin,
   }
 }

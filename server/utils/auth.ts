@@ -7,9 +7,12 @@ export interface TokenPayload {
   sub: number
   type: TokenType
   role?: string // staff | admin（仅 type=staff 有效）
+  iat?: number
+  exp?: number
 }
 
-const TOKEN_EXPIRES_IN = '7d'
+const TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24
+const TOKEN_EXPIRES_IN = '1d'
 
 const getSecret = () => {
   const secret = process.env.JWT_SECRET
@@ -25,7 +28,11 @@ export const signToken = (payload: TokenPayload): string => {
 
 export const verifyToken = (token: string): TokenPayload | null => {
   try {
-    return jwt.verify(token, getSecret()) as TokenPayload
+    const payload = jwt.verify(token, getSecret()) as TokenPayload
+    if (!payload.iat || Math.floor(Date.now() / 1000) - payload.iat > TOKEN_MAX_AGE_SECONDS) {
+      return null
+    }
+    return payload
   } catch {
     return null
   }

@@ -75,6 +75,7 @@ export default defineEventHandler(async (event) => {
         username: user.username,
         name: user.name,
         role: user.role,
+        status: user.status,
       },
     },
     error: null,

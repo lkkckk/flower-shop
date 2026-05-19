@@ -4,15 +4,32 @@ import { prisma } from '../../utils/prisma'
 export default defineEventHandler(async (event) => {
   const payload = getCurrentUser(event)
   if (!payload) {
-    return { data: null, error: { message: '未登录', code: 'UNAUTHORIZED' } }
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'Unauthorized',
+      data: { message: '未登录或凭证已过期', code: 'UNAUTHORIZED' },
+    })
   }
 
   if (payload.type === 'staff') {
     const user = await prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, username: true, name: true, role: true, status: true, createdAt: true },
+      select: { id: true, username: true, name: true, role: true, status: true },
     })
-    if (!user) return { data: null, error: { message: '用户不存在', code: 'NOT_FOUND' } }
+    if (!user) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'Unauthorized',
+        data: { message: '用户不存在', code: 'USER_NOT_FOUND' },
+      })
+    }
+    if (user.status !== 'active') {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Forbidden',
+        data: { message: '账号已被停用', code: 'USER_DISABLED' },
+      })
+    }
     return { data: { type: 'staff', user }, error: null }
   }
 
@@ -32,6 +49,12 @@ export default defineEventHandler(async (event) => {
       avatarUrl: true,
     },
   })
-  if (!customer) return { data: null, error: { message: '顾客不存在', code: 'NOT_FOUND' } }
+  if (!customer) {
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'Unauthorized',
+      data: { message: '顾客不存在', code: 'CUSTOMER_NOT_FOUND' },
+    })
+  }
   return { data: { type: 'customer', customer }, error: null }
 })
