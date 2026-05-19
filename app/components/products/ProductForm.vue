@@ -23,19 +23,19 @@
             <a-input v-model:value="formState.name" placeholder="请输入商品名称" />
           </a-form-item>
           <div class="row-2">
-            <a-form-item label="分类" name="categoryPath">
+            <a-form-item label="所属分类" name="categoryPath">
               <a-cascader
                 v-model:value="formState.categoryPath"
                 :options="categoryOptions"
                 :field-names="{ label: 'name', value: 'id', children: 'children' }"
-                placeholder="请选择分类（支持三级）"
+                placeholder="请选择所属分类"
                 change-on-select
                 expand-trigger="hover"
                 allow-clear
               >
                 <template #notFoundContent>
                   <div class="text-gray-400 text-sm py-2">
-                    暂无分类，请在商品列表页点"管理分类"新增
+                    暂无分类，请先在商品列表页打开"分类设置"维护分类
                   </div>
                 </template>
               </a-cascader>
@@ -273,6 +273,7 @@ const findCategoryPath = (tree: any[], targetId: number, path: number[] = []): n
 const props = defineProps<{
   visible: boolean
   product: any | null
+  defaultCategoryPath?: number[]
   hideWholesalePrice?: boolean
 }>()
 
@@ -431,6 +432,7 @@ watch(
         previewUrl.value = props.product.imageUrl || null
       } else {
         Object.assign(formState, getInitialState())
+        formState.categoryPath = [...(props.defaultCategoryPath || [])]
         previewUrl.value = null
       }
       imageFile.value = null

@@ -1,9 +1,9 @@
 <template>
   <div>
     <div class="flex justify-between items-center mb-4">
-      <span class="text-gray-500 text-sm">支持三级分类，点击"+"新增子分类</span>
+      <span class="text-gray-500 text-sm">维护商品分类结构，新增商品请回到商品列表操作</span>
       <a-button type="primary" size="small" @click="openAdd(null)" class="bg-pink-500 hover:bg-pink-600 border-none">
-        新增一级分类
+        新增分类
       </a-button>
     </div>
 
@@ -25,7 +25,7 @@
                 size="small"
                 class="text-blue-500 p-0 h-auto leading-none"
                 @click.stop="openAdd(nodeData.id)"
-              >子分类</a-button>
+              >新增下级</a-button>
               <a-button
                 type="link"
                 size="small"
@@ -55,7 +55,7 @@
 
     <a-modal
       v-model:open="modalVisible"
-      :title="editingId ? '编辑分类' : (parentId ? '新增子分类' : '新增一级分类')"
+      :title="editingId ? '编辑分类' : (parentId ? '新增下级分类' : '新增分类')"
       @ok="handleSave"
       @cancel="modalVisible = false"
       :confirm-loading="saving"

@@ -9,17 +9,6 @@
           class="w-full sm:w-64"
           allow-clear
         />
-        <a-cascader
-          v-model:value="filters.categoryPath"
-          :options="categoryOptions"
-          :field-names="{ label: 'name', value: 'id', children: 'children' }"
-          class="w-full sm:w-56"
-          placeholder="全部分类"
-          change-on-select
-          expand-trigger="hover"
-          allow-clear
-          @change="handleFilterChange"
-        />
         <a-select
           v-model:value="filters.status"
           class="w-full sm:w-32"
@@ -32,109 +21,138 @@
         </a-select>
       </div>
       <div class="flex gap-2 shrink-0">
-        <a-button @click="categoryDrawerVisible = true" class="flex items-center gap-1">管理分类</a-button>
+        <a-button @click="categoryDrawerVisible = true" class="flex items-center gap-1">分类设置</a-button>
         <a-button type="primary" @click="openAddModal" class="bg-pink-500 hover:bg-pink-600 border-none shadow-sm flex items-center gap-1">
-          <PlusOutlined /> 新增商品
+          <PlusOutlined />
+          <span class="add-button-label">{{ addButtonText }}</span>
         </a-button>
       </div>
     </div>
 
-    <!-- 主表格区域 -->
-    <a-card :bordered="false" class="flex-1 shadow-sm border border-gray-100 overflow-hidden body-no-padding">
-      <a-table
-        :columns="columns"
-        :data-source="products"
-        :loading="loading"
-        :pagination="pagination"
-        @change="handleTableChange"
-        row-key="id"
-        :scroll="{ x: 1320 }"
-        table-layout="fixed"
-        size="middle"
-        :locale="{ emptyText: '暂无商品数据' }"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'image'">
-            <a-avatar
-              shape="square"
-              :size="36"
-              :src="record.imageUrl || undefined"
-              :style="{ background: '#fce7f3', fontSize: '18px' }"
-            >
-              <template v-if="!record.imageUrl">🌸</template>
-            </a-avatar>
-          </template>
+    <!-- 分类筛选 + 主表格区域 -->
+    <div class="products-workspace">
+      <a-card :bordered="false" class="category-panel shadow-sm border border-gray-100">
+        <div class="category-panel-header">
+          <span>商品分类</span>
+          <a-button type="link" size="small" class="p-0" @click="categoryDrawerVisible = true">设置</a-button>
+        </div>
+        <a-button
+          block
+          class="category-all-button"
+          :type="filters.categoryPath.length ? 'default' : 'primary'"
+          @click="selectAllCategories"
+        >
+          全部商品
+        </a-button>
+        <a-tree
+          v-if="categoryOptions.length"
+          :tree-data="categoryOptions"
+          :field-names="{ title: 'name', key: 'id', children: 'children' }"
+          :selected-keys="selectedCategoryKeys"
+          default-expand-all
+          class="product-category-tree"
+          @select="handleCategorySelect"
+        />
+        <a-empty v-else description="暂无分类" class="category-empty" />
+      </a-card>
 
-          <template v-else-if="column.key === 'name'">
-            <a-tooltip :title="record.name">
-              <span class="product-name-cell">{{ record.name || '-' }}</span>
-            </a-tooltip>
-          </template>
-
-          <template v-else-if="column.key === 'grade'">
-            <a-tag v-if="record.grade" :color="getGradeColor(record.grade)">
-              {{ record.grade }}
-            </a-tag>
-          </template>
-          
-          <template v-else-if="column.key === 'price'">
-            <span class="font-medium text-pink-600">¥{{ record.defaultPrice?.toFixed(2) }}</span>
-            <div v-if="record.vipPrice || record.wholesalePrice" class="text-xs text-gray-400 mt-1">
-              <span v-if="record.vipPrice">V: ¥{{ record.vipPrice.toFixed(2) }} </span>
-              <span v-if="record.wholesalePrice">批: ¥{{ record.wholesalePrice.toFixed(2) }}</span>
-            </div>
-          </template>
-
-          <template v-else-if="column.key === 'units'">
-            <div class="font-medium">{{ record.baseUnit }} <span class="text-xs text-gray-400 font-normal">(基础)</span></div>
-            <div v-if="record.unitConversions?.length" class="text-xs text-gray-500 mt-1">
-              <span v-for="(uc, idx) in record.unitConversions" :key="idx" class="mr-1">
-                1{{ uc.fromUnit }}={{ uc.toBaseQty }}{{ record.baseUnit }}
-              </span>
-            </div>
-          </template>
-
-          <template v-else-if="column.key === 'status'">
-            <a-badge :status="record.status === 'active' ? 'success' : 'default'" :text="record.status === 'active' ? '在售' : '停售'" />
-          </template>
-          
-          <template v-else-if="column.key === 'action'">
-            <div class="product-action-buttons">
-              <a-button type="link" size="small" class="text-indigo-600 hover:text-indigo-800 p-0" @click="openEditModal(record)">
-                编辑
-              </a-button>
-              <a-popconfirm
-                :title="record.status === 'active' ? '确定要停售该商品吗？' : '确定要恢复在售吗？'"
-                @confirm="handleToggleStatus(record)"
-                ok-text="确定"
-                cancel-text="取消"
-                placement="topLeft"
+      <a-card :bordered="false" class="product-table-card flex-1 shadow-sm border border-gray-100 overflow-hidden body-no-padding">
+        <a-table
+          :columns="columns"
+          :data-source="products"
+          :loading="loading"
+          :pagination="pagination"
+          @change="handleTableChange"
+          row-key="id"
+          :scroll="{ x: 1320 }"
+          table-layout="fixed"
+          size="middle"
+          :locale="{ emptyText: '暂无商品数据' }"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'image'">
+              <a-avatar
+                shape="square"
+                :size="36"
+                :src="record.imageUrl || undefined"
+                :style="{ background: '#fce7f3', fontSize: '18px' }"
               >
-                <a-button type="link" size="small" class="p-0" :class="record.status === 'active' ? 'text-orange-500 hover:text-orange-700' : 'text-green-600 hover:text-green-800'">
-                  {{ record.status === 'active' ? '停售' : '恢复' }}
+                <template v-if="!record.imageUrl">🌸</template>
+              </a-avatar>
+            </template>
+
+            <template v-else-if="column.key === 'name'">
+              <a-tooltip :title="record.name">
+                <span class="product-name-cell">{{ record.name || '-' }}</span>
+              </a-tooltip>
+            </template>
+
+            <template v-else-if="column.key === 'grade'">
+              <a-tag v-if="record.grade" :color="getGradeColor(record.grade)">
+                {{ record.grade }}
+              </a-tag>
+            </template>
+            
+            <template v-else-if="column.key === 'price'">
+              <span class="font-medium text-pink-600">¥{{ record.defaultPrice?.toFixed(2) }}</span>
+              <div v-if="record.vipPrice || record.wholesalePrice" class="text-xs text-gray-400 mt-1">
+                <span v-if="record.vipPrice">V: ¥{{ record.vipPrice.toFixed(2) }} </span>
+                <span v-if="record.wholesalePrice">批: ¥{{ record.wholesalePrice.toFixed(2) }}</span>
+              </div>
+            </template>
+
+            <template v-else-if="column.key === 'units'">
+              <div class="font-medium">{{ record.baseUnit }} <span class="text-xs text-gray-400 font-normal">(基础)</span></div>
+              <div v-if="record.unitConversions?.length" class="text-xs text-gray-500 mt-1">
+                <span v-for="(uc, idx) in record.unitConversions" :key="idx" class="mr-1">
+                  1{{ uc.fromUnit }}={{ uc.toBaseQty }}{{ record.baseUnit }}
+                </span>
+              </div>
+            </template>
+
+            <template v-else-if="column.key === 'status'">
+              <a-badge :status="record.status === 'active' ? 'success' : 'default'" :text="record.status === 'active' ? '在售' : '停售'" />
+            </template>
+            
+            <template v-else-if="column.key === 'action'">
+              <div class="product-action-buttons">
+                <a-button type="link" size="small" class="text-indigo-600 hover:text-indigo-800 p-0" @click="openEditModal(record)">
+                  编辑
                 </a-button>
-              </a-popconfirm>
-              <a-popconfirm
-                v-if="!isCashier"
-                title="确定要永久删除该商品吗？（有订单或库存时会拒绝）"
-                @confirm="handleForceDelete(record.id)"
-                ok-text="确定删除"
-                cancel-text="取消"
-                placement="topLeft"
-                ok-button-props="{ danger: true }"
-              >
-                <a-button type="link" size="small" danger class="p-0">删除</a-button>
-              </a-popconfirm>
-            </div>
+                <a-popconfirm
+                  :title="record.status === 'active' ? '确定要停售该商品吗？' : '确定要恢复在售吗？'"
+                  @confirm="handleToggleStatus(record)"
+                  ok-text="确定"
+                  cancel-text="取消"
+                  placement="topLeft"
+                >
+                  <a-button type="link" size="small" class="p-0" :class="record.status === 'active' ? 'text-orange-500 hover:text-orange-700' : 'text-green-600 hover:text-green-800'">
+                    {{ record.status === 'active' ? '停售' : '恢复' }}
+                  </a-button>
+                </a-popconfirm>
+                <a-popconfirm
+                  v-if="!isCashier"
+                  title="确定要永久删除该商品吗？（有订单或库存时会拒绝）"
+                  @confirm="handleForceDelete(record.id)"
+                  ok-text="确定删除"
+                  cancel-text="取消"
+                  placement="topLeft"
+                  ok-button-props="{ danger: true }"
+                >
+                  <a-button type="link" size="small" danger class="p-0">删除</a-button>
+                </a-popconfirm>
+              </div>
+            </template>
           </template>
-        </template>
-      </a-table>
-    </a-card>
+        </a-table>
+      </a-card>
+    </div>
 
     <!-- 商品表单弹窗 -->
     <ProductsProductForm
       v-model:visible="modalVisible"
       :product="editingProduct"
+      :default-category-path="editingProduct ? [] : filters.categoryPath"
       :hide-wholesale-price="isCashier"
       @success="loadData"
     />
@@ -142,9 +160,10 @@
     <!-- 分类管理抽屉 -->
     <a-drawer
       v-model:open="categoryDrawerVisible"
-      title="管理商品分类"
+      title="分类设置"
       width="480"
       :closable="true"
+      @after-open-change="handleCategoryDrawerOpenChange"
     >
       <ProductsCategoryManager />
     </a-drawer>
@@ -152,7 +171,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch } from 'vue'
+import { computed, ref, reactive, onMounted, watch } from 'vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import type { TablePaginationConfig } from 'ant-design-vue'
@@ -181,6 +200,58 @@ const loadCategories = async () => {
   } catch {
     categoryOptions.value = []
   }
+}
+
+const selectedCategoryKeys = computed(() => {
+  const path = filters.categoryPath
+  return path.length ? [path[path.length - 1]] : []
+})
+
+const selectedCategoryName = computed(() => {
+  const id = selectedCategoryKeys.value[0]
+  if (!id) return ''
+  const findName = (nodes: any[]): string => {
+    for (const node of nodes) {
+      if (node.id === id) return node.name
+      if (node.children?.length) {
+        const name = findName(node.children)
+        if (name) return name
+      }
+    }
+    return ''
+  }
+  return findName(categoryOptions.value)
+})
+
+const addButtonText = computed(() => {
+  return selectedCategoryName.value ? `新增到${selectedCategoryName.value}` : '新增商品'
+})
+
+const findCategoryPath = (tree: any[], targetId: number, path: number[] = []): number[] => {
+  for (const node of tree) {
+    const nextPath = [...path, node.id]
+    if (node.id === targetId) return nextPath
+    if (node.children?.length) {
+      const found = findCategoryPath(node.children, targetId, nextPath)
+      if (found.length) return found
+    }
+  }
+  return []
+}
+
+const selectAllCategories = () => {
+  filters.categoryPath = []
+  handleFilterChange()
+}
+
+const handleCategorySelect = (keys: (string | number)[]) => {
+  const key = keys[0]
+  if (!key) {
+    selectAllCategories()
+    return
+  }
+  filters.categoryPath = findCategoryPath(categoryOptions.value, Number(key))
+  handleFilterChange()
 }
 const pagination = reactive<TablePaginationConfig>({
   current: 1,
@@ -274,6 +345,13 @@ const openEditModal = (record: any) => {
   modalVisible.value = true
 }
 
+const handleCategoryDrawerOpenChange = (open: boolean) => {
+  if (!open) {
+    loadCategories()
+    loadData()
+  }
+}
+
 // 停售 / 恢复
 const handleToggleStatus = async (record: any) => {
   try {
@@ -319,6 +397,55 @@ onMounted(() => {
   border-radius: 0;
 }
 
+.products-workspace {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 16px;
+}
+
+.product-table-card {
+  min-width: 0;
+}
+
+.add-button-label {
+  display: inline-block;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
+.category-panel {
+  width: 240px;
+  flex: 0 0 240px;
+  overflow: hidden;
+}
+
+.category-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  color: var(--ink-900, #1f2618);
+  font-weight: 600;
+}
+
+.category-all-button {
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+.product-category-tree {
+  max-height: calc(100vh - 250px);
+  overflow: auto;
+}
+
+.category-empty {
+  margin-top: 16px;
+}
+
 .product-action-buttons {
   display: flex;
   align-items: center;
@@ -341,5 +468,20 @@ onMounted(() => {
 
 :deep(.ant-table-cell-fix-left .product-name-cell) {
   max-width: 148px;
+}
+
+@media (max-width: 767px) {
+  .products-workspace {
+    flex-direction: column;
+  }
+
+  .category-panel {
+    width: 100%;
+    flex-basis: auto;
+  }
+
+  .product-category-tree {
+    max-height: 220px;
+  }
 }
 </style>
