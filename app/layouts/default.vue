@@ -13,6 +13,7 @@
       placement="left"
       :closable="false"
       :width="240"
+      root-class-name="admin-navigation-drawer"
       :body-style="{ padding: 0 }"
       @close="drawerVisible = false"
     >
@@ -282,6 +283,16 @@ const SiderContent = defineComponent({
 
 .admin-sider.collapsed {
   width: 82px;
+}
+
+.admin-navigation-drawer .ant-drawer-content,
+.admin-navigation-drawer .ant-drawer-body {
+  background: linear-gradient(180deg, var(--avo-800), var(--avo-900)) !important;
+}
+
+.admin-navigation-drawer .ant-drawer-content {
+  color: #f4f2e5;
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0 !important;
 }
 
 .sider-content {
