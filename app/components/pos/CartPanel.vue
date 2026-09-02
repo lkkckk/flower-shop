@@ -46,7 +46,7 @@
 
       <!-- 购物车列表区域 -->
       <div class="flex-1 overflow-y-auto bg-[#fafaf9] p-3">
-        <a-empty v-if="cart.items.length === 0" description="购物车为空，请从左侧选择商品" class="mt-20" />
+        <a-empty v-if="cart.items.length === 0" description="购物车为空，请先选择商品" class="mt-20" />
 
         <div v-else class="space-y-2">
           <div v-for="item in cart.items" :key="item.id" class="bg-white p-3 rounded-lg shadow-sm border border-gray-100" :class="{ 'ring-2 ring-pink-300': selectionMode && selectedItemIds.has(item.id) }">

@@ -55,6 +55,7 @@
           :pagination="false"
           :scroll="{ x: 480 }"
           :customRow="customRow"
+          :locale="{ emptyText: emptyDescription }"
           class="cursor-pointer"
         >
           <template #bodyCell="{ column, record }">
@@ -267,6 +268,11 @@ const filteredProducts = computed(() => {
   }
 
   return list
+})
+
+const emptyDescription = computed(() => {
+  if (searchKeyword.value) return `没有找到“${searchKeyword.value}”`
+  return '暂无可售商品，请先在商品管理中添加商品并完成入库'
 })
 
 // 列定义

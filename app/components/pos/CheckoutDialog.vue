@@ -94,7 +94,7 @@
         </div>
       </div>
 
-      <div class="bg-gray-50 p-4 rounded-lg mb-6 border border-gray-200">
+      <div class="checkout-payment-card bg-gray-50 p-4 rounded-lg mb-6 border border-gray-200">
         <div class="flex items-center justify-between mb-4">
           <span class="text-lg text-gray-700">实收金额</span>
           <a-input-number
@@ -360,7 +360,13 @@ const handleConfirm = async () => {
   }
 
   :global(.checkout-dialog .ant-input-number.w-48) {
-    width: min(48vw, 180px) !important;
+    width: min(42vw, 160px) !important;
+  }
+
+  .checkout-payment-card .text-lg {
+    flex: 0 0 auto;
+    font-size: 16px;
+    white-space: nowrap;
   }
 }
 </style>
