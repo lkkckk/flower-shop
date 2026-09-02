@@ -9,12 +9,12 @@
       />
 
       <!-- 桌面端右侧栏 -->
-      <div class="hidden md:block w-[380px] bg-white border-l border-gray-200">
+      <div class="hidden lg:block w-[360px] xl:w-[380px] bg-white border-l border-gray-200">
         <PosCartPanel @checkout="checkoutDialogVisible = true" />
       </div>
 
       <!-- 移动端悬浮按钮 & 抽屉 -->
-      <div class="md:hidden fixed bottom-6 right-6 z-10" v-if="cartStore.activeCart?.items.length">
+      <div class="lg:hidden fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-10" v-if="cartStore.activeCart?.items.length">
         <a-badge :count="cartStore.activeCart.items.length" :number-style="{ backgroundColor: '#5C7148' }">
           <a-button
             type="primary"
@@ -31,9 +31,9 @@
       <a-drawer
         v-model:open="mobileDrawerVisible"
         placement="bottom"
-        height="85vh"
+        height="min(88dvh, 760px)"
         title="收银台"
-        class="md:hidden p-0"
+        class="lg:hidden pos-cart-drawer"
         :bodyStyle="{ padding: 0 }"
       >
         <PosCartPanel @checkout="checkoutDialogVisible = true" />

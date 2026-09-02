@@ -1,7 +1,7 @@
 <template>
-  <div class="h-full flex flex-col bg-[#fafaf9] border-r border-[#f3f4f6]">
+  <div class="product-picker h-full flex flex-col bg-[#fafaf9] border-r border-[#f3f4f6]">
     <!-- 顶部搜索 -->
-    <div class="p-4 bg-white border-b border-[#f3f4f6] flex gap-2">
+    <div class="product-search p-4 bg-white border-b border-[#f3f4f6] flex gap-2">
       <a-input-search
         ref="searchInputRef"
         v-model:value="searchKeyword"
@@ -12,9 +12,9 @@
       />
     </div>
 
-    <div class="flex flex-1 overflow-hidden pt-2">
+    <div class="product-workspace flex flex-1 overflow-hidden pt-2">
       <!-- 左侧分类（动态三级） -->
-      <div class="w-48 md:w-52 lg:w-56 shrink-0 bg-transparent overflow-y-auto px-2">
+      <div class="product-categories w-48 md:w-52 lg:w-56 shrink-0 bg-transparent overflow-y-auto px-2">
         <a-menu
           v-model:selectedKeys="selectedCategories"
           v-model:openKeys="openCategoryKeys"
@@ -45,7 +45,7 @@
       </div>
 
       <!-- 右侧商品列表 -->
-      <div class="flex-1 min-w-0 overflow-auto px-4 pb-4">
+      <div class="product-results flex-1 min-w-0 overflow-auto px-4 pb-4">
         <a-table
           :columns="columns"
           :data-source="filteredProducts"
@@ -326,5 +326,46 @@ const handleAddToCart = () => {
 <style scoped>
 :deep(.ant-table-small) {
   font-size: 13px;
+}
+
+@media (max-width: 1023px) {
+  .product-categories {
+    width: 180px;
+  }
+}
+
+@media (max-width: 767px) {
+  .product-search {
+    padding: 10px;
+  }
+
+  .product-workspace {
+    flex-direction: column;
+    padding-top: 0;
+  }
+
+  .product-categories {
+    width: 100%;
+    max-height: 156px;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--line);
+    background: var(--paper-3);
+  }
+
+  .product-results {
+    padding: 8px;
+  }
+
+  :deep(.ant-menu-inline .ant-menu-item),
+  :deep(.ant-menu-inline .ant-menu-submenu-title) {
+    min-height: 40px;
+    height: 40px;
+    margin-block: 2px;
+    line-height: 40px;
+  }
+
+  :deep(.ant-table-cell) {
+    padding: 9px 8px !important;
+  }
 }
 </style>

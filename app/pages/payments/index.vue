@@ -140,7 +140,7 @@
         </a-descriptions>
 
         <!-- 签字区 -->
-        <div class="mt-10 grid grid-cols-3 gap-4 text-sm text-gray-600">
+        <div class="statement-signatures mt-10 grid grid-cols-3 gap-4 text-sm text-gray-600">
           <div>
             客户签字：<span class="inline-block border-b border-gray-400 w-32 ml-2">&nbsp;</span>
           </div>
@@ -356,6 +356,15 @@ onMounted(() => {
   .toolbar {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .statement-signatures {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .statement-signatures > div {
+    text-align: left !important;
   }
 }
 </style>

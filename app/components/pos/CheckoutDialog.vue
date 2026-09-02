@@ -5,6 +5,7 @@
     @cancel="$emit('update:visible', false)"
     :footer="null"
     width="640px"
+    class="checkout-dialog"
     destroyOnClose
   >
     <div v-if="cart" class="p-4">
@@ -336,3 +337,30 @@ const handleConfirm = async () => {
   }
 }
 </script>
+
+<style scoped>
+@media (max-width: 560px) {
+  :global(.checkout-dialog .ant-modal-body) {
+    padding: 8px;
+    max-height: calc(100dvh - 110px);
+    overflow-y: auto;
+  }
+
+  :global(.checkout-dialog .text-5xl) {
+    font-size: 34px;
+  }
+
+  :global(.checkout-dialog .ant-radio-group) {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  :global(.checkout-dialog .ant-radio-button-wrapper) {
+    width: 100%;
+  }
+
+  :global(.checkout-dialog .ant-input-number.w-48) {
+    width: min(48vw, 180px) !important;
+  }
+}
+</style>

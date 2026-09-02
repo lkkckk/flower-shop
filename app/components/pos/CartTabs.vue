@@ -115,4 +115,21 @@ const onEdit = (targetKey: string | MouseEvent, action: string) => {
 :deep(.ant-tabs-tab-remove) {
   margin-left: 8px !important;
 }
+
+@media (max-width: 767px) {
+  .cart-tabs-container {
+    padding: 6px 8px !important;
+  }
+
+  :deep(.ant-tabs-card > .ant-tabs-nav .ant-tabs-tab) {
+    min-height: 40px;
+    padding: 7px 12px;
+    margin-right: 6px !important;
+  }
+
+  :deep(.ant-tabs-nav-add) {
+    min-width: 40px;
+    min-height: 40px;
+  }
+}
 </style>

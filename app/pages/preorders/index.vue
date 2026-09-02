@@ -209,4 +209,17 @@ onMounted(loadList)
 :deep(.row-urgent) { background: #fff1f0; }
 :deep(.row-soon)   { background: #fff7e6; }
 :deep(.row-warn)   { background: #feffe6; }
+
+@media (max-width: 767px) {
+  .toolbar,
+  .toolbar-left {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .toolbar > div:last-child,
+  .toolbar > div:last-child :deep(.ant-btn) {
+    width: 100%;
+  }
+}
 </style>

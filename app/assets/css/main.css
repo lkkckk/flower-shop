@@ -404,3 +404,170 @@ a:hover {
     width: 100%;
   }
 }
+
+/* Tablet and phone layout baseline. Keep page-level tables scrollable while
+   letting navigation, forms and overlays fit the actual viewport. */
+@media (max-width: 1023px) {
+  html,
+  body,
+  #__nuxt {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .ant-modal {
+    max-width: calc(100vw - 32px) !important;
+    margin-inline: auto;
+  }
+
+  .ant-drawer-content-wrapper {
+    max-width: min(100vw, 640px) !important;
+  }
+
+  .ant-drawer-body {
+    overscroll-behavior: contain;
+  }
+
+  .ant-table-wrapper,
+  .ant-table-container {
+    max-width: 100%;
+  }
+
+  .ant-table-content,
+  .ant-table-body {
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 767px) {
+  .av-page-title {
+    font-size: 21px;
+  }
+
+  .av-page-sub {
+    line-height: 1.6;
+    text-wrap: pretty;
+  }
+
+  .ant-card-head {
+    padding-inline: 14px !important;
+  }
+
+  .ant-card-body {
+    padding: 14px;
+  }
+
+  .ant-table-thead > tr > th,
+  .ant-table-tbody > tr > td {
+    padding: 10px 8px !important;
+  }
+
+  .toolbar-left,
+  .toolbar-right,
+  .av-toolbar-left,
+  .av-toolbar-right {
+    align-items: stretch;
+  }
+
+  .toolbar-left > .ant-input-affix-wrapper,
+  .toolbar-left > .ant-input,
+  .toolbar-left > .ant-input-number,
+  .toolbar-left > .ant-picker,
+  .toolbar-left > .ant-select,
+  .av-toolbar-left > .ant-input-affix-wrapper,
+  .av-toolbar-left > .ant-input,
+  .av-toolbar-left > .ant-input-number,
+  .av-toolbar-left > .ant-picker,
+  .av-toolbar-left > .ant-select {
+    width: 100% !important;
+  }
+
+  .toolbar-right > .ant-btn,
+  .av-toolbar-right > .ant-btn {
+    flex: 1 1 0;
+    min-height: 42px;
+  }
+
+  .toolbar .ant-space,
+  .av-toolbar .ant-space {
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .ant-form-inline .ant-form-item {
+    width: 100%;
+    margin-inline-end: 0;
+  }
+
+  .ant-form-inline .ant-form-item-control,
+  .ant-form-inline .ant-form-item-control-input,
+  .ant-form-inline .ant-form-item-control-input-content,
+  .ant-form-inline .ant-select,
+  .ant-form-inline .ant-input,
+  .ant-form-inline .ant-input-number {
+    width: 100% !important;
+  }
+
+  .ant-modal {
+    top: 8px;
+    width: calc(100vw - 16px) !important;
+    max-width: none;
+    padding-bottom: 8px;
+  }
+
+  .ant-modal-content {
+    max-height: calc(100dvh - 16px);
+    overflow: hidden;
+  }
+
+  .ant-modal-body {
+    max-height: calc(100dvh - 132px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ant-drawer-content-wrapper {
+    max-width: 92vw !important;
+  }
+
+  .ant-drawer-bottom > .ant-drawer-content-wrapper {
+    max-width: 100vw !important;
+    max-height: 92dvh !important;
+  }
+
+  .ant-pagination {
+    justify-content: center;
+    row-gap: 8px;
+  }
+
+  .ant-pagination-options-size-changer,
+  .ant-pagination-total-text {
+    display: none !important;
+  }
+
+  .ant-tabs-nav {
+    max-width: 100%;
+  }
+
+  .ant-tabs-nav-wrap {
+    overflow: hidden;
+  }
+
+  .ant-descriptions-view {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

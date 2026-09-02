@@ -696,6 +696,21 @@ const handleOk = async () => {
 }
 
 @media (max-width: 768px) {
+  .row-2 {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .conversion-row,
+  .conversion-inputs {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .conversion-inputs > * {
+    flex: 1 1 120px;
+  }
+
   .recipe-row {
     grid-template-columns: 1fr;
   }

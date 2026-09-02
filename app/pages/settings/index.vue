@@ -128,6 +128,7 @@
         :pagination="{ pageSize: 10 }"
         row-key="id"
         size="middle"
+        :scroll="{ x: 720 }"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
@@ -207,6 +208,7 @@
         :pagination="false"
         row-key="id"
         size="middle"
+        :scroll="{ x: 560 }"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'role'">
@@ -603,5 +605,25 @@ onMounted(() => {
   display: grid;
   grid-template-columns: 1fr;
   gap: 4px;
+}
+
+@media (max-width: 767px) {
+  :deep(.ant-form-item-control-input-content) {
+    max-width: 100%;
+  }
+
+  :deep(.ant-input-number),
+  :deep(.ant-picker) {
+    max-width: 100%;
+  }
+
+  :deep(.ant-form-item-extra),
+  :deep(.ant-form-item-control-input-content > .text-xs) {
+    display: block;
+    width: 100%;
+    margin-top: 8px;
+    margin-left: 0 !important;
+    line-height: 1.6;
+  }
 }
 </style>

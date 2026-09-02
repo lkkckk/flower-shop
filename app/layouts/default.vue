@@ -190,16 +190,18 @@ const handleSearch = (event: KeyboardEvent) => {
   if (keyword) router.push({ path: '/orders', query: { q: keyword } })
 }
 
-const checkMobile = () => {
-  if (window.innerWidth < 768) collapsed.value = false
+const checkCompactViewport = () => {
+  if (window.innerWidth < 1024) {
+    collapsed.value = false
+  }
 }
 
 onMounted(() => {
-  checkMobile()
-  window.addEventListener('resize', checkMobile)
+  checkCompactViewport()
+  window.addEventListener('resize', checkCompactViewport)
 })
 
-onUnmounted(() => window.removeEventListener('resize', checkMobile))
+onUnmounted(() => window.removeEventListener('resize', checkCompactViewport))
 
 const SiderContent = defineComponent({
   name: 'SiderContent',
@@ -576,7 +578,7 @@ const SiderContent = defineComponent({
   display: none;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
   .admin-sider {
     display: none;
   }
@@ -586,15 +588,7 @@ const SiderContent = defineComponent({
     margin-left: 0;
   }
 
-  .admin-topbar {
-    height: auto;
-    min-height: 58px;
-    padding: 10px 14px;
-    flex-wrap: wrap;
-  }
-
-  .desktop-only,
-  .topbar-search {
+  .desktop-only {
     display: none;
   }
 
@@ -603,7 +597,51 @@ const SiderContent = defineComponent({
   }
 
   .admin-content {
-    padding: 16px;
+    padding: 20px;
+  }
+}
+
+@media (max-width: 767px) {
+
+  .admin-topbar {
+    min-height: 58px;
+    height: 58px;
+    padding: 7px 12px;
+    gap: 8px;
+  }
+
+  .topbar-search {
+    display: none;
+  }
+
+  .topbar-left,
+  .topbar-right {
+    gap: 6px;
+  }
+
+  .icon-trigger,
+  .topbar-icon,
+  .user-pill {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .crumb {
+    min-width: 0;
+  }
+
+  .crumb > :not(b) {
+    display: none;
+  }
+
+  .crumb b {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .admin-content {
+    padding: 12px;
   }
 
   .cashier-workspace .admin-content {
@@ -612,6 +650,15 @@ const SiderContent = defineComponent({
   }
 
   .user-name {
+    display: none;
+  }
+
+  .user-pill {
+    justify-content: center;
+    padding: 5px;
+  }
+
+  .user-pill > svg {
     display: none;
   }
 }

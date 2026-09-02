@@ -146,6 +146,7 @@ const handleSwitchCashier = async () => {
 <style scoped>
 .pos-layout {
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -246,16 +247,43 @@ const handleSwitchCashier = async () => {
 
 @media (max-width: 767px) {
   .pos-header {
-    height: auto;
-    min-height: 52px;
-    flex-wrap: wrap;
+    height: 56px;
+    min-height: 56px;
     padding: 8px;
+    gap: 4px;
   }
 
   .shop-sub,
   .back-text,
   .tool-label,
   .user-label {
+    display: none;
+  }
+
+  .pos-header-left,
+  .pos-header-right {
+    gap: 2px;
+  }
+
+  .back-btn,
+  .tool-btn,
+  .user-btn {
+    min-width: 42px;
+    min-height: 42px;
+    justify-content: center;
+    padding-inline: 10px;
+  }
+
+  .pos-brand {
+    gap: 6px;
+  }
+
+  .pos-mark {
+    width: 32px;
+    height: 32px;
+  }
+
+  .shop-name {
     display: none;
   }
 }
