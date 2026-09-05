@@ -16,19 +16,19 @@
       </div>
 
       <div class="pos-header-right">
-        <a-button type="text" size="small" class="tool-btn" @click="navigateTo('/pos/schedule')">
+        <a-button type="text" size="small" class="tool-btn" aria-label="排单" @click="navigateTo('/pos/schedule')">
           <CalendarOutlined />
           <span class="tool-label">排单</span>
         </a-button>
-        <a-button type="text" size="small" class="tool-btn" @click="navigateTo('/pos/preparation')">
+        <a-button type="text" size="small" class="tool-btn" aria-label="备货" @click="navigateTo('/pos/preparation')">
           <InboxOutlined />
           <span class="tool-label">备货</span>
         </a-button>
-        <a-button type="text" size="small" class="tool-btn" @click="navigateTo('/pos/stocktake')">
+        <a-button type="text" size="small" class="tool-btn" aria-label="盘点" @click="navigateTo('/pos/stocktake')">
           <InboxOutlined />
           <span class="tool-label">盘点</span>
         </a-button>
-        <a-button type="text" size="small" class="tool-btn" @click="switchCashierModalVisible = true">
+        <a-button type="text" size="small" class="tool-btn" aria-label="切换收银员" @click="switchCashierModalVisible = true">
           <UserOutlined />
           <span class="tool-label">
             {{ currentCashier?.name || '未知' }}
@@ -36,7 +36,7 @@
           </span>
         </a-button>
         <a-dropdown>
-          <a-button type="text" size="small" class="user-btn">
+          <a-button type="text" size="small" class="user-btn" aria-label="账户菜单">
             <UserOutlined />
             <span class="user-label">{{ user?.name || user?.username || '收银员' }}</span>
           </a-button>

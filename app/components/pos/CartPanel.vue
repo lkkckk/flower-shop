@@ -149,11 +149,11 @@
 
         <!-- 按钮 -->
         <div class="flex gap-3 p-4 bg-white border-t border-gray-100">
-          <a-button size="large" class="w-1/3 font-bold text-gray-600 h-14 rounded-xl" :disabled="cart.items.length === 0">
-            挂单 (Ctrl+S)
+          <a-button size="large" class="w-1/3 font-bold text-gray-600 h-14 rounded-xl" :disabled="cart.items.length === 0" @click="holdCart">
+            挂单
           </a-button>
           <a-button type="primary" size="large" class="bg-gradient-to-r from-pink-500 to-pink-600 border-none w-2/3 font-bold text-xl h-14 rounded-xl shadow-lg shadow-pink-500/30 hover:-translate-y-0.5 transition-transform" :disabled="cart.items.length === 0" @click="$emit('checkout')">
-            结账 (Ctrl+Enter)
+            去结账
           </a-button>
         </div>
       </div>
@@ -265,7 +265,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { Modal } from 'ant-design-vue'
+import { message } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import { useCartStore } from '~/stores/cart'
 import { useCustomers } from '~/composables/useCustomers'
@@ -275,6 +275,11 @@ import debounce from 'lodash-es/debounce'
 defineEmits(['checkout'])
 
 const cartStore = useCartStore()
+const holdCart = () => {
+  if (cartStore.carts.length >= 10) { message.warning('最多同时保留 10 单'); return }
+  cartStore.createCart()
+  message.success('已保留原清单并新开一单，可在顶部切回')
+}
 const { searchCustomers } = useCustomers()
 
 const cart = computed(() => {
@@ -327,6 +332,8 @@ const openCustomerDrawer = () => {
   customerDrawerVisible.value = true
 }
 
+defineExpose({ openCustomerDrawer })
+
 watch(customerDrawerVisible, (val) => {
   if (val) fetchCustomers()
 })
@@ -341,25 +348,8 @@ const applyCustomer = (c: any | null) => {
 
 const confirmAndApply = (c: any | null, onDone: () => void) => {
   if (!cart.value) return
-  const hasItems = cart.value.items.length > 0
-  const isSwitching =
-    (c && cart.value.customerId !== c.id) || (!c && cart.value.customerId !== null)
-
-  if (hasItems && isSwitching) {
-    Modal.confirm({
-      title: '切换客户将重新计算价格',
-      content: '当前购物车有商品，按新客户等级重算单价后金额可能变动，确认继续？',
-      okText: '确认切换',
-      cancelText: '取消',
-      onOk() {
-        applyCustomer(c)
-        onDone()
-      },
-    })
-  } else {
-    applyCustomer(c)
-    onDone()
-  }
+  applyCustomer(c)
+  onDone()
 }
 
 const selectCustomer = (c: any) => {

@@ -4,6 +4,9 @@
     title="结账付款"
     @cancel="$emit('update:visible', false)"
     :footer="null"
+    :mask-closable="!loading"
+    :closable="!loading"
+    :keyboard="!loading"
     width="640px"
     class="checkout-dialog"
     destroyOnClose
@@ -18,6 +21,7 @@
         <div v-else-if="priceMode === 'discount' && discountRate < 100" class="text-sm text-gray-500 mt-1">
           已按 {{ discountRate }}% 折扣
         </div>
+        <div v-if="cart.discount > 0" class="text-sm text-gray-500 mt-1">整单优惠 ¥{{ cart.discount.toFixed(2) }}</div>
       </div>
 
       <!-- 价格模式选择 -->
@@ -84,10 +88,10 @@
           </a-radio-button>
         </a-radio-group>
         <div v-if="paymentMethod === 'credit' && !cart.customerId" class="text-red-500 mt-2 text-sm text-center bg-red-50 p-2 rounded">
-          ⚠️ 必须在左侧选择具体客户后才能使用"记账"功能
+          请返回清单选择客户，再使用记账
         </div>
         <div v-if="paymentMethod === 'balance' && !cart.customerId" class="text-red-500 mt-2 text-sm text-center bg-red-50 p-2 rounded">
-          ⚠️ 必须在左侧选择具体客户后才能使用"扣预存"功能
+          请返回清单选择客户，再使用预存
         </div>
         <div v-if="paymentMethod === 'balance' && cart.customerId && (cart.customerBalance ?? 0) <= 0" class="text-orange-500 mt-2 text-sm text-center bg-orange-50 p-2 rounded">
           ⚠️ 该客户预存余额不足，无法使用扣预存
@@ -115,7 +119,7 @@
       </div>
 
       <div class="flex gap-4">
-        <a-button size="large" class="flex-1 h-14 rounded-xl text-lg font-bold text-gray-600" @click="$emit('update:visible', false)">返回修改</a-button>
+        <a-button size="large" :disabled="loading" class="flex-1 h-14 rounded-xl text-lg font-bold text-gray-600" @click="$emit('update:visible', false)">返回修改</a-button>
         <a-button
           type="primary"
           size="large"
@@ -124,7 +128,7 @@
           :loading="loading"
           :disabled="confirmDisabled"
         >
-          确认收款 (Enter)
+          确认收款
         </a-button>
       </div>
     </div>
@@ -150,7 +154,7 @@ const props = defineProps<{
   visible: boolean
 }>()
 
-const emit = defineEmits(['update:visible', 'success'])
+const emit = defineEmits(['update:visible', 'success', 'stock-changed'])
 
 const cartStore = useCartStore()
 const { currentCashier } = useActiveCashier()
@@ -204,10 +208,12 @@ const computeInput = computed(() => {
 const subtotalBeforeReduction = computed(() => computeInput.value?.subtotal ?? 0)
 const subtotal = computed(() => computeInput.value?.subtotal ?? 0)
 const reduction = computed(() => computeInput.value?.reduction ?? 0)
-const previewTotal = computed(() => computeInput.value?.total ?? 0)
+const previewTotal = computed(() => Math.max(0, Math.round(((computeInput.value?.total ?? 0) - (cart.value?.discount || 0)) * 100) / 100))
 const promotionApplicable = computed(() => computeInput.value?.promotionApplicable ?? false)
 
 const confirmDisabled = computed(() => {
+  if (loading.value || !cart.value?.items.length || !Number.isFinite(paidAmount.value) || paidAmount.value < 0) return true
+  if (!cart.value?.customerId && paidAmount.value < previewTotal.value) return true
   if (paymentMethod.value === 'credit' && !cart.value?.customerId) return true
   if (paymentMethod.value === 'balance' && (!cart.value?.customerId || (cart.value?.customerBalance ?? 0) <= 0)) return true
   if (priceMode.value === 'promotion' && promotionId.value && !promotionApplicable.value) return true
@@ -217,11 +223,15 @@ const confirmDisabled = computed(() => {
 
 watch(() => props.visible, async (val) => {
   if (!val) return
+  paymentMethod.value = 'wechat'
+  paidAmount.value = previewTotal.value
   priceMode.value = 'retail'
   promotionId.value = null
   discountRate.value = 90
   await loadPromotions()
-  if (paymentMethod.value === 'credit' || paymentMethod.value === 'balance') {
+  if (paymentMethod.value === 'balance') {
+    paidAmount.value = Math.min(cart.value?.customerBalance ?? 0, previewTotal.value)
+  } else if (paymentMethod.value === 'credit') {
     paidAmount.value = 0
   } else {
     paidAmount.value = previewTotal.value
@@ -263,7 +273,8 @@ const changeAmount = computed(() => {
 })
 
 const handleConfirm = async () => {
-  if (!cart.value) return
+  if (!cart.value || confirmDisabled.value) return
+  const checkoutCart = cart.value
   if (paymentMethod.value === 'credit' && !cart.value.customerId) {
     message.error('请先选择客户才能使用记账付款')
     return
@@ -308,6 +319,7 @@ const handleConfirm = async () => {
     const { data, error }: any = await $fetch('/api/orders/checkout', {
       method: 'POST',
       body: {
+        expectedTotal: totalNow,
         cart: {
           ...cart.value,
           priceMode: priceMode.value,
@@ -321,14 +333,22 @@ const handleConfirm = async () => {
 
     if (error) {
       message.error(error.message || '结账失败')
+      if (error.code === 'INSUFFICIENT_STOCK' || error.code === 'PRICE_CHANGED') {
+        emit('update:visible', false)
+        emit('stock-changed')
+      }
     } else if (data) {
       message.success('结账成功！')
-      emit('success', data.order.id)
-
-      if (cart.value) {
-        cartStore.clearCart(cart.value.id)
+      cartStore.clearCart(checkoutCart.id)
+      // 重新读取该客户的余额，避免下一单使用上一单的储值快照。
+      if (checkoutCart.customerId) {
+        try {
+          const customer: any = await $fetch(`/api/customers/${checkoutCart.customerId}`)
+          cartStore.setCustomer(checkoutCart.id, customer.data || null)
+        } catch { cartStore.setCustomer(checkoutCart.id, null) }
       }
       emit('update:visible', false)
+      emit('success', data.order.id)
     }
   } catch (e: any) {
     message.error(e.data?.error?.message || e.message || '系统错误')

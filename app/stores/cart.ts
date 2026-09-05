@@ -44,6 +44,8 @@ const generateId = () => {
     : Math.random().toString(36).substring(2, 15)
 }
 
+const roundMoney = (value: number) => Math.round(value * 100) / 100
+
 export const useCartStore = defineStore('cart', () => {
   const createEmptyCart = (): Cart => ({
     id: generateId(),
@@ -80,7 +82,7 @@ export const useCartStore = defineStore('cart', () => {
       const subtotal = cartSubtotal.value(cartId)
       const cart = carts.value.find((c) => c.id === cartId)
       if (!cart) return 0
-      return Math.max(0, subtotal - cart.discount)
+      return Math.max(0, roundMoney(subtotal - cart.discount))
     }
   })
 
@@ -114,15 +116,12 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   const getPriceForLevel = (product: any, level: string) => {
-    if (level === 'vip' && product.vipPrice != null) return product.vipPrice
-    if (level === 'wholesale' && product.wholesalePrice != null) return product.wholesalePrice
+    // 与结账接口一致：零售基础价，优惠在结账时统一计算。
     return product.defaultPrice
   }
 
   const getLevelBasePrice = (prices: any, level: string) => {
     if (!prices) return 0
-    if (level === 'vip' && prices.vipPrice != null) return prices.vipPrice
-    if (level === 'wholesale' && prices.wholesalePrice != null) return prices.wholesalePrice
     return prices.defaultPrice || 0
   }
 
@@ -139,9 +138,9 @@ export const useCartStore = defineStore('cart', () => {
       }
 
       const basePrice = getLevelBasePrice(prices, cart.customerLevel)
-      item.unitPrice = basePrice * toBaseQty
+      item.unitPrice = roundMoney(basePrice * toBaseQty)
       item.originalPrice = item.unitPrice
-      item.subtotal = item.qty * item.unitPrice
+      item.subtotal = roundMoney(item.qty * item.unitPrice)
     })
   }
 
@@ -189,6 +188,8 @@ export const useCartStore = defineStore('cart', () => {
       unitPrice = unitPrice * toBaseQty
     }
 
+    unitPrice = roundMoney(unitPrice)
+
     // 检查是否存在
     const existingItem = cart.items.find(
       (i) => i.productId === product.id && i.unit === unit
@@ -197,7 +198,7 @@ export const useCartStore = defineStore('cart', () => {
     if (existingItem) {
       existingItem.qty += qty
       existingItem.baseQty = existingItem.qty * toBaseQty
-      existingItem.subtotal = existingItem.qty * existingItem.unitPrice
+      existingItem.subtotal = roundMoney(existingItem.qty * existingItem.unitPrice)
     } else {
       cart.items.push({
         id: generateId(),
@@ -212,7 +213,7 @@ export const useCartStore = defineStore('cart', () => {
         baseQty: qty * toBaseQty,
         unitPrice,
         originalPrice: unitPrice,
-        subtotal: qty * unitPrice,
+        subtotal: roundMoney(qty * unitPrice),
         notes: '',
         // 将价格字典隐藏保存以便后续换客户重算
         _prices: {
@@ -230,6 +231,7 @@ export const useCartStore = defineStore('cart', () => {
     const item = cart.items.find((i) => i.id === itemId)
     if (!item) return
 
+    if (!Number.isFinite(qty) || qty <= 0) return
     item.qty = qty
     let toBaseQty = 1
     if (item.unit !== item.baseUnit) {
@@ -237,7 +239,7 @@ export const useCartStore = defineStore('cart', () => {
       if (conv) toBaseQty = conv.toBaseQty
     }
     item.baseQty = qty * toBaseQty
-    item.subtotal = qty * item.unitPrice
+    item.subtotal = roundMoney(qty * item.unitPrice)
   }
 
   const updateItemUnit = (cartId: string, itemId: string, unit: string) => {
@@ -257,12 +259,10 @@ export const useCartStore = defineStore('cart', () => {
     // 重算价格：当前等级的基础单价 * 换算数量
     const prices = (item as any)._prices || {}
     let baseLevelPrice = prices.defaultPrice
-    if (cart.customerLevel === 'vip' && prices.vipPrice != null) baseLevelPrice = prices.vipPrice
-    if (cart.customerLevel === 'wholesale' && prices.wholesalePrice != null) baseLevelPrice = prices.wholesalePrice
 
-    item.unitPrice = baseLevelPrice * toBaseQty
+    item.unitPrice = roundMoney(baseLevelPrice * toBaseQty)
     item.originalPrice = item.unitPrice
-    item.subtotal = item.qty * item.unitPrice
+    item.subtotal = roundMoney(item.qty * item.unitPrice)
   }
 
   const updateItemPrice = (cartId: string, itemId: string, price: number) => {
@@ -295,7 +295,7 @@ export const useCartStore = defineStore('cart', () => {
         item.unitPrice = item.originalPrice * (1 + adjustment.value / 100)
       }
       item.unitPrice = Math.max(0, Math.round(item.unitPrice * 100) / 100)
-      item.subtotal = item.qty * item.unitPrice
+      item.subtotal = roundMoney(item.qty * item.unitPrice)
     }
   }
 
@@ -325,6 +325,21 @@ export const useCartStore = defineStore('cart', () => {
     if (cart) {
       cart.items = []
       cart.discount = 0
+      cart.notes = ''
+      cart.deliveryTime = null
+      cart.deliveryAddress = ''
+    }
+  }
+
+  const refreshProductPrices = (products: any[]) => {
+    const byId = new Map(products.map(p => [p.id, p]))
+    for (const cart of carts.value) {
+      for (const item of cart.items) {
+        const product = byId.get(item.productId)
+        if (!product) continue
+        ;(item as any)._prices = { defaultPrice: product.defaultPrice }
+      }
+      recalculatePrices(cart)
     }
   }
 
@@ -349,5 +364,6 @@ export const useCartStore = defineStore('cart', () => {
     setDeliveryTime,
     setDeliveryAddress,
     clearCart,
+    refreshProductPrices,
   }
 })

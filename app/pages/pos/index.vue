@@ -2,6 +2,11 @@
   <div class="pos-cashier-page flex flex-col overflow-hidden bg-[#fafaf9] pos-container">
     <PosCartTabs />
 
+    <div class="pos-order-toolbar">
+      <button type="button" class="customer-shortcut" @click="openCustomerPicker"><UserOutlined />{{ cartStore.activeCart?.customerName || '散客' }}<span>选择客户</span></button>
+      <NuxtLink v-if="lastOrderId" :to="`/orders/${lastOrderId}/print`" class="receipt-shortcut"><PrinterOutlined />上笔小票</NuxtLink>
+    </div>
+
     <div class="pos-workspace flex flex-1 overflow-hidden relative">
       <PosProductPicker
         ref="productPickerRef"
@@ -10,7 +15,7 @@
 
       <!-- 桌面端右侧栏 -->
       <div class="hidden lg:block w-[360px] xl:w-[380px] bg-white border-l border-gray-200">
-        <PosCartPanel @checkout="openCheckout" />
+        <PosCartPanel ref="desktopCartRef" @checkout="openCheckout" />
       </div>
 
       <!-- 手机 / 平板始终可见的购物车与结账入口 -->
@@ -18,7 +23,7 @@
         <button
           type="button"
           class="mobile-cart-summary"
-          :aria-label="`查看购物车，${activeCartItemCount} 件商品，合计 ${activeCartTotal.toFixed(2)} 元`"
+          :aria-label="`查看购物车，${activeCartItemCount} 项商品，合计 ${activeCartTotal.toFixed(2)} 元`"
           @click="mobileDrawerVisible = true"
         >
           <span class="mobile-cart-icon" aria-hidden="true">
@@ -27,7 +32,7 @@
           </span>
           <span class="mobile-cart-copy">
             <strong>购物车</strong>
-            <span>{{ activeCartItemCount > 0 ? `${activeCartItemCount} 件商品` : '点击查看收银台' }}</span>
+            <span>{{ activeCartItemCount > 0 ? `${activeCartItemCount} 项商品` : '点击查看清单' }}</span>
           </span>
           <span class="mobile-cart-total">¥{{ activeCartTotal.toFixed(2) }}</span>
         </button>
@@ -45,11 +50,11 @@
         v-model:open="mobileDrawerVisible"
         placement="bottom"
         height="min(88dvh, 760px)"
-        :title="`购物车 · ${activeCartItemCount} 件`"
+        :title="`购物车 · ${activeCartItemCount} 项`"
         class="lg:hidden pos-cart-drawer"
         :bodyStyle="{ padding: 0 }"
       >
-        <PosCartPanel @checkout="openCheckout" />
+        <PosCartPanel ref="mobileCartRef" @checkout="openCheckout" />
       </a-drawer>
     </div>
 
@@ -57,18 +62,23 @@
     <PosCheckoutDialog
       v-model:visible="checkoutDialogVisible"
       @success="onCheckoutSuccess"
+      @stock-changed="productPickerRef?.refresh()"
     />
+    <a-modal v-model:open="successVisible" title="结账成功" :footer="null" width="380px">
+      <div class="checkout-success"><CheckCircleOutlined /><p>订单已保存，可以继续为下一位顾客开单。</p><NuxtLink :to="`/orders/${lastOrderId}/print`" class="print-receipt-link"><PrinterOutlined />查看 / 打印 58mm 小票</NuxtLink><a-button size="large" block @click="successVisible = false">继续开单</a-button></div>
+    </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, watch } from 'vue'
+import { computed, nextTick, ref, onMounted, watch } from 'vue'
 import { message } from 'ant-design-vue'
-import { ShoppingCartOutlined } from '@ant-design/icons-vue'
+import { CheckCircleOutlined, PrinterOutlined, ShoppingCartOutlined, UserOutlined } from '@ant-design/icons-vue'
 import { useMagicKeys } from '@vueuse/core'
 import { useCartStore } from '~/stores/cart'
 
 useHead({ title: '收银台 - 花店管理系统' })
+definePageMeta({ layout: 'pos' })
 
 const cartStore = useCartStore()
 
@@ -83,6 +93,18 @@ onMounted(() => {
 })
 
 const productPickerRef = ref()
+const desktopCartRef = ref()
+const mobileCartRef = ref()
+const lastOrderId = useState<number | null>('pos-last-order-id', () => null)
+const successVisible = ref(false)
+const openCustomerPicker = async () => {
+  if (window.innerWidth >= 1024) desktopCartRef.value?.openCustomerDrawer()
+  else {
+    mobileDrawerVisible.value = true
+    await nextTick()
+    mobileCartRef.value?.openCustomerDrawer()
+  }
+}
 const checkoutDialogVisible = ref(false)
 const mobileDrawerVisible = ref(false)
 const activeCartItemCount = computed(() => cartStore.activeCart?.items.length ?? 0)
@@ -152,13 +174,18 @@ watch(escape, (v) => {
 const onCheckoutSuccess = (orderId: number) => {
   checkoutDialogVisible.value = false
   mobileDrawerVisible.value = false
-  setTimeout(() => {
-    window.open(`/orders/${orderId}/print`, '_blank', 'width=400,height=600')
-  }, 100)
+  lastOrderId.value = orderId
+  successVisible.value = true
+  productPickerRef.value?.refresh()
 }
 </script>
 
 <style scoped>
+.pos-order-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; padding: 0 16px; background: white; border-bottom: 1px solid var(--line-soft); flex-shrink: 0; }
+.customer-shortcut, .receipt-shortcut { display: flex; align-items: center; gap: 8px; min-height: 44px; background: transparent; border: 0; color: var(--avo-800); font-size: 13px; cursor: pointer; }
+.customer-shortcut span:not(.anticon) { color: var(--ink-500); font-size: 12px; }
+.checkout-success { padding: 16px 0 8px; text-align: center; }.checkout-success > :deep(.anticon) { font-size: 42px; color: var(--avo-600); }.checkout-success p { margin: 18px 0; color: var(--ink-500); }
+.print-receipt-link { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; margin-bottom: 12px; border-radius: 8px; background: var(--avo-700); color: white; }
 :deep(.pos-container) {
   --header-height: 50px;
 }

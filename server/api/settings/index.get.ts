@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     const rows = isCashier
-      ? await prisma.setting.findMany({ where: { key: 'lowStockThreshold' } })
+      ? await prisma.setting.findMany({ where: { key: { in: ['lowStockThreshold', 'shopName'] } } })
       : await prisma.setting.findMany()
 
     const map: Record<string, string> = {}

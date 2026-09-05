@@ -1,6 +1,7 @@
 import { prisma } from '../../utils/prisma'
 import { allocateAndDeduct, type AllocationItem } from '../../utils/stockAllocator'
 import { computeOrder, type PriceMode } from '../../../shared/priceMode'
+import { requireStaff } from '../../utils/auth'
 
 /**
  * 结算接口
@@ -25,6 +26,7 @@ import { computeOrder, type PriceMode } from '../../../shared/priceMode'
  * 不信任前端传来的 unitPrice（防篡改），再落单。
  */
 export default defineEventHandler(async (event) => {
+  requireStaff(event)
   const body = await readBody(event)
   const cart = body?.cart
   const payment = body?.payment
@@ -34,6 +36,12 @@ export default defineEventHandler(async (event) => {
   }
   if (!Array.isArray(cart.items) || cart.items.length === 0) {
     throw createError({ statusCode: 400, message: '购物车为空' })
+  }
+  if (!['cash', 'wechat', 'alipay', 'credit', 'balance'].includes(payment.method) || !Number.isFinite(payment.paidAmount) || payment.paidAmount < 0) {
+    throw createError({ statusCode: 400, message: '无效的收款信息' })
+  }
+  if (cart.items.some((item: any) => !Number.isFinite(item.qty) || item.qty <= 0)) {
+    throw createError({ statusCode: 400, message: '商品数量必须大于 0' })
   }
 
   const priceMode: PriceMode = (
@@ -64,6 +72,7 @@ export default defineEventHandler(async (event) => {
           id: true,
           name: true,
           defaultPrice: true,
+          status: true,
           baseUnit: true,
           unitConversions: { select: { fromUnit: true, toBaseQty: true } },
         },
@@ -86,10 +95,12 @@ export default defineEventHandler(async (event) => {
       const lineInputs = cart.items.map((it: any) => {
         const p = productMap.get(Number(it.productId))
         if (!p) throw new Error(`商品(id=${it.productId})不存在`)
+        if (p.status !== 'active') throw new Error(`商品“${p.name}”已下架`)
         let toBaseQty = 1
         if (it.unit && it.unit !== p.baseUnit) {
           const conv = p.unitConversions.find((u) => u.fromUnit === it.unit)
-          if (conv) toBaseQty = conv.toBaseQty
+          if (!conv || !Number.isFinite(conv.toBaseQty) || conv.toBaseQty <= 0) throw new Error(`商品“${p.name}”的销售单位无效`)
+          toBaseQty = conv.toBaseQty
         }
         return {
           basis: { defaultPrice: p.defaultPrice },
@@ -113,7 +124,15 @@ export default defineEventHandler(async (event) => {
 
       // 额外手工整单折扣（历史字段，保留兼容）
       const extraDiscount = Math.max(0, Number(cart.discount) || 0)
-      const totalAmount = Math.max(0, priceResult.total - extraDiscount)
+      if (!Number.isFinite(extraDiscount)) throw new Error('优惠金额无效')
+      const totalAmount = Math.max(0, Math.round((priceResult.total - extraDiscount) * 100) / 100)
+      // 防止商品价格已更新时，平板仍按旧金额完成收款。
+      if (Number.isFinite(body.expectedTotal) && Math.abs(body.expectedTotal - totalAmount) > 0.009) {
+        throw Object.assign(new Error('商品价格已变化，请返回清单刷新商品后重新结账'), { code: 'PRICE_CHANGED' })
+      }
+      const paidAmount = payment.method === 'credit' ? 0 : Math.min(totalAmount, Math.round(payment.paidAmount * 100) / 100)
+      const owedAmount = Math.max(0, Math.round((totalAmount - paidAmount) * 100) / 100)
+      if ((owedAmount > 0 || payment.method === 'balance' || payment.method === 'credit') && !cart.customerId) throw new Error('挂账或使用预存需要选择客户')
 
       // === 3. 生成订单号 ===
       const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '')
@@ -128,8 +147,8 @@ export default defineEventHandler(async (event) => {
       if (payment.method === 'balance') {
         if (!cart.customerId) throw new Error('扣预存需要选择客户')
         const r = await tx.customer.updateMany({
-          where: { id: cart.customerId, balance: { gte: payment.paidAmount } },
-          data: { balance: { decrement: payment.paidAmount } },
+          where: { id: cart.customerId, balance: { gte: paidAmount } },
+          data: { balance: { decrement: paidAmount } },
         })
         if (r.count === 0) throw new Error('预存余额不足以支付全额（或已被并发扣除）')
       }
@@ -138,9 +157,9 @@ export default defineEventHandler(async (event) => {
       let status = 'pending'
       if (payment.method === 'credit') {
         status = 'unpaid'
-      } else if (payment.paidAmount >= totalAmount && totalAmount > 0) {
+      } else if (paidAmount >= totalAmount) {
         status = 'paid'
-      } else if (payment.paidAmount > 0) {
+      } else if (paidAmount > 0) {
         status = 'partial'
       }
 
@@ -157,8 +176,11 @@ export default defineEventHandler(async (event) => {
           orderType: 'retail',
           customerId: cart.customerId || null,
           totalAmount,
-          paidAmount: payment.paidAmount,
-          owedAmount: payment.owedAmount,
+          paidAmount,
+          owedAmount,
+          paymentMethod: payment.method,
+          deliveryAddress: cart.deliveryAddress || null,
+          deliveryTime: cart.deliveryTime ? new Date(cart.deliveryTime) : null,
           status,
           notes: cart.notes,
           priceMode,
@@ -173,7 +195,7 @@ export default defineEventHandler(async (event) => {
         productId: Number(item.productId),
         unit: item.unit,
         qty: Number(item.qty),
-        baseQty: Number(item.baseQty),
+        baseQty: lineInputs[idx].qty * lineInputs[idx].toBaseQty,
         unitPrice: priceResult.lineUnitPrices[idx],
         subtotal: priceResult.lineSubtotals[idx],
         originalPrice: productMap.get(Number(item.productId))?.defaultPrice ?? null,
@@ -184,10 +206,10 @@ export default defineEventHandler(async (event) => {
       // === 8. 客户欠款/积分（balance 扣款已在 step 4 原子完成） ===
       if (cart.customerId) {
         const customerUpdate: any = {}
-        if (payment.owedAmount > 0) {
+        if (owedAmount > 0) {
           // 历史语义：欠款单也从 balance 扣（同时 totalOwed +）
-          customerUpdate.balance = { decrement: payment.owedAmount }
-          customerUpdate.totalOwed = { increment: payment.owedAmount }
+          customerUpdate.balance = { decrement: owedAmount }
+          customerUpdate.totalOwed = { increment: owedAmount }
         }
         const earnedPoints = Math.floor(totalAmount)
         if (earnedPoints > 0) customerUpdate.points = { increment: earnedPoints }
@@ -197,12 +219,12 @@ export default defineEventHandler(async (event) => {
       }
 
       // === 9. 收款流水 ===
-      if (payment.paidAmount > 0) {
+      if (paidAmount > 0) {
         await tx.payment.create({
           data: {
             orderId: order.id,
             customerId: cart.customerId || null,
-            amount: payment.paidAmount,
+            amount: paidAmount,
             paymentMethod: payment.method,
             type: 'income',
             operator: 'system',
