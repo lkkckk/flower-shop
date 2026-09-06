@@ -124,7 +124,7 @@
 
       <!-- 主表格 -->
       <a-table
-        :columns="columns"
+        :columns="responsiveColumns(columns)"
         :data-source="list"
         :loading="loading"
         :pagination="false"
@@ -243,6 +243,7 @@
 </template>
 
 <script setup lang="ts">
+const responsiveColumns = useResponsiveColumns()
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import dayjs from 'dayjs'

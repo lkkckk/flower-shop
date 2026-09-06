@@ -21,7 +21,7 @@
         :pagination="false"
         size="small"
         row-key="productId"
-        :scroll="{ y: 480 }"
+        :scroll="{ x: 580, y: 480 }"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'productName'">

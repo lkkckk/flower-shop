@@ -25,3 +25,4 @@ logs
 
 # Uploaded product images
 /public/products/
+/public/preorder-images/

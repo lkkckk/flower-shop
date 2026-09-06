@@ -1,7 +1,7 @@
 <template>
   <a-form layout="vertical" :model="form">
     <a-row :gutter="16">
-      <a-col :span="12">
+      <a-col :xs="24" :md="12">
         <a-form-item label="下单客户" extra="可选择已有客户，或直接填写收货信息">
           <a-select
             v-model:value="form.customerId"
@@ -15,7 +15,7 @@
           />
         </a-form-item>
       </a-col>
-      <a-col :span="12">
+      <a-col :xs="24" :md="12">
         <a-form-item label="订单来源">
           <a-input v-model:value="form.sourceChannel" placeholder="如：美团闪购#5、抖音、店内" />
         </a-form-item>
@@ -24,7 +24,7 @@
 
     <a-divider orientation="left" style="font-size: 14px">收货信息</a-divider>
     <a-row :gutter="16">
-      <a-col :span="8">
+      <a-col :xs="24" :md="8">
         <a-form-item label="履约方式" required>
           <a-radio-group v-model:value="form.fulfillmentType" button-style="solid">
             <a-radio-button value="delivery">配送</a-radio-button>
@@ -32,12 +32,12 @@
           </a-radio-group>
         </a-form-item>
       </a-col>
-      <a-col :span="8">
+      <a-col :xs="24" :md="8">
         <a-form-item label="收货/取花人姓名" required>
           <a-input v-model:value="form.receiverName" />
         </a-form-item>
       </a-col>
-      <a-col :span="8">
+      <a-col :xs="24" :md="8">
         <a-form-item label="联系电话" required>
           <a-input v-model:value="form.receiverPhone" />
         </a-form-item>
@@ -53,7 +53,7 @@
 
     <a-divider orientation="left" style="font-size: 14px">履约安排</a-divider>
     <a-row :gutter="16">
-      <a-col :span="12">
+      <a-col :xs="24" :md="12">
         <a-form-item label="履约日期/时间" required>
           <a-date-picker
             v-model:value="deliveryTime"
@@ -64,7 +64,7 @@
           />
         </a-form-item>
       </a-col>
-      <a-col :span="12">
+      <a-col :xs="24" :md="12">
         <a-form-item v-if="daysHint" :label="' '" :colon="false">
           <a-tag :color="daysHint.color">{{ daysHint.text }}</a-tag>
         </a-form-item>
@@ -188,6 +188,23 @@
       </div>
     </div>
 
+    <a-divider orientation="left" style="font-size: 14px">订单确认照片</a-divider>
+    <p class="text-sm text-gray-500 mb-3">每件商品可上传一张约定的花卉照片。保存后，详情和配送单使用此照片；更换商品主图不会影响订单。支持 JPG、PNG、WebP，最大 10MB。</p>
+    <div class="order-photo-grid">
+      <div v-for="item in form.items" :key="item._key" class="order-photo-card">
+        <a-image v-if="item.imageUrl" :src="item.imageUrl" :width="104" :height="104" style="object-fit: contain" />
+        <div v-else class="order-photo-empty">未设置照片</div>
+        <div class="order-photo-actions">
+          <b>{{ item.productName }}</b>
+          <span class="text-xs text-gray-500">{{ item.grade }} {{ item.color }} · {{ item.qty }}{{ item.unit }}</span>
+          <a-upload accept=".jpg,.jpeg,.png,.webp" :show-upload-list="false" :before-upload="(file: File) => uploadPhoto(file, item)" :disabled="item.uploading || submitting">
+            <a-button :loading="item.uploading" :disabled="submitting">{{ item.imageUrl ? '更换订单照片' : '上传订单照片' }}</a-button>
+          </a-upload>
+          <a-button v-if="item.imageUrl" type="link" danger :disabled="item.uploading || submitting" @click="item.imageUrl = null">移除照片</a-button>
+        </div>
+      </div>
+    </div>
+
     <a-divider orientation="left" style="font-size: 14px">备注</a-divider>
     <a-form-item label="贺卡内容">
       <a-textarea v-model:value="form.cardMessage" :rows="2" placeholder="如：生日快乐！" />
@@ -198,7 +215,7 @@
 
     <div class="flex justify-end gap-2 mt-4">
       <a-button @click="$emit('cancel')">取消</a-button>
-      <a-button type="primary" :loading="submitting" @click="onSubmit">{{ submitText }}</a-button>
+      <a-button type="primary" :loading="submitting" :disabled="uploadCount > 0" @click="onSubmit">{{ submitText }}</a-button>
     </div>
   </a-form>
 
@@ -251,6 +268,7 @@ const form = reactive<any>({
 })
 const deliveryTime = ref<Dayjs | null>(null)
 const pickerOpen = ref(false)
+const uploadCount = ref(0)
 const customerOptions = ref<{ value: number; label: string }[]>([])
 const promotions = ref<PromotionRow[]>([])
 const loadingPromotions = ref(false)
@@ -427,7 +445,28 @@ const loadPromotions = async () => {
   }
 }
 
+const uploadPhoto = async (file: File, item: any) => {
+  if (file.size > 10 * 1024 * 1024) { message.error('图片不能超过 10MB'); return false }
+  item.uploading = true
+  uploadCount.value += 1
+  try {
+    const body = new FormData()
+    body.append('file', file)
+    const response: any = await $fetch('/api/preorders/images', { method: 'POST', body })
+    if (!response.data?.imageUrl || response.error) throw new Error(response.error?.message || '上传失败')
+    item.imageUrl = response.data.imageUrl
+    message.success('照片已上传，保存订单后生效')
+  } catch (error: any) {
+    message.error(error.data?.message || error.message || '照片上传失败，请重试')
+  } finally {
+    item.uploading = false
+    uploadCount.value -= 1
+  }
+  return false
+}
+
 const onSubmit = () => {
+  if (uploadCount.value > 0) { message.warning('请等待照片上传完成'); return }
   if (!form.receiverName || !form.receiverPhone) {
     message.error('请填写收货/取花人姓名和电话')
     return
@@ -518,7 +557,7 @@ watch(
         priceSource: 'custom',
         unitPrice: it.unitPrice,
         subtotal: it.subtotal,
-        imageUrl: it.imageUrl || product.imageUrl || null,
+        imageUrl: it.imageUrl ?? null,
       }
     })
     if (v.customerId) onCustomerSearch('')
@@ -531,3 +570,14 @@ onMounted(() => {
   loadPromotions()
 })
 </script>
+
+<style scoped>
+.order-photo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+.order-photo-card { display: flex; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-md); min-width: 0; }
+.order-photo-card > :first-child { flex-shrink: 0; }
+.order-photo-empty { width: 104px; height: 104px; display: grid; place-items: center; background: var(--paper); color: var(--ink-500); font-size: 12px; }
+.order-photo-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 767px) {
+  .order-photo-card { padding: 8px; gap: 8px; }
+}
+</style>

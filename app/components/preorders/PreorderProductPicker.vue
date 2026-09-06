@@ -14,7 +14,7 @@
       @search="loadList"
       @change="onKeywordChange"
     />
-    <a-table
+    <a-table :scroll="{ x: 640 }"
       :columns="columns"
       :data-source="list"
       :loading="loading"

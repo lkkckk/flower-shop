@@ -1,8 +1,8 @@
 <template>
   <div class="h-full flex flex-col items-stretch max-w-7xl mx-auto w-full">
     <!-- 顶部工具栏 -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4 bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-      <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-4 gap-4 bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+      <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
         <a-input-search
           v-model:value="searchKeyword"
           placeholder="搜索商品名称"
@@ -75,7 +75,7 @@
 
       <a-card :bordered="false" class="product-table-card flex-1 shadow-sm border border-gray-100 overflow-hidden body-no-padding">
         <a-table
-          :columns="columns"
+          :columns="responsiveColumns(columns)"
           :data-source="products"
           :loading="loading"
           :pagination="pagination"
@@ -206,6 +206,7 @@
 </template>
 
 <script setup lang="ts">
+const responsiveColumns = useResponsiveColumns()
 import { computed, ref, reactive, onMounted, watch } from 'vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'

@@ -1,11 +1,11 @@
 <template>
-  <div class="p-6">
-    <div class="mb-4 flex items-center justify-between">
+  <div class="p-0 sm:p-4">
+    <div class="mb-4 flex flex-col md:flex-row gap-3 md:items-center justify-between">
       <div>
         <h1 class="text-2xl font-bold text-gray-800 mb-1">库存盘点</h1>
         <p class="text-sm text-gray-500">核对系统库存与实物，差额自动写入库存变动记录</p>
       </div>
-      <a-space>
+      <a-space wrap>
         <a-switch v-model:checked="onlyLow" />
         <span class="text-sm text-gray-600">仅看低库存</span>
         <a-button @click="loadSummary" :loading="loading">
@@ -16,8 +16,8 @@
     </div>
 
     <!-- 汇总卡片 -->
-    <a-row :gutter="16" class="mb-4">
-      <a-col :span="8">
+    <a-row :gutter="[16, 16]" class="mb-4">
+      <a-col :xs="24" :sm="8">
         <a-card>
           <a-statistic
             title="低库存商品数"
@@ -28,7 +28,7 @@
           </a-statistic>
         </a-card>
       </a-col>
-      <a-col :span="8">
+      <a-col :xs="24" :sm="8">
         <a-card>
           <a-statistic title="当前库存阈值" :value="summary.threshold">
             <template #prefix><SettingOutlined /></template>
@@ -38,7 +38,7 @@
           </div>
         </a-card>
       </a-col>
-      <a-col :span="8">
+      <a-col :xs="24" :sm="8">
         <a-card>
           <a-statistic title="商品总数" :value="summary.items.length" />
         </a-card>
@@ -47,7 +47,7 @@
 
     <!-- 盘点表格 -->
     <a-card>
-      <a-table
+      <a-table :scroll="{ x: 640 }"
         :columns="columns"
         :data-source="filteredItems"
         :pagination="{ pageSize: 20, showSizeChanger: true }"

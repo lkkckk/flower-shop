@@ -31,6 +31,29 @@ pnpm dev
 
 启动后访问 http://localhost:3000
 
+## Docker Desktop 本地启动
+
+Docker Desktop 运行后，在项目目录执行：
+
+```bash
+powershell -ExecutionPolicy Bypass -File .\docker-up.ps1
+```
+
+脚本会读取本地 `.env` 的数据库密码并传给 Compose，但不会把密码写入镜像或提交文件。若使用全新数据卷且没有 `.env`，默认本地密码为 `postgres`。
+
+应用访问 http://localhost:3000，PostgreSQL 从宿主机访问 `localhost:55432`。
+首次启动会自动执行 Prisma 迁移和幂等初始化；默认管理员为 `admin / admin123`，登录后请修改密码。
+数据库使用 `flower_postgres_data` 卷，商品及订单照片使用 `flower_uploads_data` 卷，重新构建容器不会清空数据。
+
+```bash
+# 查看状态和日志
+docker compose ps
+docker compose logs -f app
+
+# 停止服务（保留数据卷）
+docker compose down
+```
+
 ## 常用命令
 
 ```bash

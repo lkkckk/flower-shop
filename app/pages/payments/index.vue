@@ -157,6 +157,7 @@
 </template>
 
 <script setup lang="ts">
+import { resolveShopName } from "~~/shared/shopIdentity"
 import { ref, computed, onMounted } from 'vue'
 import dayjs, { type Dayjs } from 'dayjs'
 import { DownloadOutlined, PrinterOutlined } from '@ant-design/icons-vue'
@@ -167,7 +168,10 @@ import { buildStatementLines, formatDate, formatDateTime, paymentMethodText } fr
 
 useHead({ title: '客户对账单 - 花店管理系统' })
 
-const shopName = '鲜花批发店'
+const shopName = ref('花店')
+onMounted(async () => {
+  try { const res: any = await $fetch('/api/settings'); shopName.value = resolveShopName(res.data || {}) } catch {}
+})
 const todayStr = dayjs().format('YYYY-MM-DD')
 
 const { searchCustomers } = useCustomers()

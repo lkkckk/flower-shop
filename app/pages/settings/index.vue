@@ -5,8 +5,8 @@
       <a-form
         :model="settingsForm"
         layout="vertical"
-        :label-col="{ span: 6 }"
-        :wrapper-col="{ span: 12 }"
+        :label-col="{ span: 24 }"
+        :wrapper-col="{ xs: 24, md: 20, lg: 12 }"
       >
         <a-form-item label="店铺名称">
           <a-input v-model:value="settingsForm.storeName" placeholder="请输入店铺名称" />
@@ -35,8 +35,8 @@
       <a-form
         :model="settingsForm"
         layout="vertical"
-        :label-col="{ span: 6 }"
-        :wrapper-col="{ span: 12 }"
+        :label-col="{ span: 24 }"
+        :wrapper-col="{ xs: 24, md: 20, lg: 12 }"
       >
         <div class="settings-grid">
           <a-form-item label="临期提醒天数">

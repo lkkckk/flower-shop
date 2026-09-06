@@ -35,7 +35,7 @@
     <a-spin :spinning="loading">
       <!-- 核心指标卡片 -->
       <a-row :gutter="[16, 16]">
-        <a-col :xs="24" :sm="12" :md="6">
+        <a-col :xs="24" :sm="12" :xl="6">
           <a-card class="metric-card">
             <a-statistic
               title="销售总额"
@@ -50,7 +50,7 @@
           </a-card>
         </a-col>
 
-        <a-col :xs="24" :sm="12" :md="6">
+        <a-col :xs="24" :sm="12" :xl="6">
           <a-card class="metric-card">
             <a-statistic
               title="订单数"
@@ -64,7 +64,7 @@
           </a-card>
         </a-col>
 
-        <a-col :xs="24" :sm="12" :md="6">
+        <a-col :xs="24" :sm="12" :xl="6">
           <a-card class="metric-card">
             <a-statistic
               title="客单价"
@@ -79,7 +79,7 @@
           </a-card>
         </a-col>
 
-        <a-col :xs="24" :sm="12" :md="6">
+        <a-col :xs="24" :sm="12" :xl="6">
           <a-card class="metric-card">
             <a-statistic
               title="毛利率"
@@ -98,25 +98,25 @@
 
       <!-- 附加指标行 -->
       <a-row :gutter="[16, 16]">
-        <a-col :xs="24" :sm="12" :md="6">
+        <a-col :xs="24" :sm="12" :xl="6">
           <a-card size="small">
             <div class="text-xs text-gray-500">已收金额</div>
             <div class="text-xl font-bold text-green-600">¥{{ (data?.summary.totalPaid || 0).toFixed(2) }}</div>
           </a-card>
         </a-col>
-        <a-col :xs="24" :sm="12" :md="6">
+        <a-col :xs="24" :sm="12" :xl="6">
           <a-card size="small">
             <div class="text-xs text-gray-500">新增欠款</div>
             <div class="text-xl font-bold text-red-600">¥{{ (data?.summary.totalOwed || 0).toFixed(2) }}</div>
           </a-card>
         </a-col>
-        <a-col :xs="24" :sm="12" :md="6">
+        <a-col :xs="24" :sm="12" :xl="6">
           <a-card size="small">
             <div class="text-xs text-gray-500">进货成本</div>
             <div class="text-xl font-bold text-gray-700">¥{{ (data?.summary.totalCost || 0).toFixed(2) }}</div>
           </a-card>
         </a-col>
-        <a-col :xs="24" :sm="12" :md="6">
+        <a-col :xs="24" :sm="12" :xl="6">
           <a-card size="small">
             <div class="text-xs text-gray-500">毛利总额</div>
             <div class="text-xl font-bold" :style="{ color: marginColor }">
@@ -215,7 +215,7 @@
       <a-card v-if="isStrictAdmin" title="收银员收款明细" class="page-card">
         <a-spin :spinning="cashierLoading">
           <a-empty v-if="!cashierStats.length" description="暂无收银记录" />
-          <a-table
+          <a-table :scroll="{ x: 640 }"
             v-else
             :columns="cashierColumns"
             :data-source="cashierStats"
@@ -234,7 +234,7 @@
         </template>
         <a-spin :spinning="debtorLoading">
           <a-empty v-if="!debtors.length" description="暂无欠款客户" />
-          <a-table
+          <a-table :scroll="{ x: 640 }"
             v-else
             :columns="debtorColumns"
             :data-source="debtors"
@@ -246,7 +246,7 @@
             <template #expandedRowRender="{ record }">
               <div class="pl-4 pr-2 py-2">
                 <div class="font-medium text-gray-600 mb-2">欠款订单明细</div>
-                <a-table
+                <a-table :scroll="{ x: 640 }"
                   :columns="debtorOrderColumns"
                   :data-source="record.orders"
                   :pagination="false"

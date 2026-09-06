@@ -102,6 +102,7 @@
 </template>
 
 <script setup lang="ts">
+import { resolveShopName } from "~~/shared/shopIdentity"
 import { ref, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import dayjs from 'dayjs'
@@ -113,7 +114,10 @@ useHead({ title: '打印对账单' })
 const route = useRoute()
 const router = useRouter()
 
-const shopName = '鲜花批发店'
+const shopName = ref('花店')
+onMounted(async () => {
+  try { const res: any = await $fetch('/api/settings'); shopName.value = resolveShopName(res.data || {}) } catch {}
+})
 const todayStr = dayjs().format('YYYY-MM-DD')
 
 const statement = ref<any | null>(null)

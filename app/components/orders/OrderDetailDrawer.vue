@@ -80,7 +80,7 @@
           </a-tab-pane>
 
           <a-tab-pane key="items" :tab="`商品明细 (${detail.items?.length || 0})`">
-            <a-table
+            <a-table :scroll="{ x: 640 }"
               :columns="itemColumns"
               :data-source="detail.items"
               :pagination="false"
@@ -111,7 +111,7 @@
           </a-tab-pane>
 
           <a-tab-pane key="payments" :tab="`收款流水 (${detail.paymentLogs?.length || 0})`">
-            <a-table
+            <a-table :scroll="{ x: 640 }"
               :columns="paymentColumns"
               :data-source="detail.paymentLogs"
               :pagination="false"

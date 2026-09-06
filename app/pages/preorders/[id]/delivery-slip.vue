@@ -1,10 +1,16 @@
 <template>
+  <div class="slip-controls">
+    <NuxtLink :to="`/preorders/${route.params.id}`">← 返回预售单</NuxtLink>
+    <button type="button" :disabled="!printReady" @click="printSlip">打印预售单</button>
+    <p v-if="loadError" role="alert">{{ loadError }} <button type="button" @click="loadSlip">重新加载</button></p>
+    <p v-else>{{ printReady ? '订单照片已加载，可打印。照片按原比例完整显示。' : '正在加载订单、店铺名称和照片…' }}</p>
+  </div>
   <div v-if="order" class="slip-page">
     <div class="slip">
       <!-- 页头 -->
       <div class="slip-header">
         <div class="shop">{{ shopName }}</div>
-        <div class="title">配送单</div>
+        <div class="title">{{ order.fulfillmentType === 'pickup' ? '自提单' : '配送单' }}</div>
         <div v-if="order.sourceChannel" class="source-tag">{{ order.sourceChannel }}</div>
       </div>
 
@@ -32,14 +38,14 @@
             </td>
           </tr>
           <tr>
-            <td class="label">商品描述及<br/>参考照片</td>
+            <td class="label">商品描述及<br/>订单确认照片</td>
             <td colspan="3" class="items-cell">
               <div v-for="item in order.items" :key="item.id" class="item-row">
                 <div class="item-image">
                   <img
-                    v-if="item.imageUrl || item.product?.imageUrl"
-                    :src="item.imageUrl || item.product?.imageUrl"
-                    alt="product"
+                    v-if="item.imageUrl"
+                    :src="item.imageUrl"
+                    alt="订单确认照片"
                   />
                   <div v-else class="no-image">无图片</div>
                 </div>
@@ -88,7 +94,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, defineComponent, h } from 'vue'
+import { resolveShopName } from "~~/shared/shopIdentity"
+import { ref, onMounted, nextTick, defineComponent, h } from 'vue'
 import { useRoute } from 'vue-router'
 import dayjs from 'dayjs'
 
@@ -99,6 +106,9 @@ const route = useRoute()
 const order = ref<any>(null)
 const shopName = ref('花店')
 const shopPhone = ref('')
+const printReady = ref(false)
+const loadError = ref('')
+const printSlip = () => { if (printReady.value) window.print() }
 
 const formatDeliveryTime = (d: any) => {
   if (!d) return '-'
@@ -133,26 +143,38 @@ const Barcode = defineComponent({
   },
 })
 
-onMounted(async () => {
+const loadSlip = async () => {
+  printReady.value = false
+  loadError.value = ''
   const id = route.params.id
   if (!id) return
   try {
     const res: any = await $fetch(`/api/preorders/${id}`)
-    if (res?.data) order.value = res.data
+    if (!res?.data || res.error) throw new Error(res.error?.message || '订单加载失败')
+    order.value = res.data
 
     // 读取店铺名称 / 电话
-    try {
+    {
       const settingRes: any = await $fetch('/api/settings')
-      const kv = settingRes?.data || {}
-      shopName.value = kv.shop_name || kv.shopName || shopName.value
+      if (!settingRes?.data || settingRes.error) throw new Error('店铺设置加载失败')
+      const kv = settingRes.data
+      shopName.value = resolveShopName(kv)
       shopPhone.value = kv.shop_phone || kv.shopPhone || ''
-    } catch {}
+    }
 
-    setTimeout(() => window.print(), 800)
+    await nextTick()
+    const images = Array.from(document.querySelectorAll<HTMLImageElement>('.slip img'))
+    await Promise.race([
+      Promise.all(images.map(img => img.decode())),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('照片加载超时')), 15000)),
+    ])
+    await document.fonts.ready
+    printReady.value = true
   } catch (e) {
-    console.error('Failed to load preorder', e)
+    loadError.value = '订单、店名或照片加载失败，请重新加载后打印，以免漏印照片。'
   }
-})
+}
+onMounted(loadSlip)
 </script>
 
 <style scoped>
@@ -165,7 +187,7 @@ onMounted(async () => {
 }
 
 .slip {
-  width: 210mm;
+  width: min(210mm, 100%);
   min-height: 280mm;
   background: white;
   padding: 15mm 12mm;
@@ -195,9 +217,7 @@ onMounted(async () => {
 }
 
 .source-tag {
-  position: absolute;
-  top: 0;
-  right: 0;
+  margin-top: 6px;
   font-size: 14px;
   color: #666;
 }
@@ -251,7 +271,7 @@ onMounted(async () => {
 .item-image img {
   width: 120px;
   height: 120px;
-  object-fit: cover;
+  object-fit: contain;
   border: 1px solid #eee;
 }
 
@@ -346,7 +366,28 @@ onMounted(async () => {
   margin-top: 4px;
 }
 
+.slip-controls { max-width: 794px; margin: 0 auto; padding: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.slip-controls button { padding: 10px 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--avo-700); color: white; cursor: pointer; }
+.slip-controls button:disabled { opacity: .45; cursor: not-allowed; }
+.slip-controls p { width: 100%; margin: 0; font-size: 13px; }
+.shop { width: 100%; text-align: center; overflow-wrap: anywhere; }
+.slip-table { table-layout: fixed; overflow-wrap: anywhere; }
+.item-row { break-inside: avoid; }
+.item-info { min-width: 0; }
+@media screen and (max-width: 767px) {
+  .slip-page { padding: 0 8px 16px; }
+  .slip { min-height: 0; padding: 20px 10px; }
+  .slip-table { font-size: 12px; }
+  .slip-table td { padding: 6px 4px; }
+  .label { width: 58px; white-space: normal; }
+  .item-row { flex-wrap: wrap; gap: 8px; }
+  .item-image { flex-basis: 100%; }
+  .item-image img { width: 100%; height: 160px; }
+  .note-phones span { display: block; margin-left: 0; }
+  .barcode { overflow: hidden; }
+}
 @media print {
+  .slip-controls { display: none !important; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .slip-page { background: white; padding: 0; }
   .slip { box-shadow: none; width: 100%; min-height: auto; }

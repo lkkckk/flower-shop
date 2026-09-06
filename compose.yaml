@@ -1,0 +1,47 @@
+name: flower-shop
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: flower-shop-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: flower_shop
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${FLOWER_DB_PASSWORD:-postgres}
+    ports:
+      - "55432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d flower_shop"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: flower-shop-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:${FLOWER_DB_PASSWORD_URL:-postgres}@postgres:5432/flower_shop?schema=public
+      JWT_SECRET: local-docker-flower-shop-secret-change-before-production
+      CORS_ORIGIN: http://localhost:3000
+      PRODUCT_IMAGE_DIR: /data/uploads/products
+      PREORDER_IMAGE_DIR: /data/uploads/preorder-images
+    ports:
+      - "3000:3000"
+    volumes:
+      - flower_uploads:/data/uploads
+
+volumes:
+  postgres_data:
+    name: flower_postgres_data
+  flower_uploads:
+    name: flower_uploads_data
+

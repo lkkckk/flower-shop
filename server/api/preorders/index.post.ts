@@ -1,5 +1,6 @@
 import { prisma } from '../../utils/prisma'
 import { computeReminderStage } from '../../../shared/preorderReminder'
+import { snapshotPreorderImage } from '../../utils/preorderImages'
 
 function formatLocalDateKey(date: Date) {
   const y = date.getFullYear()
@@ -65,7 +66,7 @@ export default defineEventHandler(async (event) => {
         const orderNo = `${prefix}${(latestSeq + 1).toString().padStart(4, '0')}`
 
         let itemsSubtotal = 0
-        const itemRows = body.items.map((it: any) => {
+        const itemRows = await Promise.all(body.items.map(async (it: any) => {
           const p = productMap.get(Number(it.productId))
           if (!p) throw new Error(`商品(id=${it.productId})不存在`)
           const unitPrice = Math.max(0, Number(it.unitPrice) || p.defaultPrice)
@@ -84,9 +85,9 @@ export default defineEventHandler(async (event) => {
             grade: it.grade ?? p.grade ?? null,
             color: it.color ?? p.color ?? null,
             notes: it.notes ?? null,
-            imageUrl: it.imageUrl ?? p.imageUrl ?? null,
+            imageUrl: await snapshotPreorderImage('imageUrl' in it ? it.imageUrl : p.imageUrl),
           }
-        })
+        }))
 
         let totalAmount = itemsSubtotal
         if (priceMode === 'promotion' && promotionId) {

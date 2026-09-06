@@ -2,7 +2,8 @@
   <div class="receipt-page">
     <div class="print-controls">
       <NuxtLink to="/pos">← 返回收银台</NuxtLink>
-      <div class="print-actions"><label>纸宽 <select v-model="paperWidth" aria-label="小票纸宽"><option value="58">58mm</option><option value="80">80mm</option></select></label><button type="button" :disabled="!order || loading" @click="printReceipt">打印小票</button></div>
+      <div class="print-actions"><label>纸宽 <select v-model="paperWidth" aria-label="小票纸宽"><option value="58">58mm</option><option value="80">80mm</option></select></label><button type="button" :disabled="!order || loading || !settingsReady" @click="printReceipt">打印小票</button></div>
+      <p v-if="settingsError" role="alert">店铺名称加载失败，请 <button type="button" @click="loadSettings">重新加载店铺设置</button></p>
       <p>在打印面板中选择对应纸宽，关闭页眉页脚。iPad 需使用支持 AirPrint 的打印机；普通蓝牙打印机需另配兼容的打印服务。</p>
     </div>
     <div class="print-container" :style="{ '--receipt-width': paperWidth === '58' ? '58mm' : '80mm' }">
@@ -80,6 +81,7 @@
 </template>
 
 <script setup lang="ts">
+import { resolveShopName } from "~~/shared/shopIdentity"
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 
@@ -90,11 +92,13 @@ const order = ref<any>(null)
 const loading = ref(true)
 const loadError = ref('')
 const paperWidth = ref('58')
-const shopName = ref('鲜花批发总汇')
+const shopName = ref('花店')
+const settingsReady = ref(false)
+const settingsError = ref(false)
 useHead({ title: () => order.value ? `小票 ${order.value.orderNo}` : '小票预览' })
 
 const printReceipt = () => {
-  if (order.value && !loading.value) window.print()
+  if (order.value && !loading.value && settingsReady.value) window.print()
 }
 
 const loadOrder = async () => {
@@ -108,15 +112,18 @@ const loadOrder = async () => {
     } catch { loadError.value = '单据加载失败，请重试或返回收银台'; order.value = null }
     finally { loading.value = false }
 }
-onMounted(async () => {
-  await loadOrder()
+const loadSettings = async () => {
+  settingsReady.value = false
+  settingsError.value = false
   try {
     const settings: any = await $fetch('/api/settings')
-    if (settings.data?.shopName) shopName.value = settings.data.shopName
-  } catch {
-    // 店名配置不可用时仍允许打印已加载的订单。
-  }
-})
+    if (!settings.data || settings.error) throw new Error('店铺设置加载失败')
+    shopName.value = resolveShopName(settings.data || {})
+    await document.fonts.ready
+    settingsReady.value = true
+  } catch { settingsError.value = true }
+}
+onMounted(() => Promise.all([loadOrder(), loadSettings()]))
 </script>
 
 <style scoped>
@@ -141,6 +148,8 @@ onMounted(async () => {
 }
 
 .shop-name {
+  width: 100%;
+  margin-inline: auto;
   font-size: 16px;
   font-weight: bold;
   text-align: center;

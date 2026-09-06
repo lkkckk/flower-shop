@@ -405,7 +405,7 @@ const markMade = async () => {
 const goEdit = () => router.push(`/preorders/${order.value.id}/edit`)
 const goPrint = () => window.open(`/preorders/${order.value.id}/delivery-slip`, '_blank')
 
-const productImage = (item: any) => item?.imageUrl || item?.product?.imageUrl || ''
+const productImage = (item: any) => item?.imageUrl || ''
 const productName = (item: any) => item?.product?.name || `#${item?.productId || '-'}`
 const productMeta = (item: any) => {
   const product = item?.product || {}

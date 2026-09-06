@@ -60,7 +60,7 @@
       </div>
 
       <a-table
-        :columns="columns"
+        :columns="responsiveColumns(columns)"
         :data-source="list"
         :loading="loading"
         :pagination="false"
@@ -170,6 +170,7 @@
 </template>
 
 <script setup lang="ts">
+const responsiveColumns = useResponsiveColumns()
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { PlusOutlined, DownloadOutlined } from '@ant-design/icons-vue'

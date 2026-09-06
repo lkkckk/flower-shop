@@ -35,13 +35,13 @@
             @change="onFilterChange"
           />
         </div>
-        <div>
+        <div class="toolbar-right">
           <a-button type="primary" @click="goNew">+ 新建预售单</a-button>
         </div>
       </div>
 
       <a-table
-        :columns="columns"
+        :columns="responsiveColumns(columns)"
         :data-source="list"
         :loading="loading"
         :pagination="false"
@@ -105,6 +105,7 @@
 </template>
 
 <script setup lang="ts">
+const responsiveColumns = useResponsiveColumns()
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'

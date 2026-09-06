@@ -1,5 +1,5 @@
 <template>
-  <a-table
+  <a-table :scroll="{ x: 640 }"
     :columns="columns"
     :data-source="dataSource"
     :pagination="false"

@@ -1,6 +1,7 @@
 import { prisma } from '../../utils/prisma'
 import { computeReminderStage } from '../../../shared/preorderReminder'
 import { isStockDeducted, type PreorderStatus } from '../../../shared/preorderStatus'
+import { snapshotPreorderImage } from '../../utils/preorderImages'
 
 /**
  * 编辑预售单基础信息（不含状态流转，状态流转走 advance.post）。
@@ -84,7 +85,7 @@ export default defineEventHandler(async (event) => {
               grade: it.grade ?? p.grade ?? null,
               color: it.color ?? p.color ?? null,
               notes: it.notes ?? null,
-              imageUrl: it.imageUrl ?? p.imageUrl ?? null,
+              imageUrl: await snapshotPreorderImage('imageUrl' in it ? it.imageUrl : p.imageUrl),
             },
           })
         }

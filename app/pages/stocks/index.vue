@@ -74,7 +74,7 @@
 
       <!-- 表格区域 -->
       <a-table
-        :columns="currentColumns"
+        :columns="responsiveColumns(currentColumns)"
         :data-source="list"
         :loading="loading"
         :pagination="false"
@@ -278,6 +278,7 @@
 </template>
 
 <script setup lang="ts">
+const responsiveColumns = useResponsiveColumns()
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { PlusOutlined, ShoppingOutlined } from '@ant-design/icons-vue'
