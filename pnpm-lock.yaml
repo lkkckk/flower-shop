@@ -35,6 +35,9 @@ importers:
       dayjs:
         specifier: ^1.11.20
         version: 1.11.20
+      h3:
+        specifier: 1.15.11
+        version: 1.15.11
       jsonwebtoken:
         specifier: ^9.0.3
         version: 9.0.3
