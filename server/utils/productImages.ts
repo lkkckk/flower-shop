@@ -7,7 +7,7 @@ export const productImageDirectory = () => path.resolve(
 )
 
 export const productImageTypes: Record<string, string> = {
-  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp',
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.jfif': 'image/jpeg',
 }
 
 export function productImagePath(filename: string) {

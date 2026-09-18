@@ -135,6 +135,7 @@
                 ref="fileInputRef"
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
+                style="display: none;"
                 class="hidden"
                 @change="onFileChange"
               />

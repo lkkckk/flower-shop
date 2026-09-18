@@ -43,9 +43,9 @@
         <div class="reservation-list">
           <div
             v-for="item in upcomingPreorders.slice(0, 6)"
-            :key="item.id"
-            class="reservation"
-            @click="router.push(`/preorders/${item.id}`)"
+            :key="item.isNewReg ? `reg-${item.id}` : `old-${item.id}`"
+            class="reservation cursor-pointer"
+            @click="router.push(item.isNewReg ? `/preorders/registrations/${item.id}` : `/preorders/${item.id}`)"
           >
             <div class="resv-day" :class="item.daysUntil <= 3 ? 'urgent' : ''">
               <b>{{ dayNumber(item.deliveryTime) }}</b>
@@ -54,8 +54,10 @@
             <div class="resv-info">
               <div class="resv-title">
                 <span class="mono">{{ item.orderNo }}</span>
-                <b>{{ item.receiverName || item.customer?.name || '散客' }}</b>
-                <a-tag v-if="item.reminderStage && item.reminderStage !== 'none'" :color="reminderColor(item.reminderStage)">
+                <b v-if="item.isNewReg">{{ item.contactPhone || '新预售登记' }}</b>
+                <b v-else>{{ item.receiverName || item.customer?.name || '散客' }}</b>
+                <a-tag v-if="item.isNewReg" color="pink">预售登记</a-tag>
+                <a-tag v-else-if="item.reminderStage && item.reminderStage !== 'none'" :color="reminderColor(item.reminderStage)">
                   {{ reminderLabel(item.reminderStage) }}
                 </a-tag>
               </div>
@@ -64,11 +66,20 @@
                 <span v-if="item.daysUntil != null">
                   · {{ item.daysUntil < 0 ? `已逾期 ${-item.daysUntil} 天` : item.daysUntil === 0 ? '今日' : `还剩 ${item.daysUntil} 天` }}
                 </span>
+                <span v-if="item.isNewReg && item.summary" class="ml-2 text-gray-500">
+                  ({{ item.summary }})
+                </span>
               </div>
             </div>
             <div class="resv-amount">
-              <b>¥{{ Number(item.totalAmount).toFixed(2) }}</b>
-              <span>{{ statusLabel(item.status) }}</span>
+              <template v-if="item.isNewReg">
+                <b>共 {{ item.itemCount || 1 }} 种</b>
+                <span class="text-xs text-gray-400">自由登记</span>
+              </template>
+              <template v-else>
+                <b>¥{{ Number(item.totalAmount || 0).toFixed(2) }}</b>
+                <span>{{ statusLabel(item.status) }}</span>
+              </template>
             </div>
           </div>
         </div>
@@ -442,7 +453,27 @@ const loadTodayOrders = async () => {
 const { checkLowStock } = useLowStockAlert()
 
 const loadUpcomingPreorders = async () => {
-  upcomingPreorders.value = await fetchUpcoming(7)
+  try {
+    const [newRegsRes, oldPreorders]: [any, any] = await Promise.all([
+      $fetch('/api/preorder-registrations/upcoming', { query: { days: 7 } }).catch(() => ({ data: [] })),
+      fetchUpcoming(7).catch(() => []),
+    ])
+    const newItems = (newRegsRes?.data || []).map((r: any) => ({
+      ...r,
+      isNewReg: true,
+    }))
+    const oldItems = (oldPreorders || []).map((o: any) => ({
+      ...o,
+      isNewReg: false,
+    }))
+    upcomingPreorders.value = [...newItems, ...oldItems].sort((a, b) => {
+      const ta = a.deliveryTime ? new Date(a.deliveryTime).getTime() : 0
+      const tb = b.deliveryTime ? new Date(b.deliveryTime).getTime() : 0
+      return ta - tb
+    })
+  } catch {
+    upcomingPreorders.value = []
+  }
 }
 
 onMounted(() => {

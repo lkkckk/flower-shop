@@ -125,5 +125,31 @@ export const usePreorders = () => {
     }
   }
 
-  return { loading, error, fetchList, fetchOne, createPreorder, updatePreorder, advance, setMade, fetchUpcoming }
+  const trashPreorder = async (id: number) => {
+    try {
+      const res = await $fetch(`/api/preorders/${id}/trash`, { method: 'POST' }) as any
+      if (res.error) throw new Error(res.error.message)
+      message.success('历史预售已移入回收站')
+      return res.data
+    } catch (e: any) {
+      error.value = normalizeError(e, '移入回收站失败')
+      message.error(error.value!)
+      throw e
+    }
+  }
+
+  const restorePreorder = async (id: number) => {
+    try {
+      const res = await $fetch(`/api/preorders/${id}/restore`, { method: 'POST' }) as any
+      if (res.error) throw new Error(res.error.message)
+      message.success('历史预售已从回收站恢复')
+      return res.data
+    } catch (e: any) {
+      error.value = normalizeError(e, '恢复失败')
+      message.error(error.value!)
+      throw e
+    }
+  }
+
+  return { loading, error, fetchList, fetchOne, createPreorder, updatePreorder, advance, setMade, fetchUpcoming, trashPreorder, restorePreorder }
 }

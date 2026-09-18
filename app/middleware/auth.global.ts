@@ -20,7 +20,7 @@ const isPublicPath = (path: string) => PUBLIC_PATHS.has(path)
 
 const isCashierRouteAllowed = (path: string) => {
   if (/^\/orders\/\d+\/print$/.test(path)) return true
-  if (/^\/preorders\/\d+\/delivery-slip$/.test(path)) return true
+  if (/^\/preorders\/(registrations\/\d+|\d+)\/delivery-slip$/.test(path)) return true
   return CASHIER_ALLOWED_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
 }
 

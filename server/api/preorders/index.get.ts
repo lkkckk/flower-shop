@@ -1,3 +1,4 @@
+import { defineEventHandler, getQuery, createError } from 'h3'
 import dayjs from 'dayjs'
 import { prisma } from '../../utils/prisma'
 import { computeReminderStage } from '../../../shared/preorderReminder'
@@ -20,6 +21,12 @@ export default defineEventHandler(async (event) => {
   const status = query.status as string | undefined
   const reminderStage = query.reminderStage as string | undefined
   const keyword = (query.q as string | undefined)?.trim()
+  const isTrash = query.trashed === 'true'
+
+  const user = event.context.user
+  if (isTrash && user?.role !== 'admin') {
+    throw createError({ statusCode: 403, message: '只有管理员可查看回收站' })
+  }
 
   const deliveryStart = query.deliveryStart
     ? dayjs(query.deliveryStart as string).startOf('day').toDate()
@@ -29,6 +36,12 @@ export default defineEventHandler(async (event) => {
     : undefined
 
   const where: any = { orderType: 'preorder' }
+  if (isTrash) {
+    where.trashedAt = { not: null }
+  } else {
+    where.trashedAt = null
+  }
+
   if (status) where.status = status
   if (deliveryStart || deliveryEnd) {
     where.deliveryTime = {}
@@ -51,6 +64,7 @@ export default defineEventHandler(async (event) => {
         where,
         include: {
           customer: { select: { id: true, name: true, phone: true, level: true } },
+          trashedBy: { select: { id: true, name: true, role: true } },
           items: {
             select: {
               id: true,
@@ -73,15 +87,6 @@ export default defineEventHandler(async (event) => {
     const now = new Date()
     const list = rawList.map((o) => {
       const stage = computeReminderStage(o.deliveryTime, now)
-      // 惰性写回：stage 变化时更新，避免每次查询都写
-      if (stage !== o.reminderStage) {
-        prisma.order
-          .update({
-            where: { id: o.id },
-            data: { reminderStage: stage, reminderUpdatedAt: now },
-          })
-          .catch(() => {})
-      }
       return { ...o, reminderStage: stage }
     })
 

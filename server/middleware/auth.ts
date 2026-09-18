@@ -1,4 +1,4 @@
-import { getRequestURL, getHeader } from 'h3'
+import { getRequestURL, getHeader, getCookie } from 'h3'
 import { verifyToken } from '../utils/auth'
 import { prisma } from '../utils/prisma'
 import { can, routeAction } from '../../shared/permissions'
@@ -8,7 +8,8 @@ export default defineEventHandler(async event => {
   if (!path.startsWith('/api/') || event.method === 'OPTIONS') return
   if (['/api/health', '/api/auth/login', '/api/auth/wx-login'].includes(path) || (event.method === 'GET' && path.startsWith('/api/public/'))) return
   const header = getHeader(event, 'authorization') || ''
-  const payload = verifyToken(header.startsWith('Bearer ') ? header.slice(7) : '')
+  const rawToken = header.startsWith('Bearer ') ? header.slice(7) : (getCookie(event, 'auth_token') || '')
+  const payload = verifyToken(rawToken)
   if (!payload) throw createError({ statusCode: 401, message: '登录已过期' })
   if (payload.type !== 'staff') {
     if (path === '/api/auth/me') { event.context.user = payload; return }

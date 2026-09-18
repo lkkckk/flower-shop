@@ -1,4 +1,4 @@
-export type Role = 'admin' | 'staff' | 'cashier'
+﻿export type Role = 'admin' | 'staff' | 'cashier'
 const all: Role[] = ['admin', 'staff', 'cashier']
 const managers: Role[] = ['admin', 'staff']
 export const permissions: Record<string, Role[]> = {
@@ -14,7 +14,7 @@ export function routeAction(method: string, path: string): string | null {
   if (method === 'GET') {
     if (path === '/api/stocks/stocktake/summary') return 'read.catalog'
     if (/^\/api\/(products|categories)(\/[^/]+)?$/.test(path)) return 'read.catalog'
-    if (/^\/api\/(customers|orders|preorders|notifications)(\/[^/]+){0,3}$/.test(path)) return 'read.sales'
+    if (/^\/api\/(customers|orders|preorders|preorder-registrations|notifications)(\/[^/]+){0,3}$/.test(path)) return 'read.sales'
     if (/^\/api\/(settings|promotions|loyalty-rules|shifts)(\/[^/]+)?$/.test(path)) return 'read.settings'
     if (/^\/api\/(stocks|reports|payments|suppliers|purchases)(\/[^/]+){0,3}$/.test(path)) return 'read.operations'
     if (/^\/api\/(audit|imports|exports|users|reconciliation)(\/[^/]+){0,2}$/.test(path)) return 'admin'
@@ -29,6 +29,8 @@ export function routeAction(method: string, path: string): string | null {
   if (method === 'POST' && /^\/api\/orders\/\d+\/adjustments$/.test(path)) return 'order.adjust.request'
   if (method === 'POST' && /^\/api\/orders\/\d+\/adjustments\/\d+\/approve$/.test(path)) return 'order.adjust.approve'
   if (path === '/api/orders/bulk-tag') return 'preorder.write'
+  if (/^\/api\/(preorders|preorder-registrations)\/\d+\/(trash|restore)$/.test(path)) return 'admin'
+  if (/^\/api\/preorder-registrations(\/\d+)?$/.test(path) || path === '/api/preorder-registrations/images') return 'preorder.write'
   if (/^\/api\/preorders(\/\d+)?(\/(advance|made|urgent))?$/.test(path) || path === '/api/preorders/images') return 'preorder.write'
   if (/^\/api\/stocks(\/[^/]+){0,3}$/.test(path)) return 'stock.write'
   if (/^\/api\/suppliers\/\d+\/payments$/.test(path)) return 'admin'

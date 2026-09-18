@@ -1,3 +1,4 @@
+import { defineEventHandler, getRouterParam, createError } from 'h3'
 import { prisma } from '../../utils/prisma'
 import { computeReminderStage, daysUntil } from '../../../shared/preorderReminder'
 
@@ -28,12 +29,6 @@ export default defineEventHandler(async (event) => {
 
     const stage = computeReminderStage(order.deliveryTime)
     const days = daysUntil(order.deliveryTime)
-    if (stage !== order.reminderStage) {
-      await prisma.order.update({
-        where: { id },
-        data: { reminderStage: stage, reminderUpdatedAt: new Date() },
-      })
-    }
 
     return {
       data: { ...order, reminderStage: stage, daysUntil: days },

@@ -9,7 +9,7 @@ export const preorderImageDirectory = () => path.resolve(
 export const MAX_PREORDER_IMAGE_BYTES = 10 * 1024 * 1024
 
 export function preorderImagePath(filename: string) {
-  if (!/^[a-f0-9-]{36}\.(?:jpg|jpeg|png|webp)$/.test(filename)) return null
+  if (!/^[a-f0-9-]{36}\.(?:jpg|jpeg|png|webp|jfif)$/.test(filename)) return null
   return path.join(preorderImageDirectory(), filename)
 }
 
@@ -25,8 +25,9 @@ export function validatePreorderImage(extension: string, data: Buffer) {
 }
 
 export async function storePreorderImage(extension: string, data: Buffer) {
-  validatePreorderImage(extension, data)
-  const filename = `${randomUUID()}${extension}`
+  const normExt = extension.toLowerCase() === '.jfif' ? '.jpg' : extension.toLowerCase()
+  validatePreorderImage(normExt, data)
+  const filename = `${randomUUID()}${normExt}`
   await mkdir(preorderImageDirectory(), { recursive: true })
   await writeFile(preorderImagePath(filename)!, data, { flag: 'wx' })
   return `/preorder-images/${filename}`

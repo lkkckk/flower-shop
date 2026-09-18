@@ -32,7 +32,7 @@
         <a-button type="dashed" class="mr-2" @click="cartStore.createCart">
           <PlusOutlined /> 新开一单
         </a-button>
-        <a-button v-if="!isCashier" class="mr-2" @click="goPreorder">
+        <a-button class="mr-2" @click="goPreorder">
           <CalendarOutlined /> 预售开单
         </a-button>
       </template>

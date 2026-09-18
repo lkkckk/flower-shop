@@ -175,6 +175,10 @@ model User {
   updatedAt    DateTime @updatedAt
 
   processedOrders Order[] @relation("OrderCashier")
+  createdPreorderRegistrations PreorderRegistration[] @relation("PreorderRegCreatedBy")
+  updatedPreorderRegistrations PreorderRegistration[] @relation("PreorderRegUpdatedBy")
+  trashedPreorderRegistrations PreorderRegistration[] @relation("PreorderRegTrashedBy")
+  trashedOrders                Order[]                @relation("OrderTrashedBy")
 }
 
 /// 全局单行配置（key-value）
@@ -280,6 +284,9 @@ model Order {
   customer        Customer?   @relation(fields: [customerId], references: [id])
   promotion       Promotion?  @relation(fields: [promotionId], references: [id])
   cashier         User?       @relation("OrderCashier", fields: [cashierId], references: [id])
+  trashedAt       DateTime?
+  trashedById     Int?
+  trashedBy       User?       @relation("OrderTrashedBy", fields: [trashedById], references: [id])
   items           OrderItem[]
   payments        Payment[]
 
@@ -288,6 +295,7 @@ model Order {
   @@index([orderType, deliveryTime])
   @@index([orderType, deliveryTime, isMade])
   @@index([orderType, status])
+  @@index([trashedAt])
 }
 
 model OrderItem {
@@ -543,3 +551,58 @@ model ImportJob {
   createdAt DateTime @default(now())
   completedAt DateTime?
 }
+
+/// 预售自由登记（独立于商品、客户、账务和库存）
+model PreorderRegistration {
+  id           Int       @id @default(autoincrement())
+  orderNo      String
+  contactPhone String?
+  deliveryTime DateTime?
+  notes        String?
+  cardMessage  String?
+  version      Int       @default(1)
+  createdById  Int
+  updatedById  Int
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  trashedAt    DateTime?
+  trashedById  Int?
+
+  createdBy    User      @relation("PreorderRegCreatedBy", fields: [createdById], references: [id])
+  updatedBy    User      @relation("PreorderRegUpdatedBy", fields: [updatedById], references: [id])
+  trashedBy    User?     @relation("PreorderRegTrashedBy", fields: [trashedById], references: [id])
+  items        PreorderRegistrationItem[]
+
+  @@index([orderNo])
+  @@index([contactPhone])
+  @@index([deliveryTime])
+  @@index([createdAt])
+  @@index([trashedAt])
+}
+
+model PreorderRegistrationItem {
+  id             Int       @id @default(autoincrement())
+  registrationId Int
+  name           String
+  qty            Decimal   @db.Decimal(12, 3)
+  sort           Int       @default(0)
+
+  registration   PreorderRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  photos         PreorderRegistrationPhoto[]
+
+  @@index([registrationId])
+  @@index([name])
+}
+
+model PreorderRegistrationPhoto {
+  id        Int       @id @default(autoincrement())
+  itemId    Int
+  url       String
+  sort      Int       @default(0)
+  createdAt DateTime  @default(now())
+
+  item      PreorderRegistrationItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+}
+

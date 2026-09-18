@@ -1,52 +1,24 @@
 <template>
-  <a-card v-if="order" class="page-card" :title="`编辑预售单 ${order.orderNo}`">
-    <PreorderForm
-      :initial="order"
-      submit-text="保存修改"
-      :submitting="submitting"
-      @submit="onSubmit"
-      @cancel="onCancel"
-    />
-  </a-card>
-  <div v-else class="text-center text-gray-400 p-10">加载中...</div>
+  <div class="p-6 max-w-2xl mx-auto">
+    <a-card class="page-card text-center" title="历史预售已归档">
+      <a-result
+        status="info"
+        title="历史预售单不支持在线编辑"
+        sub-title="旧版预售订单已进入只读归档状态，保留原始照片与账务流水。如需登记新预售，请前往“预售管理 → 登记记录”新建自由登记。"
+      >
+        <template #extra>
+          <a-space>
+            <a-button type="primary" @click="router.push(`/preorders/${$route.params.id}`)">查看只读详情</a-button>
+            <a-button @click="router.push('/preorders')">返回预售管理</a-button>
+          </a-space>
+        </template>
+      </a-result>
+    </a-card>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
-import PreorderForm from '~/components/preorders/PreorderForm.vue'
-import { usePreorders } from '~/composables/usePreorders'
-
-useHead({ title: '编辑预售单 - 花店管理系统' })
-
-const route = useRoute()
+import { useRouter } from 'vue-router'
 const router = useRouter()
-const { fetchOne, updatePreorder } = usePreorders()
-const order = ref<any>(null)
-const submitting = ref(false)
-
-const load = async () => {
-  const id = Number(route.params.id)
-  order.value = await fetchOne(id)
-}
-
-const onSubmit = async (payload: any) => {
-  submitting.value = true
-  try {
-    await updatePreorder(order.value.id, payload)
-    message.success('已保存')
-    router.replace(`/preorders/${order.value.id}`)
-  } finally {
-    submitting.value = false
-  }
-}
-
-const onCancel = () => router.back()
-
-onMounted(load)
+useHead({ title: '历史预售已归档 - 花店管理系统' })
 </script>
-
-<style scoped>
-.page-card { border-radius: 8px; max-width: 980px; margin: 0 auto; }
-</style>

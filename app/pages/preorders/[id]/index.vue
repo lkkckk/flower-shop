@@ -1,11 +1,23 @@
 <template>
   <a-spin :spinning="loading && !order">
     <div v-if="order" class="av-page preorder-detail">
-      <OrdersFinancePanel :order-id="Number($route.params.id)" @updated="load" />
-      <a-card v-if="order.fulfillmentType==='delivery'" title="配送交接" class="mb-4">
-        <div class="mvp-form-grid"><a-form-item label="配送人员"><a-input v-model:value="delivery.person" /></a-form-item><a-form-item label="配送联系电话"><a-input v-model:value="delivery.phone" /></a-form-item></div>
-        <a-button :loading="deliveryBusy" @click="saveDelivery">保存配送信息</a-button>
-        <p v-if="order.fulfillmentEvents?.length">最近履约：{{ new Date(order.fulfillmentEvents[order.fulfillmentEvents.length-1].createdAt).toLocaleString('zh-CN') }}</p>
+      <div class="mb-4 flex items-center justify-between">
+        <a-button @click="router.push('/preorders')">← 返回预售列表</a-button>
+        <a-tag color="purple" class="text-sm px-2 py-1">历史预售归档模式（只读）</a-tag>
+      </div>
+      <a-alert
+        message="历史预售只读提示"
+        description="本单为旧系统预售订单，仅支持只读查阅、打印配送单及管理员移入回收站。不再提供修改制作与配送操作；新预售请在“登记记录”中进行自由登记。"
+        type="info"
+        show-icon
+        class="mb-4"
+      />
+      <a-card v-if="order.fulfillmentType==='delivery' && (order.deliveryPerson || order.deliveryPhone)" title="配送交接信息（只读）" class="mb-4">
+        <div class="text-sm space-y-1">
+          <div><span class="text-gray-500">配送人员：</span>{{ order.deliveryPerson || '-' }}</div>
+          <div><span class="text-gray-500">配送联系电话：</span>{{ order.deliveryPhone || '-' }}</div>
+        </div>
+        <p v-if="order.fulfillmentEvents?.length" class="text-xs text-gray-400 mt-2">最近履约：{{ new Date(order.fulfillmentEvents[order.fulfillmentEvents.length-1].createdAt).toLocaleString('zh-CN') }}</p>
       </a-card>
       <header class="detail-head">
         <div class="title-block">
@@ -33,41 +45,25 @@
         </div>
 
         <div class="head-actions">
-          <a-button @click="goPrint">
+          <a-button type="primary" @click="goPrint">
             <template #icon><PrinterOutlined /></template>
             打印配送单
           </a-button>
-          <a-button :disabled="editDisabled" @click="goEdit">
-            <template #icon><EditOutlined /></template>
-            编辑
-          </a-button>
-          <a-dropdown :disabled="advanceOptions.length === 0">
-            <a-button>
-              推进状态 <DownOutlined />
-            </a-button>
-            <template #overlay>
-              <a-menu @click="onAdvance">
-                <a-menu-item v-for="opt in advanceOptions" :key="opt.value">{{ opt.label }}</a-menu-item>
-              </a-menu>
-            </template>
-          </a-dropdown>
-          <a-button
-            type="primary"
-            class="made-btn"
-            :disabled="order.isMade || order.status === 'cancelled'"
-            :loading="madeLoading"
-            @click="markMade"
+          <a-popconfirm
+            v-if="isAdmin"
+            title="确定将此历史预售移入回收站吗？（不影响历史账务与库存）"
+            ok-text="移入回收站"
+            cancel-text="取消"
+            @confirm="onTrash"
           >
-            <template #icon><CheckOutlined /></template>
-            {{ order.isMade ? '已做好' : '标记已做好' }}
-          </a-button>
+            <a-button danger>移入回收站</a-button>
+          </a-popconfirm>
         </div>
       </header>
 
       <section class="progress-card av-card">
         <div class="section-title">
-          <span><ClockCircleOutlined /> 履约进度</span>
-          <button type="button" @click="router.push('/orders/schedule')">查看排单</button>
+          <span><ClockCircleOutlined /> 履约进度（历史状态）</span>
         </div>
         <div v-if="order.status === 'cancelled'" class="cancelled-state">
           该预售单已取消，履约流程已关闭。
@@ -254,6 +250,7 @@ import {
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import { usePreorders } from '~/composables/usePreorders'
+import { useAuth } from '~/composables/useAuth'
 import {
   PREORDER_STATUSES,
   PREORDER_STATUS_LABEL,
@@ -282,9 +279,17 @@ const InfoRow = defineComponent({
 
 const route = useRoute()
 const router = useRouter()
-const { loading, fetchOne, advance, setMade } = usePreorders()
+const { user } = useAuth()
+const isAdmin = computed(() => user.value?.role === 'admin')
+const { loading, fetchOne, trashPreorder } = usePreorders()
 const order = ref<any>(null)
 const madeLoading = ref(false)
+
+async function onTrash() {
+  if (!order.value) return
+  await trashPreorder(order.value.id)
+  router.push('/preorders')
+}
 
 const itemColumns = [
   { title: '商品', key: 'product', width: 360 },
