@@ -35,6 +35,7 @@
     <a-alert class="mb-3" message="销售按交付时间确认；实收按外部付款发生时间；应收按账本变动。预存消费不会重复计作现金收入。" />
     <a-space class="mb-3" wrap><a-select v-model:value="basis" :options="[{value:'sales',label:'销售'},{value:'cash',label:'实收'},{value:'receivable',label:'应收变动'}]" style="width:160px" @change="loadData" /><span>当前口径合计：¥{{ Number(data?.summary.selectedAmount || 0).toFixed(2) }}</span></a-space>
     <a-alert v-if="data?.missingCostOrders?.length" type="warning" message="历史订单存在成本缺失，本期毛利暂不完整，请先核对迁移差异。" class="mb-3" />
+    <a-alert v-if="data && data.summary.uncostedDrinkSales !== 0" type="info" :message="`饮品成本未核算；饮品净销售 ¥${Number(data.summary.uncostedDrinkSales || 0).toFixed(2)} 已计入销售额，未计入毛利及毛利率。`" class="mb-3" />
     <a-spin :spinning="loading">
       <!-- 核心指标卡片 -->
       <a-row :gutter="[16, 16]">
@@ -176,8 +177,8 @@
                     </template>
                     <template #title>{{ item.productName }}</template>
                     <template #description>
-                      销量 {{ formatQty(item.qty) }} {{ item.baseUnit }} · 毛利
-                      <span :class="item.profit >= 0 ? 'text-green-600' : 'text-red-500'">
+                      销量 {{ formatQty(item.qty) }} {{ item.baseUnit }} · {{ item.costUntracked ? '饮品成本未核算' : '毛利' }}
+                      <span v-if="!item.costUntracked" :class="item.profit >= 0 ? 'text-green-600' : 'text-red-500'">
                         ¥{{ item.profit.toFixed(2) }}
                       </span>
                     </template>
@@ -512,13 +513,16 @@ const onExportReport = () => {
   rows.push(['应收净变动', s.totalOwed.toFixed(2)])
   rows.push(['已售成本', s.totalCost.toFixed(2)])
   rows.push(['毛利总额', s.grossProfit.toFixed(2)])
+  rows.push(['饮品净销售（成本未核算，不计毛利）', Number(s.uncostedDrinkSales || 0).toFixed(2)])
   rows.push([])
 
   // 每日趋势
   rows.push(['--- 每日趋势 ---', '', '', ''])
-  rows.push(['日期', '订单数', '销售额', '毛利'])
+  const reportBasis = data.value.basis
+  const amountLabel = reportBasis === 'cash' ? '实收额' : reportBasis === 'receivable' ? '应收变动' : '销售额'
+  rows.push(['日期', '订单数', amountLabel, ...(reportBasis === 'sales' ? ['毛利'] : [])])
   for (const d of data.value.dailyTrend || []) {
-    rows.push([d.date, d.orderCount, d.amount.toFixed(2), d.profit.toFixed(2)])
+    rows.push([d.date, d.orderCount, d.amount.toFixed(2), ...(reportBasis === 'sales' ? [d.profit.toFixed(2)] : [])])
   }
   rows.push([])
 
@@ -526,7 +530,7 @@ const onExportReport = () => {
   rows.push(['--- 畅销榜 TOP 10 ---', '', '', '', ''])
   rows.push(['排名', '商品名', '销量', '销售额', '毛利'])
   ;(data.value.topProducts || []).forEach((p: any, i: number) => {
-    rows.push([i + 1, p.productName, formatQty(p.qty), p.amount.toFixed(2), p.profit.toFixed(2)])
+    rows.push([i + 1, p.productName, formatQty(p.qty), p.amount.toFixed(2), p.costUntracked ? '饮品成本未核算' : p.profit.toFixed(2)])
   })
   rows.push([])
 
@@ -558,7 +562,15 @@ const loadData = async () => {
       startDate: dateRange.value[0],
       endDate: dateRange.value[1],
     })
-    data.value = result
+    // The API returns fixed-decimal strings; convert display values only, never accounting inputs.
+    const numeric = (row: any, fields: string[]) => ({ ...row, ...Object.fromEntries(fields.map(key => [key, Number(row[key] || 0)])) })
+    data.value = {
+      ...result,
+      summary: numeric(result.summary, ['totalSales', 'selectedAmount', 'orderCount', 'avgOrderValue', 'totalPaid', 'totalOwed', 'totalCost', 'grossProfit', 'grossMargin', 'uncostedDrinkSales']),
+      dailyTrend: result.dailyTrend.map((row: any) => ({ ...numeric(row, ['amount']), profit: row.profit === null ? null : Number(row.profit || 0) })),
+      topProducts: result.topProducts.map((row: any) => numeric(row, ['qty', 'amount', 'profit'])),
+      paymentMethods: result.paymentMethods.map((row: any) => numeric(row, ['amount'])),
+    }
   } catch {
     data.value = null
   }

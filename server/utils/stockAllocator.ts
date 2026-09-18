@@ -4,6 +4,7 @@ export interface AllocationItem {
   productId: number; unit: string; qty: any; baseQty: any; unitPrice: any; subtotal: any
   originalPrice?: any; imageUrl?: string | null; productName?: string; grade?: string | null
   color?: string | null; notes?: string | null; specialBatchId?: number
+  variantId?: string | null; variantLabel?: string | null; productTypeSnapshot?: string | null; productNameSnapshot?: string | null
 }
 
 export async function allocateAndDeduct(tx: any, orderId: number, items: AllocationItem[], operator = 'system'): Promise<void> {
@@ -12,14 +13,15 @@ export async function allocateAndDeduct(tx: any, orderId: number, items: Allocat
   for (const input of items) {
     const product = await tx.product.findUnique({ where: { id: input.productId }, include: { recipe: { include: { items: { include: { componentProduct: { include: { unitConversions: true } } } } } } } })
     if (!product || product.status !== 'active') throw new Error('商品不存在或已下架')
+    const { specialBatchId, productName, ...itemData } = input
+    const row = await tx.orderItem.create({ data: { ...itemData, productNameSnapshot: input.productNameSnapshot || productName || product.name, productTypeSnapshot: input.productTypeSnapshot || product.productType || 'standard', orderId, batchId: null } })
+    if (product.productType === 'drink') continue
     const components = product.recipe?.enabled ? product.recipe.items : []
     const requirements = components.length ? components.map((c: any) => {
       const conversion = c.unit === c.componentProduct.baseUnit ? 1 : c.componentProduct.unitConversions.find((u: any) => u.fromUnit === c.unit)?.toBaseQty
       if (!conversion) throw new Error('配方单位换算缺失')
       return { productId: c.componentProductId, qty: decimal(input.baseQty).times(c.qty).times(conversion) }
     }) : [{ productId: input.productId, qty: positive(input.baseQty, 3) }]
-    const { specialBatchId, productName, ...itemData } = input
-    const row = await tx.orderItem.create({ data: { ...itemData, orderId, batchId: null } })
     for (const req of requirements) {
       if (req.qty.decimalPlaces() > 3) throw new Error('配方耗用量超过三位小数')
       let remaining = req.qty

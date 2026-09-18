@@ -27,8 +27,9 @@
             <a-form-item label="操作类型"><a-radio-group v-model:value="adjustment.type"><a-radio-button :disabled="order.orderType==='preorder' && ['pending','confirmed'].includes(order.fulfillmentStatus)" value="return">部分退货退款</a-radio-button><a-radio-button value="void">整单作废</a-radio-button></a-radio-group></a-form-item>
             <div v-for="line in lines" :key="line.itemId" class="mvp-return-line">
               <span>{{ line.name }}（最多 {{ line.max }} {{ line.unit }}）</span>
-              <a-input-number v-model:value="line.qty" :min="0" :max="line.max" :precision="3" :disabled="adjustment.type === 'void'" />
-              <a-select v-model:value="line.disposition" :options="[{value:'restock',label:'重新入库'},{value:'scrap',label:'直接报损'}]" />
+              <a-input-number v-model:value="line.qty" :min="0" :max="line.max" :precision="line.drink ? 0 : 3" :disabled="adjustment.type === 'void'" />
+              <span v-if="line.drink">饮品无需处理库存</span>
+              <a-select v-else v-model:value="line.disposition" :options="[{value:'restock',label:'重新入库'},{value:'scrap',label:'直接报损'}]" />
             </div>
             <a-form-item label="作废 / 退货原因（必填）"><a-textarea v-model:value="adjustment.reason" /></a-form-item>
             <a-button html-type="submit" :disabled="busy">提交审批</a-button>
@@ -36,7 +37,7 @@
           <a-list :data-source="order.adjustments || []" class="mt-4">
             <template #renderItem="{ item }"><a-list-item><div class="w-full">
               <p>#{{ item.id }} · {{ statusLabel(item.status) }} · ¥{{ fmt(item.amount) }} · {{ item.reason }}</p>
-              <div v-for="line in item.lines" :key="line.itemId" class="mvp-return-line"><span>{{ lines.find(l=>l.itemId===line.itemId)?.name || `明细 #${line.itemId}` }} · {{line.qty}} · ¥{{fmt(line.amount)}}</span><a-select v-model:value="line.disposition" :disabled="isCashier || item.status!=='pending'" :options="[{value:'restock',label:'重新入库'},{value:'scrap',label:'直接报损'}]" /></div>
+              <div v-for="line in item.lines" :key="line.itemId" class="mvp-return-line"><span>{{ lines.find(l=>l.itemId===line.itemId)?.name || `明细 #${line.itemId}` }} · {{line.qty}} · ¥{{fmt(line.amount)}}</span><span v-if="lines.find(l=>l.itemId===line.itemId)?.drink">饮品无需处理库存</span><a-select v-else v-model:value="line.disposition" :disabled="isCashier || item.status!=='pending'" :options="[{value:'restock',label:'重新入库'},{value:'scrap',label:'直接报损'}]" /></div>
               <div v-if="item.status === 'pending' && !isCashier" class="mvp-return-line">
                 <a-input v-model:value="references[item.id]" placeholder="外部退款凭证 / 流水号" />
                 <a-button type="primary" :disabled="busy" @click="approve(item.id, 'approve')">批准并执行</a-button>
@@ -70,7 +71,7 @@ async function load() {
   order.value = await request(`/api/orders/${props.orderId}`)
   payment.amount = Number(order.value.owedAmount)
   if(order.value.orderType==='preorder'&&['pending','confirmed'].includes(order.value.fulfillmentStatus))adjustment.type='void'
-  lines.value = order.value.items.map((i: any) => ({ itemId: i.id, name: i.product?.name || `商品 #${i.productId}`, unit: i.unit, qty: 0, max: decimal(i.qty).minus(i.returnedQty || 0).toNumber(), disposition: 'restock' }))
+  lines.value = order.value.items.map((i: any) => ({ itemId: i.id, name: [i.productNameSnapshot || i.product?.name || `商品 #${i.productId}`, i.variantLabel].filter(Boolean).join(' · '), drink: i.productTypeSnapshot === 'drink', unit: i.unit, qty: 0, max: decimal(i.qty).minus(i.returnedQty || 0).toNumber(), disposition: i.productTypeSnapshot === 'drink' ? 'none' : 'restock' }))
 }
 async function collect() { await request(`/api/orders/${props.orderId}/payments`, 'POST', payment); await load(); emit('updated') }
 async function submitAdjustment() {

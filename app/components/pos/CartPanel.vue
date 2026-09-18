@@ -62,7 +62,8 @@
               <div class="font-medium text-gray-800 leading-tight">
                 {{ item.productName }}
                 <a-tag v-if="item.grade" class="ml-1 text-[10px]">{{ item.grade }}</a-tag>
-                <div class="text-xs text-gray-400 mt-0.5">{{ item.specification }}</div>
+                <div class="text-xs text-gray-500 mt-0.5">{{ item.variantLabel || item.specification }}</div>
+                <div v-if="item.variantError" class="text-xs text-red-600">{{ item.variantError }}</div>
               </div>
               </div>
               <a-button type="text" danger size="small" @click="cartStore.removeItem(cart.id, item.id)">删除</a-button>
@@ -75,10 +76,12 @@
                   :value="item.qty" 
                   @change="(val) => cartStore.updateItemQty(cart.id, item.id, Number(val))"
                   :min="1" 
+                  :precision="item.productType === 'drink' ? 0 : undefined"
                   size="small" 
                   class="w-16"
                 />
                 <a-select 
+                  :disabled="item.productType === 'drink'"
                   :value="item.unit"
                   @change="(val) => cartStore.updateItemUnit(cart.id, item.id, val as string)"
                   size="small" 

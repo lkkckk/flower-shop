@@ -90,7 +90,8 @@
               <template #bodyCell="{ column, record }">
                 <template v-if="column.key === 'product'">
                   <div class="flex flex-col">
-                    <span class="font-medium">{{ record.product?.name || '已删除商品' }}</span>
+                    <span class="font-medium">{{ record.productNameSnapshot || record.product?.name || '已删除商品' }}</span>
+                    <div v-if="record.variantLabel" class="text-sm text-gray-500">{{ record.variantLabel }}</div>
                     <span class="text-xs text-gray-400">
                       <template v-if="record.grade">{{ record.grade }}</template>
                       <template v-if="record.color"> · {{ record.color }}</template>

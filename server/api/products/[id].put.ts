@@ -1,4 +1,5 @@
 import { prisma } from '../../utils/prisma'
+import { drinkProductInclude, drinkProductFields, normalizeDrinkConfiguration, saveDrinkConfiguration, serializeDrinkProduct } from '../../utils/drinkVariants'
 import { productRecipeInclude, saveProductRecipe } from '../../utils/productRecipe'
 import { hideWholesalePriceForCashier, isCashierRequest } from '../../utils/productVisibility'
 
@@ -16,6 +17,10 @@ export default defineEventHandler(async (event) => {
 
   try {
     const updatedProduct = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Product" WHERE id = ${id} FOR UPDATE`
+      const existing = await tx.product.findUniqueOrThrow({ where: { id } })
+      if (body.productType !== undefined && body.productType !== existing.productType) throw new Error('已创建商品不能切换类型')
+      const drink = existing.productType === 'drink' ? normalizeDrinkConfiguration(body) : null
       // 1. 删除旧的换算关系
       await tx.unitConversion.deleteMany({
         where: { productId: id },
@@ -39,8 +44,9 @@ export default defineEventHandler(async (event) => {
           shelfLifeDays: body.shelfLifeDays,
           attributes: body.attributes,
           status: body.status,
+          ...(drink ? drinkProductFields(drink) : {}),
           unitConversions: {
-            create: body.unitConversions?.map((uc: any) => ({
+            create: (drink ? [] : body.unitConversions)?.map((uc: any) => ({
               fromUnit: uc.fromUnit,
               toBaseQty: uc.toBaseQty,
             })) || [],
@@ -52,11 +58,13 @@ export default defineEventHandler(async (event) => {
         },
       })
 
-      await saveProductRecipe(tx, id, body.recipe)
-      if (body.recipe !== undefined) {
+      if (drink) await saveDrinkConfiguration(tx, id, drink)
+      else await saveProductRecipe(tx, id, body.recipe)
+      if (drink || body.recipe !== undefined) {
         return await tx.product.findUnique({
           where: { id },
           include: {
+            ...drinkProductInclude,
             unitConversions: true,
             recipe: { include: productRecipeInclude },
           },
@@ -67,7 +75,7 @@ export default defineEventHandler(async (event) => {
     })
 
     return {
-      data: hideWholesalePriceForCashier(event, updatedProduct),
+      data: hideWholesalePriceForCashier(event, updatedProduct ? serializeDrinkProduct(updatedProduct) : updatedProduct),
       error: null,
     }
   } catch (error: any) {

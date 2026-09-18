@@ -13,8 +13,10 @@ export async function requestAdjustment(tx: any, orderId: number, body: any, act
     const item = order.items.find((i: any) => i.id === Number(l.itemId))
     const qty = positive(l.qty, 3)
     if (!item || qty.gt(decimal(item.qty).minus(item.returnedQty))) throw new Error('退货数量超过可退数量')
-    if (!['restock', 'scrap'].includes(l.disposition)) throw new Error('每行必须选择重新入库或报损')
-    return { itemId: item.id, qty: qty.toFixed(3), disposition: l.disposition, amount: money(decimal(item.subtotal).times(qty).div(item.qty)).toFixed(2) }
+    const drink = item.productTypeSnapshot === 'drink'
+    if (drink && !qty.isInteger()) throw new Error('饮品必须按整杯退货')
+    if (!drink && !['restock', 'scrap'].includes(l.disposition)) throw new Error('每行必须选择重新入库或报损')
+    return { itemId: item.id, qty: qty.toFixed(3), disposition: drink ? 'none' : l.disposition, amount: money(decimal(item.subtotal).times(qty).div(item.qty)).toFixed(2) }
   })
   return tx.orderAdjustment.create({ data: { orderId, type: body.type, reason: body.reason, lines, amount: sumMoney(lines.map((l: any) => l.amount)).toFixed(2), requestedBy: actor } })
 }
@@ -33,8 +35,9 @@ export async function approveAdjustment(tx: any, orderId: number, adjustmentId: 
     if (!Array.isArray(body.lines) || body.lines.length !== lines.length || new Set(body.lines.map((l:any)=>Number(l.itemId))).size !== lines.length) throw new Error('审批明细必须与申请一致')
     for (const line of lines) {
       const approval = body.lines.find((l:any)=>Number(l.itemId)===line.itemId)
-      if (!approval || !decimal(approval.qty).eq(line.qty) || !['restock','scrap'].includes(approval.disposition)) throw new Error('审批数量必须与申请一致，请逐行选择库存去向')
-      line.disposition=approval.disposition
+      const drink = order.items.find((i: any) => i.id === line.itemId)?.productTypeSnapshot === 'drink'
+      if (!approval || !decimal(approval.qty).eq(line.qty) || (!drink && !['restock','scrap'].includes(approval.disposition))) throw new Error('审批数量必须与申请一致，请逐行选择库存去向')
+      line.disposition=drink ? 'none' : approval.disposition
     }
   }
   if (body.refundMethod && body.refundMethod !== 'original') throw new Error('本期退款按原付款方式返还')
@@ -49,6 +52,7 @@ export async function approveAdjustment(tx: any, orderId: number, adjustmentId: 
     l.amount = after.minus(before).toFixed(2)
     reduction = reduction.plus(after.minus(before))
     await tx.orderItem.update({ where: { id: item.id }, data: { returnedQty: cumulative.toFixed(3) } })
+    if (item.productTypeSnapshot === 'drink') continue
     const originalCosts = new Map<number,any>()
     for (const allocation of item.costAllocations.filter((c:any)=>c.adjustmentId===null)) {
       const existing=originalCosts.get(allocation.batchId)

@@ -44,7 +44,9 @@
         <tbody>
           <tr v-for="item in order.items" :key="item.id">
             <td class="text-left">
-              {{ item.product.name }}
+              {{ item.productNameSnapshot || item.product?.name }}
+              <div v-if="item.variantLabel" class="variant-label">{{ item.variantLabel }}</div>
+              <div class="sub-text">单价 ¥{{ Number(item.unitPrice).toFixed(2) }}/{{ item.unit }}</div>
               <div v-if="item.grade" class="sub-text">{{ item.grade }}</div>
             </td>
             <td class="text-right">{{ Number(Number(item.qty).toFixed(3)) }}{{ item.unit }}<div v-if="Number(item.returnedQty)>0" class="sub-text">已退 {{item.returnedQty}}</div></td>
@@ -185,6 +187,7 @@ onMounted(() => Promise.all([loadOrder(), loadSettings()]))
 }
 
 .items-table td {
+  overflow-wrap: anywhere;
   padding: 4px 0;
   vertical-align: top;
 }

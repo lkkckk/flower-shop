@@ -1,6 +1,7 @@
 import { activeSpecial, normalBatchQuantity } from '../../../shared/batchAvailability'
 import { decimal } from '../../../shared/money'
 import { prisma } from '../../utils/prisma'
+import { drinkProductInclude, serializeDrinkProduct } from '../../utils/drinkVariants'
 import { hideWholesalePriceForCashier } from '../../utils/productVisibility'
 
 export default defineEventHandler(async (event) => {
@@ -36,6 +37,7 @@ export default defineEventHandler(async (event) => {
     const products = await prisma.product.findMany({
       where,
       include: {
+        ...drinkProductInclude,
         unitConversions: true,
         categoryRef: true,
         recipe: {
@@ -81,7 +83,7 @@ export default defineEventHandler(async (event) => {
         : recipeStock
       const { stockBatches, ...rest } = p
       return {
-        ...rest,
+        ...serializeDrinkProduct(rest),
         totalStock,
         specialBatches: recipeItems.length ? [] : stockBatches.filter(b => activeSpecial(b)).map(b => ({id:b.id,batchNo:b.batchNo,specialPrice:b.specialPrice,specialQty:decimal(b.specialQty).clamp(0,b.currentQty).toFixed(3),specialUntil:b.specialUntil})),
       }

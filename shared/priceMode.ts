@@ -7,6 +7,7 @@ import { money, decimal, sumMoney } from './money'
 export type PriceMode = 'retail' | 'member' | 'vip' | 'wholesale' | 'discount' | 'promotion'
 
 export interface PriceBasis {
+  productType?: string
   defaultPrice: number
   memberPrice?: number | null
   vipPrice?: number | null
@@ -58,6 +59,7 @@ function roundPrice(n: number): number {
 
 /** 挑选基础单价（所有模式均以 defaultPrice 为基础，discount/promotion 在合计层面调整） */
 export function pickBasePrice(basis: PriceBasis, _mode: PriceMode): number {
+  if (basis.productType === 'drink') return Number(basis.defaultPrice)
   const level = ['member', 'vip', 'wholesale'].includes(_mode) ? _mode : basis.level
   const selected = level === 'member' ? basis.memberPrice : level === 'vip' ? basis.vipPrice : level === 'wholesale' ? basis.wholesalePrice : null
   return Number(selected ?? basis.defaultPrice)

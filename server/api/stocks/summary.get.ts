@@ -16,7 +16,7 @@ export default defineEventHandler(async () => {
     const now = new Date()
 
     const [skuCount, batches, productsAgg, productsTotal] = await Promise.all([
-      prisma.product.count({ where: { status: 'active' } }),
+      prisma.product.count({ where: { status: 'active', productType: 'standard' } }),
       prisma.stockBatch.findMany({
         where: { status: { in: ['in_stock', 'discounted'] } },
         select: { currentQty: true, costPrice: true, expiryDate: true },
@@ -27,7 +27,7 @@ export default defineEventHandler(async () => {
         _sum: { currentQty: true },
       }),
       prisma.product.findMany({
-        where: { status: 'active' },
+        where: { status: 'active', productType: 'standard' },
         select: { id: true },
       }),
     ])

@@ -18,7 +18,7 @@ export default defineEventHandler(async () => {
 
     const [activeProducts, sales, stockAgg] = await Promise.all([
       prisma.product.findMany({
-        where: { status: 'active' },
+        where: { status: 'active', productType: 'standard' },
         select: { id: true, name: true, baseUnit: true, grade: true, imageUrl: true },
       }),
       prisma.stockMovement.findMany({where:{createdAt:{gte:since},type:{in:['sale','return']}},include:{batch:{select:{productId:true}}}}),

@@ -20,6 +20,9 @@ model Category {
 }
 
 model Product {
+  productType     String @default("standard")
+  drinkGroups     DrinkOptionGroup[]
+  drinkVariants   DrinkVariant[]
   id              Int       @id @default(autoincrement())
   name            String
   category        String?
@@ -45,6 +48,39 @@ model Product {
   orderItems      OrderItem[]
   recipe          ProductRecipe?   @relation("ProductRecipeProduct")
   recipeComponents ProductRecipeItem[] @relation("ProductRecipeComponent")
+}
+
+model DrinkOptionGroup {
+  id String @id
+  productId Int
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name String
+  sort Int @default(0)
+  active Boolean @default(true)
+  options DrinkOption[]
+  @@index([productId])
+}
+
+model DrinkOption {
+  id String @id
+  groupId String
+  group DrinkOptionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  name String
+  sort Int @default(0)
+  active Boolean @default(true)
+  @@index([groupId])
+}
+
+model DrinkVariant {
+  id String @id
+  productId Int
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  selectionKey String
+  options Json
+  price Decimal? @db.Decimal(12, 2)
+  enabled Boolean @default(false)
+  orderItems OrderItem[]
+  @@unique([productId, selectionKey])
 }
 
 model UnitConversion {
@@ -299,6 +335,11 @@ model Order {
 }
 
 model OrderItem {
+  variantId String?
+  variant DrinkVariant? @relation(fields: [variantId], references: [id])
+  productNameSnapshot String?
+  variantLabel String?
+  productTypeSnapshot String?
   returnedQty Decimal @default(0) @db.Decimal(12, 3)
   costAllocations OrderCostAllocation[]
   id            Int     @id @default(autoincrement())

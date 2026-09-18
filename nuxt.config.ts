@@ -42,6 +42,7 @@ export default defineNuxtConfig({
 
   // Nitro：为 /api/** 开启 CORS，供微信小程序/小程序 H5 预览跨域调用
   nitro: {
+    ...(process.env.FLOWER_BUILD_OUTPUT ? { output: { dir: process.env.FLOWER_BUILD_OUTPUT } } : {}),
     compressPublicAssets: true,
     routeRules: {
       '/api/**': {

@@ -96,6 +96,9 @@ export async function saveProductRecipe(
         code: 'INVALID_RECIPE',
       })
     }
+    if (component.productType === 'drink') {
+      throw Object.assign(new Error('饮品不管理原料库存，不能作为配方组件'), { code: 'INVALID_RECIPE' })
+    }
     const units = new Set([
       component.baseUnit,
       ...component.unitConversions.map((conversion) => conversion.fromUnit),

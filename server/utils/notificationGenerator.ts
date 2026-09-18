@@ -62,7 +62,7 @@ async function upsertNotification(params: {
 async function genLowStock(settings: SettingMap) {
   const threshold = Math.max(1, Number(settings.lowStockThreshold) || 10)
   const products = await prisma.product.findMany({
-    where: { status: 'active' },
+    where: { status: 'active', productType: 'standard' },
     select: { id: true, name: true, baseUnit: true },
   })
   const stockAgg = await prisma.stockBatch.groupBy({

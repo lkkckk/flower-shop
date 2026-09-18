@@ -1,4 +1,5 @@
 import { prisma } from '../../utils/prisma'
+import { drinkProductInclude, drinkProductFields, normalizeDrinkConfiguration, saveDrinkConfiguration, serializeDrinkProduct } from '../../utils/drinkVariants'
 import { productRecipeInclude, saveProductRecipe } from '../../utils/productRecipe'
 import { hideWholesalePriceForCashier, isCashierRequest } from '../../utils/productVisibility'
 
@@ -7,9 +8,13 @@ export default defineEventHandler(async (event) => {
   const isCashier = isCashierRequest(event)
 
   try {
+    const productType = body.productType ?? 'standard'
+    if (!['standard', 'drink'].includes(productType)) throw new Error('无效的商品类型')
+    const drink = productType === 'drink' ? normalizeDrinkConfiguration(body) : null
     const product = await prisma.$transaction(async (tx) => {
       const createdProduct = await tx.product.create({
         data: {
+          productType,
           name: body.name,
           category: body.category,
           categoryId: body.categoryId ?? null,
@@ -24,8 +29,9 @@ export default defineEventHandler(async (event) => {
           shelfLifeDays: body.shelfLifeDays,
           attributes: body.attributes,
           status: body.status || 'active',
+          ...(drink ? drinkProductFields(drink) : {}),
           unitConversions: {
-            create: body.unitConversions?.map((uc: any) => ({
+            create: (drink ? [] : body.unitConversions)?.map((uc: any) => ({
               fromUnit: uc.fromUnit,
               toBaseQty: uc.toBaseQty,
             })) || [],
@@ -36,11 +42,13 @@ export default defineEventHandler(async (event) => {
           recipe: { include: productRecipeInclude },
         },
       })
-      await saveProductRecipe(tx, createdProduct.id, body.recipe)
-      if (body.recipe !== undefined) {
+      if (drink) await saveDrinkConfiguration(tx, createdProduct.id, drink)
+      else await saveProductRecipe(tx, createdProduct.id, body.recipe)
+      if (drink || body.recipe !== undefined) {
         return await tx.product.findUnique({
           where: { id: createdProduct.id },
           include: {
+            ...drinkProductInclude,
             unitConversions: true,
             recipe: { include: productRecipeInclude },
           },
@@ -50,7 +58,7 @@ export default defineEventHandler(async (event) => {
     })
 
     return {
-      data: hideWholesalePriceForCashier(event, product),
+      data: hideWholesalePriceForCashier(event, product ? serializeDrinkProduct(product) : product),
       error: null,
     }
   } catch (error: any) {

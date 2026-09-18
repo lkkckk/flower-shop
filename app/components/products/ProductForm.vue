@@ -6,10 +6,12 @@
     @ok="handleOk"
     @cancel="handleCancel"
     :confirmLoading="loading || imageUploading"
+    :ok-button-props="{ disabled: initializing }"
     width="800px"
     destroyOnClose
   >
-    <a-form
+    <a-spin v-if="initializing" tip="正在加载商品配置" />
+    <a-form v-else
       ref="formRef"
       :model="formState"
       :rules="rules"
@@ -19,6 +21,12 @@
       <div class="form-grid">
         <!-- 第一组：基本信息 -->
         <a-card title="基本信息" size="small" class="form-card">
+          <a-form-item label="商品类型">
+            <a-radio-group v-model:value="formState.productType" :disabled="!!product">
+              <a-radio value="standard">普通商品</a-radio>
+              <a-radio value="drink">饮品</a-radio>
+            </a-radio-group>
+          </a-form-item>
           <a-form-item label="商品名称" name="name">
             <a-input v-model:value="formState.name" placeholder="请输入商品名称" />
           </a-form-item>
@@ -40,7 +48,7 @@
                 </template>
               </a-cascader>
             </a-form-item>
-            <a-form-item label="等级" name="grade">
+            <a-form-item v-if="!isDrink" label="等级" name="grade">
               <a-select v-model:value="formState.grade" placeholder="请选择等级">
                 <a-select-option value="A级">A级</a-select-option>
                 <a-select-option value="B级">B级</a-select-option>
@@ -51,7 +59,7 @@
               </a-select>
             </a-form-item>
           </div>
-          <div class="row-2">
+          <div v-if="!isDrink" class="row-2">
             <a-form-item label="颜色" name="color">
               <a-input v-model:value="formState.color" placeholder="如：红、粉" />
             </a-form-item>
@@ -73,7 +81,7 @@
         </a-card>
 
         <!-- 第二组：价格设置 -->
-        <a-card title="价格设置" size="small" class="form-card">
+        <a-card v-if="!isDrink" title="价格设置" size="small" class="form-card">
           <a-form-item label="基础单位" name="baseUnit">
             <a-input v-model:value="formState.baseUnit" placeholder="如：枝" />
           </a-form-item>
@@ -111,7 +119,8 @@
         </a-card>
 
         <!-- 第三组：库存相关 -->
-        <a-card title="库存相关" size="small" class="form-card">
+        <DrinkConfiguration v-if="isDrink" v-model:groups="formState.drinkGroups" v-model:variants="formState.drinkVariants" />
+        <a-card v-if="!isDrink" title="库存相关" size="small" class="form-card">
           <a-form-item label="默认花期天数" name="shelfLifeDays">
             <a-input-number
               v-model:value="formState.shelfLifeDays"
@@ -149,7 +158,7 @@
         </a-card>
 
         <!-- 第五组：单位换算 -->
-        <a-card title="单位换算配置" size="small" class="form-card col-span-full">
+        <a-card v-if="!isDrink" title="单位换算配置" size="small" class="form-card col-span-full">
           <template #extra>
             <span class="text-xs text-gray-400 font-normal">
               例如：基础单位是'枝'，可以配置'1 扎 = 10 枝'
@@ -191,7 +200,7 @@
         </a-card>
 
         <!-- 第六组：状态 -->
-        <a-card title="花束配方" size="small" class="form-card col-span-full">
+        <a-card v-if="!isDrink" title="花束配方" size="small" class="form-card col-span-full">
           <template #extra>
             <a-switch v-model:checked="formState.recipe.enabled" size="small" />
           </template>
@@ -246,6 +255,9 @@ import { computed, ref, watch, reactive, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { DeleteOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
+import DrinkConfiguration from './DrinkConfiguration.vue'
+import { createClientId } from '~~/shared/clientId'
+import type { DrinkEditorGroup, DrinkEditorVariant } from '~~/shared/drinkEditor'
 
 // 分类树
 const categoryOptions = ref<any[]>([])
@@ -286,6 +298,7 @@ const emit = defineEmits<{
 
 const { createProduct, updateProduct, uploadProductImage, fetchProducts, loading } = useProducts()
 const productOptions = ref<any[]>([])
+const initializing = ref(false)
 
 const loadProductOptions = async () => {
   try {
@@ -313,6 +326,9 @@ const formRef = ref<FormInstance>()
 
 // 表单状态
 interface FormState {
+  productType: 'standard' | 'drink'
+  drinkGroups: DrinkEditorGroup[]
+  drinkVariants: DrinkEditorVariant[]
   name: string
   category: string | undefined
   categoryId: number | null
@@ -342,6 +358,9 @@ interface FormState {
 }
 
 const getInitialState = (): FormState => ({
+  productType: 'standard',
+  drinkGroups: [],
+  drinkVariants: [],
   name: '',
   category: undefined,
   categoryId: null,
@@ -366,7 +385,7 @@ const getInitialState = (): FormState => ({
 
 const componentOptions = computed(() =>
   productOptions.value
-    .filter((p: any) => !props.product || p.id !== props.product.id)
+    .filter((p: any) => p.productType !== 'drink' && (!props.product || p.id !== props.product.id))
     .map((p: any) => ({
       value: p.id,
       label: `${p.name}（${p.baseUnit}）`,
@@ -392,18 +411,31 @@ const selectFilterOption = (input: string, option: any) =>
   String(option?.label || '').toLowerCase().includes(input.toLowerCase())
 
 const formState = reactive<FormState>(getInitialState())
+const isDrink = computed(() => formState.productType === 'drink')
+watch(isDrink, (drink) => {
+  if (drink && !formState.drinkGroups.length) {
+    formState.drinkGroups = [
+      { id: createClientId(), name: '温度', options: ['冷', '热'].map(name => ({ id: createClientId(), name })) },
+      { id: createClientId(), name: '杯量', options: ['500ml', '900ml'].map(name => ({ id: createClientId(), name })) },
+    ]
+  }
+})
 
 // 监听弹窗显示，初始化数据
 watch(
   () => props.visible,
   async (val) => {
     if (val) {
+      initializing.value = true
       await loadCategories()
       await loadProductOptions()
       if (props.product) {
         const pid = props.product.categoryId ?? null
         const path = pid ? (findCategoryPath(categoryOptions.value, pid) || []) : []
         Object.assign(formState, {
+          productType: props.product.productType || 'standard',
+          drinkGroups: props.product.drinkGroups ? JSON.parse(JSON.stringify(props.product.drinkGroups)) : [],
+          drinkVariants: props.product.drinkVariants ? JSON.parse(JSON.stringify(props.product.drinkVariants)) : [],
           name: props.product.name,
           category: props.product.category,
           categoryId: pid,
@@ -441,6 +473,7 @@ watch(
         previewUrl.value = null
       }
       imageFile.value = null
+      initializing.value = false
     }
   }
 )
@@ -497,9 +530,17 @@ const handleCancel = () => {
 const handleOk = async () => {
   try {
     await formRef.value?.validate()
+    if (isDrink.value) {
+      if (!formState.drinkVariants.length || formState.drinkGroups.some(g => !g.name.trim() || !g.options.length || g.options.some(o => !o.name.trim()))) {
+        message.error('请完整填写规格名称和选项'); return
+      }
+      if (formState.drinkVariants.some(v => v.enabled && (v.price === null || Number(v.price) <= 0 || !/^\d+(\.\d{1,2})?$/.test(String(v.price))))) {
+        message.error('请为每个在售组合填写大于零的价格，最多两位小数'); return
+      }
+    }
 
     // 自定义前端校验：换算单位名称不能与基础单位相同，且不能重复
-    const unitNames = formState.unitConversions.map(uc => uc.fromUnit)
+    const unitNames = isDrink.value ? [] : formState.unitConversions.map(uc => uc.fromUnit)
     if (unitNames.includes(formState.baseUnit)) {
       message.error(`换算单位不能与基础单位 "${formState.baseUnit}" 相同`)
       return
@@ -510,8 +551,8 @@ const handleOk = async () => {
       return
     }
 
-    const recipeItems = formState.recipe.items.filter((item) => item.componentProductId || item.qty || item.unit)
-    if (formState.recipe.enabled && recipeItems.length === 0) {
+    const recipeItems = isDrink.value ? [] : formState.recipe.items.filter((item) => item.componentProductId || item.qty || item.unit)
+    if (!isDrink.value && formState.recipe.enabled && recipeItems.length === 0) {
       message.error('启用配方后至少需要添加一个组件')
       return
     }
@@ -552,10 +593,13 @@ const handleOk = async () => {
     }
     const payload = {
       ...formState,
+      ...(isDrink.value ? { baseUnit: '杯', defaultPrice: 0, memberPrice: null, vipPrice: null, wholesalePrice: null, grade: null, color: null, specification: null, unitConversions: [] } : {}),
+      drinkGroups: isDrink.value ? formState.drinkGroups.map((group, sort) => ({ ...group, sort, options: group.options.map((option, sort) => ({ ...option, sort })) })) : undefined,
+      drinkVariants: isDrink.value ? formState.drinkVariants : undefined,
       categoryId: pickedId,
       category: pickedName ?? formState.category,
       recipe: {
-        enabled: formState.recipe.enabled,
+        enabled: !isDrink.value && formState.recipe.enabled,
         notes: formState.recipe.notes || null,
         items: recipeItems.map((item, index) => ({
           componentProductId: item.componentProductId,

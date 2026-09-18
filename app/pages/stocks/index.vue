@@ -355,7 +355,7 @@ const currentColumns = computed(() => (view.value === 'by_product' ? productColu
 const loadProductOptions = async () => {
   try {
     const data = await fetchProducts({ pageSize: 200, status: 'active' })
-    productOptions.value = data.list.map((p: any) => ({
+    productOptions.value = data.list.filter((p: any) => p.productType !== 'drink').map((p: any) => ({
       value: p.id,
       label: `${p.name}${p.specification ? ' · ' + p.specification : ''}`,
     }))

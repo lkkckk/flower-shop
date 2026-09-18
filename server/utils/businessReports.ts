@@ -18,18 +18,21 @@ export async function businessReport(tx: any, query: any) {
   const recognitionDate = (a:any)=>new Date(Math.max(new Date(a.approvedAt).getTime(),new Date(a.order.completedAt).getTime()))
   const adjustments=adjustmentCandidates.filter((a:any)=>recognitionDate(a)>=startDate&&recognitionDate(a)<endDate)
   const sales = sumMoney(orders.map((o: any) => o.totalAmount)).minus(sumMoney(adjustments.map((a: any) => a.amount)))
+  const drinkItem = (i: any) => i.productTypeSnapshot === 'drink'
+  const drinkSales = sumMoney(orders.flatMap((o: any) => o.items.filter(drinkItem).map((i: any) => i.subtotal))).minus(sumMoney(adjustments.flatMap((a: any) => a.lines.filter((l: any) => drinkItem(a.order.items.find((i: any) => i.id === l.itemId) || {})).map((l: any) => l.amount))))
+  const costedSales = sales.minus(drinkSales)
   const costs = sumMoney(orders.flatMap((o: any) => o.items.flatMap((i: any) => i.costAllocations.map((c: any) => c.totalCost)))).plus(sumMoney(adjustments.flatMap((a: any) => a.order.items.flatMap((i: any) => i.costAllocations.filter((c: any) => c.adjustmentId === a.id).map((c: any) => c.totalCost)))))
   const cash = sumMoney(payments.map((p: any) => p.amount))
   const receivable = sumMoney(entries.map((e: any) => e.amount))
   const methodMap = new Map<string, any>(), productMap = new Map<number, any>(), days = new Map<string, any>()
   const dayKey = (d: any) => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' }).format(new Date(d))
-  const dayAdd = (date: any, amount: any, cost = '0', count = 0) => {
-    const key = dayKey(date), previous = days.get(key) || { amount: money(0), cost: money(0), orderCount: 0 }
-    previous.amount = previous.amount.plus(amount); previous.cost = previous.cost.plus(cost); previous.orderCount += count; days.set(key, previous)
+  const dayAdd = (date: any, amount: any, cost = '0', count = 0, uncosted = '0') => {
+    const key = dayKey(date), previous = days.get(key) || { amount: money(0), cost: money(0), uncosted: money(0), orderCount: 0 }
+    previous.amount = previous.amount.plus(amount); previous.cost = previous.cost.plus(cost); previous.uncosted = previous.uncosted.plus(uncosted); previous.orderCount += count; days.set(key, previous)
   }
   const productAdd = (item: any, qty: any, amount: any, cost: any) => {
-    const row = productMap.get(item.productId) || { productId: item.productId, productName: item.product.name, baseUnit: item.product.baseUnit, qty: decimal(0), amount: money(0), profit: money(0) }
-    row.qty = row.qty.plus(qty); row.amount = row.amount.plus(amount); row.profit = row.profit.plus(amount).minus(cost); productMap.set(item.productId, row)
+    const row = productMap.get(item.productId) || { productId: item.productId, productName: item.productNameSnapshot || item.product.name, baseUnit: item.product.baseUnit, costUntracked: drinkItem(item), qty: decimal(0), amount: money(0), profit: money(0) }
+    row.qty = row.qty.plus(qty); row.amount = row.amount.plus(amount); if (!drinkItem(item)) row.profit = row.profit.plus(amount).minus(cost); productMap.set(item.productId, row)
   }
   for (const p of payments) {
     const row = methodMap.get(p.paymentMethod) || { method: p.paymentMethod, count: 0, amount: money(0) }
@@ -38,12 +41,12 @@ export async function businessReport(tx: any, query: any) {
   }
   for (const o of orders) {
     const cost = sumMoney(o.items.flatMap((i: any) => i.costAllocations.map((c: any) => c.totalCost)))
-    if (basis === 'sales') dayAdd(o.completedAt, o.totalAmount, cost.toFixed(2), 1)
+    if (basis === 'sales') dayAdd(o.completedAt, o.totalAmount, cost.toFixed(2), 1, sumMoney(o.items.filter(drinkItem).map((i: any) => i.subtotal)).toFixed(2))
     for (const i of o.items) productAdd(i, i.baseQty, i.subtotal, sumMoney(i.costAllocations.map((c: any) => c.totalCost)))
   }
   for (const a of adjustments) {
     const cost = sumMoney(a.order.items.flatMap((i: any) => i.costAllocations.filter((c: any) => c.adjustmentId === a.id).map((c: any) => c.totalCost)))
-    if (basis === 'sales') dayAdd(recognitionDate(a), money(a.amount).neg(), cost.toFixed(2))
+    if (basis === 'sales') dayAdd(recognitionDate(a), money(a.amount).neg(), cost.toFixed(2), 0, sumMoney(a.lines.filter((l: any) => drinkItem(a.order.items.find((i: any) => i.id === l.itemId) || {})).map((l: any) => l.amount)).neg().toFixed(2))
     for (const l of a.lines as any[]) {
       const i = a.order.items.find((i: any) => i.id === l.itemId)
       if (!i) continue
@@ -54,9 +57,9 @@ export async function businessReport(tx: any, query: any) {
   const dailyTrend = []
   for (let time = startDate.getTime(); time < endDate.getTime(); time += 86400000) {
     const date = dayKey(time), row = days.get(date)
-    dailyTrend.push({ date, amount: row?.amount.toFixed(2) || '0.00', orderCount: row?.orderCount || 0, profit: row ? row.amount.minus(row.cost).toFixed(2) : '0.00' })
+    dailyTrend.push({ date, amount: row?.amount.toFixed(2) || '0.00', orderCount: row?.orderCount || 0, profit: basis !== 'sales' ? null : row ? row.amount.minus(row.uncosted).minus(row.cost).toFixed(2) : '0.00' })
   }
-  const missingCostOrders = orders.filter((o: any) => o.items.some((i: any) => !i.costAllocations.length)).map((o: any) => o.id)
+  const missingCostOrders = orders.filter((o: any) => o.items.some((i: any) => !drinkItem(i) && !i.costAllocations.length)).map((o: any) => o.id)
   const recentStart = new Date(endDate.getTime()-7*86400000)
   const stocked = await tx.product.findMany({where:{status:'active',stockBatches:{some:{status:{in:['in_stock','discounted']},currentQty:{gt:0}}}},include:{stockBatches:{where:{status:{in:['in_stock','discounted']},currentQty:{gt:0}}},orderItems:{where:{order:{completedAt:{lt:endDate}}},include:{order:{select:{completedAt:true}}}}}})
   const slowProducts = stocked.map((p:any)=>{
@@ -69,7 +72,7 @@ export async function businessReport(tx: any, query: any) {
   const selected = basis === 'cash' ? cash : basis === 'receivable' ? receivable : sales
   return {
     basis, startDate, endDate, missingCostOrders,
-    summary: { totalSales: sales.toFixed(2), selectedAmount: selected.toFixed(2), orderCount: orders.length, avgOrderValue: orders.length ? sales.div(orders.length).toFixed(2) : '0.00', totalPaid: cash.toFixed(2), totalOwed: receivable.toFixed(2), totalCost: costs.toFixed(2), grossProfit: sales.minus(costs).toFixed(2), grossMargin: sales.gt(0) ? sales.minus(costs).div(sales).times(100).toNumber() : 0 },
+    summary: { totalSales: sales.toFixed(2), uncostedDrinkSales: drinkSales.toFixed(2), selectedAmount: selected.toFixed(2), orderCount: orders.length, avgOrderValue: orders.length ? sales.div(orders.length).toFixed(2) : '0.00', totalPaid: cash.toFixed(2), totalOwed: receivable.toFixed(2), totalCost: costs.toFixed(2), grossProfit: costedSales.minus(costs).toFixed(2), grossMargin: costedSales.gt(0) ? costedSales.minus(costs).div(costedSales).times(100).toNumber() : 0 },
     dailyTrend, topProducts: [...productMap.values()].sort((a, b) => b.amount.comparedTo(a.amount)).slice(0, 10).map(p => ({ ...p, qty: p.qty.toFixed(3), amount: p.amount.toFixed(2), profit: p.profit.toFixed(2) })),
     paymentMethods: [...methodMap.values()].map(p => ({ ...p, amount: p.amount.toFixed(2) })), slowProducts,
   }

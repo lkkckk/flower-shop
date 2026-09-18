@@ -402,7 +402,7 @@ const expandedRowRender = ({ record }: any) => {
       ])),
       h('tbody', null, (record.items || []).map((it: any) =>
         h('tr', { key: it.id }, [
-          h('td', null, `${it.product?.name || '已删除'} ${it.grade ? '· ' + it.grade : ''} ${it.color ? '· ' + it.color : ''}`),
+          h('td', null, `${it.productNameSnapshot || it.product?.name || '已删除'} ${it.variantLabel || ''} ${it.grade ? '· ' + it.grade : ''} ${it.color ? '· ' + it.color : ''}`),
           h('td', { style: 'text-align:right;' }, `¥${it.unitPrice.toFixed(2)}`),
           h('td', { style: 'text-align:right;' }, `${it.qty} ${it.unit}`),
           h('td', { style: 'text-align:right; font-weight:600; color:#db2777;' }, `¥${it.subtotal.toFixed(2)}`),

@@ -1,4 +1,5 @@
 import { prisma } from '../../utils/prisma'
+import { drinkProductInclude, serializeDrinkProduct } from '../../utils/drinkVariants'
 import { productRecipeInclude } from '../../utils/productRecipe'
 import { hideWholesalePriceForCashier } from '../../utils/productVisibility'
 
@@ -16,6 +17,7 @@ export default defineEventHandler(async (event) => {
     const product = await prisma.product.findUnique({
       where: { id },
       include: {
+        ...drinkProductInclude,
         unitConversions: true,
         recipe: { include: productRecipeInclude },
       },
@@ -30,7 +32,7 @@ export default defineEventHandler(async (event) => {
     }
 
     return {
-      data: hideWholesalePriceForCashier(event, product),
+      data: hideWholesalePriceForCashier(event, serializeDrinkProduct(product)),
       error: null,
     }
   } catch (error: any) {

@@ -128,7 +128,8 @@
             </template>
             
             <template v-else-if="column.key === 'price'">
-              <span class="font-medium text-pink-600">¥{{ record.defaultPrice?.toFixed(2) }}</span>
+              <span class="font-medium text-pink-600">¥{{ Number(record.defaultPrice).toFixed(2) }}{{ record.productType === 'drink' ? ' 起' : '' }}</span>
+              <div v-if="record.productType === 'drink'" class="text-xs text-gray-400 mt-1">饮品 · 按组合定价 · 不管理库存</div>
               <div v-if="record.vipPrice || record.wholesalePrice" class="text-xs text-gray-400 mt-1">
                 <span v-if="record.vipPrice">V: ¥{{ record.vipPrice.toFixed(2) }} </span>
                 <span v-if="record.wholesalePrice">批: ¥{{ record.wholesalePrice.toFixed(2) }}</span>

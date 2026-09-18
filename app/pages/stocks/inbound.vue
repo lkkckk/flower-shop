@@ -177,7 +177,7 @@ const rules: Record<string, any> = {
 }
 
 const productOptions = computed(() =>
-  productList.value.map((p) => ({
+  productList.value.filter((p: any) => p.productType !== 'drink').map((p) => ({
     value: p.id,
     label: p.name,
     raw: p,

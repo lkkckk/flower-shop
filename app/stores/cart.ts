@@ -4,6 +4,10 @@ import { createClientId } from '~~/shared/clientId'
 // defineStore / ref / computed 由 @pinia/nuxt + Nuxt 自动导入提供
 
 export interface CartItem {
+  productType?: string
+  variantId?: string
+  variantLabel?: string
+  variantError?: string
   id: string
   productId: number
   productName: string
@@ -46,6 +50,7 @@ const generateId = createClientId
 const roundMoney = (value: number) => money(value).toNumber()
 
 export const useCartStore = defineStore('cart', () => {
+  const catalogVerified = ref(false)
   const createEmptyCart = (): Cart => ({
     id: generateId(),
     label: '散客',
@@ -115,12 +120,14 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   const getPriceForLevel = (product: any, level: string) => {
+    if (product.productType === 'drink') return Number(product.selectedVariant.price)
     // 与结账接口一致：零售基础价，优惠在结账时统一计算。
     return product.specialBatchId ? Number(product.specialPrice) : pickBasePrice({ ...product, level }, 'retail')
   }
 
   const getLevelBasePrice = (prices: any, level: string) => {
     if (!prices) return 0
+    if (prices.productType === 'drink') return Number(prices.defaultPrice)
     return prices.specialBatchId ? Number(prices.specialPrice) : pickBasePrice({ ...prices, level }, 'retail')
   }
 
@@ -170,6 +177,7 @@ export const useCartStore = defineStore('cart', () => {
   const addItem = (cartId: string, product: any, unit: string, qty: number) => {
     const cart = carts.value.find((c) => c.id === cartId)
     if (!cart) return
+    if (product.productType === 'drink' && (!product.selectedVariant?.enabled || product.selectedVariant.price == null || !Number.isInteger(qty) || qty < 1)) return
 
     // 获取换算率
     let toBaseQty = 1
@@ -192,7 +200,7 @@ export const useCartStore = defineStore('cart', () => {
 
     // 检查是否存在
     const existingItem = cart.items.find(
-      (i) => i.productId === product.id && i.unit === unit && (i as any).specialBatchId === product.specialBatchId
+      (i) => i.productId === product.id && i.unit === unit && i.variantId === product.selectedVariant?.id && (i as any).specialBatchId === product.specialBatchId
     )
 
     if (existingItem) {
@@ -203,6 +211,9 @@ export const useCartStore = defineStore('cart', () => {
       cart.items.push({
         id: generateId(),
         productId: product.id,
+        productType: product.productType || 'standard',
+        variantId: product.selectedVariant?.id,
+        variantLabel: product.selectedVariant?.label,
         specialBatchId: product.specialBatchId,
         productName: product.name,
         grade: product.grade,
@@ -218,9 +229,10 @@ export const useCartStore = defineStore('cart', () => {
         notes: '',
         // 将价格字典隐藏保存以便后续换客户重算
         _prices: {
+          productType: product.productType,
           specialBatchId: product.specialBatchId,
           specialPrice: product.specialPrice,
-          defaultPrice: product.defaultPrice,
+          defaultPrice: product.productType === 'drink' ? product.selectedVariant.price : product.defaultPrice,
           memberPrice: product.memberPrice,
           vipPrice: product.vipPrice,
           wholesalePrice: product.wholesalePrice,
@@ -236,6 +248,7 @@ export const useCartStore = defineStore('cart', () => {
     if (!item) return
 
     if (!Number.isFinite(qty) || qty <= 0) return
+    if (item.productType === 'drink' && !Number.isInteger(qty)) return
     item.qty = qty
     let toBaseQty = 1
     if (item.unit !== item.baseUnit) {
@@ -251,6 +264,7 @@ export const useCartStore = defineStore('cart', () => {
     if (!cart) return
     const item = cart.items.find((i) => i.id === itemId)
     if (!item) return
+    if (item.productType === 'drink') return
 
     item.unit = unit
     let toBaseQty = 1
@@ -336,10 +350,21 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   const refreshProductPrices = (products: any[]) => {
+    catalogVerified.value = true
     const byId = new Map(products.map(p => [p.id, p]))
     for (const cart of carts.value) {
       for (const item of cart.items) {
         const product = byId.get(item.productId)
+        if (item.productType === 'drink') {
+          const variant = product?.drinkVariants?.find((v: any) => v.id === item.variantId)
+          item.variantError = !product || !variant?.enabled || variant.price == null ? '此规格已停售或移除，请删除后重新选择' : ''
+          if (!item.variantError) {
+            item.productName = product.name
+            item.variantLabel = variant.label
+            ;(item as any)._prices = { productType: 'drink', defaultPrice: variant.price }
+          }
+          continue
+        }
         if (!product) continue
         const special = product.specialBatches?.find((b:any)=>b.id===(item as any).specialBatchId)
         ;(item as any)._prices = { ...product, specialBatchId:(item as any).specialBatchId, specialPrice:special?.specialPrice ?? (item as any)._prices?.specialPrice }
@@ -349,6 +374,7 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   return {
+    catalogVerified,
     carts,
     activeCartId,
     activeCart,

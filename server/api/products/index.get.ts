@@ -1,4 +1,5 @@
 import { prisma } from '../../utils/prisma'
+import { drinkProductInclude, serializeDrinkProduct } from '../../utils/drinkVariants'
 import { productRecipeInclude } from '../../utils/productRecipe'
 import { hideWholesalePriceForCashier } from '../../utils/productVisibility'
 
@@ -43,6 +44,7 @@ export default defineEventHandler(async (event) => {
       prisma.product.findMany({
         where,
         include: {
+          ...drinkProductInclude,
           unitConversions: true,
           categoryRef: true,
           recipe: { include: productRecipeInclude },
@@ -58,7 +60,7 @@ export default defineEventHandler(async (event) => {
 
     return {
       data: {
-        list: hideWholesalePriceForCashier(event, list),
+        list: hideWholesalePriceForCashier(event, list.map(serializeDrinkProduct)),
         total,
         page,
         pageSize,

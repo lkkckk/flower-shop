@@ -1,7 +1,7 @@
 <template>
   <section class="product-picker" aria-label="选购商品">
     <div class="picker-toolbar">
-      <a-input ref="searchInputRef" v-model:value="searchKeyword" placeholder="搜索花名、颜色、规格" allow-clear size="large">
+      <a-input ref="searchInputRef" v-model:value="searchKeyword" placeholder="搜索商品名称、颜色、规格" allow-clear size="large">
         <template #prefix><SearchOutlined /></template>
       </a-input>
       <button class="refresh-button" type="button" :disabled="loading" aria-label="刷新商品库存" @click="refresh"><ReloadOutlined :spin="loading" /></button>
@@ -12,7 +12,7 @@
     </nav>
     <div class="catalog-workspace">
       <nav class="category-rail" aria-label="商品分类">
-        <button type="button" :class="{ active: categoryId === null }" :aria-pressed="categoryId === null" @click="categoryId = null">{{ rootId === null ? '全部鲜花' : '全部' }}</button>
+        <button type="button" :class="{ active: categoryId === null }" :aria-pressed="categoryId === null" @click="categoryId = null">{{ rootId === null ? '全部商品' : '全部' }}</button>
         <button v-for="category in railCategories" :key="category.id" type="button" :class="{ active: categoryId === category.id, child: category.depth > 0 }" :aria-pressed="categoryId === category.id" @click="categoryId = category.id">{{ category.name }}</button>
       </nav>
       <div class="catalog-results" :aria-busy="loading">
@@ -21,20 +21,21 @@
         <div v-else-if="loading && !products.length" class="catalog-message"><a-spin tip="正在加载商品" /></div>
         <a-empty v-else-if="!filteredProducts.length" :description="searchKeyword ? '没有找到匹配的商品' : '该分类暂无商品'" class="catalog-message" />
         <div v-else class="product-grid">
-          <article v-for="product in filteredProducts" :key="product.id" class="product-card" :class="{ 'is-selected': productQuantity(product) > 0, 'is-sold-out': product.totalStock <= 0 }" :aria-label="product.name">
-            <button class="product-photo" type="button" :aria-label="'查看' + product.name + '详情'" @click="detailProduct = product">
+          <article v-for="product in filteredProducts" :key="product.id" class="product-card" :class="{ 'is-selected': productQuantity(product) > 0, 'is-sold-out': soldOut(product) }" :aria-label="product.name">
+            <button class="product-photo" type="button" :aria-label="'查看' + product.name + '详情'" @click="openProduct(product)">
               <img v-if="product.imageUrl && !failedImages[product.id]" :src="product.imageUrl" :alt="product.name" loading="lazy" @error="failedImages[product.id] = true" />
               <span v-else class="missing-photo"><PictureOutlined /><span>暂无图片</span></span>
-              <span v-if="product.totalStock <= 0" class="sold-out-label">暂时售罄</span>
+              <span v-if="soldOut(product)" class="sold-out-label">暂时售罄</span>
             </button>
             <div class="product-info">
-              <button class="product-name" type="button" @click="detailProduct = product">{{ product.name }}</button>
+              <button class="product-name" type="button" @click="openProduct(product)">{{ product.name }}</button>
               <div class="product-tags"><span v-if="product.specification">{{ product.specification }}</span><span v-if="product.grade">{{ product.grade }}</span><span v-if="product.color">{{ product.color }}</span></div>
-              <label class="unit-picker"><span>单位</span><select :value="selectedUnit(product)" :aria-label="product.name + '销售单位'" @change="units[product.id] = ($event.target as HTMLSelectElement).value"><option v-for="unit in getSaleUnits(product)" :key="unit.name" :value="unit.name">{{ unit.name }}{{ unit.factor !== 1 ? '（' + unit.factor + product.baseUnit + '）' : '' }}</option></select></label>
-              <div class="product-price"><strong>¥{{ unitPrice(product).toFixed(2) }}</strong><span>/{{ selectedUnit(product) }}</span></div>
-              <div class="stock-copy">{{ product.totalStock <= 0 ? '补货中' : '还可加 ' + formatQuantity(remaining(product)) + ' ' + selectedUnit(product) }}</div>
+              <label v-if="product.productType !== 'drink'" class="unit-picker"><span>单位</span><select :value="selectedUnit(product)" :aria-label="product.name + '销售单位'" @change="units[product.id] = ($event.target as HTMLSelectElement).value"><option v-for="unit in getSaleUnits(product)" :key="unit.name" :value="unit.name">{{ unit.name }}{{ unit.factor !== 1 ? '（' + unit.factor + product.baseUnit + '）' : '' }}</option></select></label>
+              <div class="product-price"><strong>¥{{ unitPrice(product).toFixed(2) }}</strong><span>/{{ selectedUnit(product) }}{{ product.productType === 'drink' ? '起' : '' }}</span></div>
+              <div class="stock-copy">{{ product.productType === 'drink' ? '按规格定价 · 已选 ' + productQuantity(product) + ' 杯' : product.totalStock <= 0 ? '补货中' : '还可加 ' + formatQuantity(remaining(product)) + ' ' + selectedUnit(product) }}</div>
+              <a-button v-if="product.productType === 'drink'" block :disabled="loading || !!loadError || soldOut(product)" @click="drinkProduct = product">选择规格</a-button>
               <div v-if="product.specialBatches?.length" class="special-batches"><button v-for="batch in product.specialBatches" :key="batch.id" type="button" @click="addSpecial(product,batch)">特价 ¥{{ batch.specialPrice }}/{{ product.baseUnit }} · 批次 {{ batch.batchNo }} · 余 {{ batch.specialQty }} · 点选 1 {{ product.baseUnit }}</button></div>
-              <div class="product-stepper">
+              <div v-if="product.productType !== 'drink'" class="product-stepper">
                 <button v-if="selectedQuantity(product) > 0" type="button" class="quantity-button minus" :aria-label="'减少' + product.name" @click="changeQuantity(product, Math.max(0, selectedQuantity(product) - 1))"><MinusOutlined /></button>
                 <button v-if="selectedQuantity(product) > 0" type="button" class="quantity-value" :aria-label="'修改' + product.name + '数量'" @click="openQuantity(product)">{{ formatQuantity(selectedQuantity(product)) }}</button>
                 <button type="button" class="quantity-button plus" :disabled="loading || !!loadError || remaining(product) < 1 - 1e-8" :aria-label="'添加' + product.name" @click="changeQuantity(product, selectedQuantity(product) + 1)"><PlusOutlined /></button>
@@ -50,6 +51,7 @@
     <a-modal :open="!!detailProduct" :title="detailProduct?.name" :footer="null" width="480px" @cancel="detailProduct = null">
       <div v-if="detailProduct" class="product-detail"><img v-if="detailProduct.imageUrl && !failedImages[detailProduct.id]" :src="detailProduct.imageUrl" :alt="detailProduct.name" @error="failedImages[detailProduct.id] = true" /><p>{{ [detailProduct.specification, detailProduct.grade, detailProduct.color].filter(Boolean).join(' · ') }}</p><p>库存：{{ formatQuantity(detailProduct.totalStock) }} {{ detailProduct.baseUnit }}</p><strong>¥{{ unitPrice(detailProduct).toFixed(2) }}/{{ selectedUnit(detailProduct) }}</strong><a-button type="primary" size="large" block :disabled="loading || !!loadError || remaining(detailProduct) < 1 - 1e-8" @click="changeQuantity(detailProduct, selectedQuantity(detailProduct) + 1)">加入 1 {{ selectedUnit(detailProduct) }}<span v-if="selectedQuantity(detailProduct)"> · 已选 {{ formatQuantity(selectedQuantity(detailProduct)) }}</span></a-button></div>
     </a-modal>
+    <DrinkSelector :product="drinkProduct" @close="drinkProduct = null" @add="addDrink" />
   </section>
 </template>
 
@@ -59,10 +61,11 @@ import { AppstoreOutlined, MinusOutlined, PictureOutlined, PlusOutlined, ReloadO
 import { message } from 'ant-design-vue'
 import { money, decimal } from '~~/shared/money'
 import { pickBasePrice } from '~~/shared/priceMode'
+import DrinkSelector from './DrinkSelector.vue'
 import { useCartStore } from '~/stores/cart'
 import { getSaleUnits, getUnitFactor, remainingSaleQuantity, type SaleProduct } from '~~/shared/posQuantity'
 
-interface CatalogProduct extends SaleProduct { name: string; defaultPrice: number; imageUrl?: string | null; specification?: string | null; grade?: string | null; color?: string | null; categoryId?: number | null; specialBatches?: any[] }
+interface CatalogProduct extends SaleProduct { productType?: string; drinkGroups?: any[]; drinkVariants?: any[]; name: string; defaultPrice: number; imageUrl?: string | null; specification?: string | null; grade?: string | null; color?: string | null; categoryId?: number | null; specialBatches?: any[] }
 interface Category { id: number; name: string; children?: Category[] }
 const cartStore = useCartStore()
 const { token } = useAuth()
@@ -77,6 +80,14 @@ const categoryId = ref<number | null>(null)
 const units = ref<Record<number, string>>({})
 const failedImages = ref<Record<number, boolean>>({})
 const detailProduct = ref<CatalogProduct | null>(null)
+const drinkProduct = ref<CatalogProduct | null>(null)
+const soldOut = (product: CatalogProduct) => product.productType === 'drink' ? !product.drinkVariants?.some(v => v.enabled && v.price != null) : product.totalStock <= 0
+const openProduct = (product: CatalogProduct) => { if (product.productType === 'drink') drinkProduct.value = product; else detailProduct.value = product }
+const addDrink = (variant: any, qty: number) => {
+  if (!drinkProduct.value || !cartStore.activeCart) return
+  cartStore.addItem(cartStore.activeCart.id, { ...drinkProduct.value, selectedVariant: variant }, '杯', qty)
+  drinkProduct.value = null
+}
 const quantityProduct = ref<CatalogProduct | null>(null)
 const quantityUnit = ref('')
 const quantityDraft = ref<number | null>(1)
@@ -84,7 +95,7 @@ const flatten = (nodes: Category[], depth = 0): (Category & { depth: number })[]
 const allCategories = computed(() => flatten(categoryTree.value))
 const rootCategory = computed(() => categoryTree.value.find(c => c.id === rootId.value))
 const railCategories = computed(() => rootCategory.value ? flatten(rootCategory.value.children || []) : allCategories.value)
-const currentCategoryName = computed(() => allCategories.value.find(c => c.id === categoryId.value)?.name || rootCategory.value?.name || '全部鲜花')
+const currentCategoryName = computed(() => allCategories.value.find(c => c.id === categoryId.value)?.name || rootCategory.value?.name || '全部商品')
 const filteredProducts = computed(() => {
   const selected = allCategories.value.find(c => c.id === (categoryId.value ?? rootId.value))
   const ids = selected ? new Set(flatten([selected]).map(c => c.id)) : null
@@ -96,7 +107,13 @@ const selectedUnit = (product: CatalogProduct) => units.value[product.id] || pro
 const selectedItem = (product: CatalogProduct, unit = selectedUnit(product)) => cartStore.activeCart?.items.find(i => i.productId === product.id && i.unit === unit && !(i as any).specialBatchId)
 const selectedQuantity = (product: CatalogProduct) => selectedItem(product)?.qty || 0
 const productQuantity = (product: CatalogProduct) => cartStore.activeCart?.items.filter(i => i.productId === product.id).reduce((sum, i) => sum + i.baseQty, 0) || 0
-const unitPrice = (product: CatalogProduct) => money(decimal(pickBasePrice({...product,level:cartStore.activeCart?.customerLevel},'retail')).times(getUnitFactor(product,selectedUnit(product)))).toNumber()
+const unitPrice = (product: CatalogProduct) => {
+  if (product.productType === 'drink') {
+    const prices = product.drinkVariants?.filter(v => v.enabled && v.price != null).map(v => Number(v.price)) || []
+    return prices.length ? Math.min(...prices) : 0
+  }
+  return money(decimal(pickBasePrice({...product,level:cartStore.activeCart?.customerLevel},'retail')).times(getUnitFactor(product,selectedUnit(product)))).toNumber()
+}
 const addSpecial = (product:CatalogProduct,batch:any) => {
  const cart=cartStore.activeCart;if(!cart)return
  const used=cart.items.filter((i:any)=>i.specialBatchId===batch.id).reduce((s:number,i:any)=>s+i.baseQty,0)
@@ -126,6 +143,7 @@ const confirmQuantity = () => {
 const refresh = async () => {
   if (loading.value) return
   loading.value = true
+  cartStore.catalogVerified = false
   loadError.value = ''
   try {
     const [catalog, categories]: any[] = await Promise.all([$fetch('/api/products/with-stock'), $fetch('/api/categories')])

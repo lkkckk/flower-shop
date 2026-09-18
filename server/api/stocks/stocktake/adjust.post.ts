@@ -6,6 +6,7 @@ export default businessHandler('stock.stocktake',async(tx,actor,key,b)=>{
  if(actual.lt(0)||!String(b.reason||'').trim())throw new Error('实盘数量不能为负，请填写盘点原因')
  const product=await tx.product.findUnique({where:{id:productId}})
  if(!product)throw new Error('商品不存在')
+ if(product.productType==='drink')throw new Error('饮品不管理库存，不能盘点')
  const batches=await tx.stockBatch.findMany({where:{productId,status:{in:['in_stock','discounted']},currentQty:{gt:0}},orderBy:[{inboundDate:'desc'},{id:'desc'}]})
  const system=batches.reduce((s:any,x:any)=>s.plus(x.currentQty),decimal(0)),delta=actual.minus(system)
  if(delta.lt(0)){

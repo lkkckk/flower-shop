@@ -14,7 +14,7 @@ export default defineEventHandler(async () => {
     const [setting, products] = await Promise.all([
       prisma.setting.findUnique({ where: { key: 'lowStockThreshold' } }),
       prisma.product.findMany({
-        where: { status: 'active' },
+        where: { status: 'active', productType: 'standard' },
         include: {
           stockBatches: {
             where: { status: { in: ['in_stock','discounted'] }, currentQty: { gt: 0 } },

@@ -12,6 +12,7 @@
     destroyOnClose
   >
     <div v-if="cart" class="p-4">
+      <a-alert v-if="drinkValidationError" type="warning" :message="drinkValidationError" class="mb-3" show-icon />
       <div class="text-center mb-6 mt-2">
         <div class="text-gray-500 mb-2 font-medium">应收金额</div>
         <div class="text-5xl font-bold text-pink-600 font-display tracking-tight">¥ {{ previewTotal.toFixed(2) }}</div>
@@ -195,6 +196,7 @@ const computeInput = computed(() => {
     }
     return {
       basis: {
+        productType: it.productType,
         defaultPrice: p.specialBatchId ? p.specialPrice : p.defaultPrice ?? it.unitPrice,
         memberPrice: p.memberPrice, vipPrice: p.vipPrice, wholesalePrice: p.wholesalePrice, level: p.specialBatchId ? 'normal' : cart.value?.customerLevel,
       },
@@ -220,8 +222,15 @@ const subtotal = computed(() => computeInput.value?.subtotal ?? 0)
 const reduction = computed(() => computeInput.value?.reduction ?? 0)
 const previewTotal = computed(() => money(computeInput.value?.total ?? 0).minus(cart.value?.discount || 0).minus(money(decimal(pointsToRedeem.value || 0).div(loyalty.value.pointsPerYuan))).clamp(0, Infinity).toNumber())
 const promotionApplicable = computed(() => computeInput.value?.promotionApplicable ?? false)
+const drinkValidationError = computed(() => {
+  const drinks = cart.value?.items.filter(it => it.productType === 'drink') || []
+  if (drinks.length && !cartStore.catalogVerified) return '饮品规格尚未核验，请关闭并刷新商品后再结账'
+  const invalid = drinks.find(it => it.variantError)
+  return invalid ? `${invalid.productName}：${invalid.variantError}` : ''
+})
 
 const confirmDisabled = computed(() => {
+  if (cart.value?.items.some(it => it.productType === 'drink' && (!cartStore.catalogVerified || it.variantError))) return true
   if (loading.value || !cart.value?.items.length || !Number.isFinite(paidAmount.value) || paidAmount.value < 0) return true
   if (!cart.value?.customerId && paidAmount.value < previewTotal.value) return true
   if (paymentMethod.value === 'credit' && !cart.value?.customerId) return true
@@ -240,6 +249,16 @@ watch(() => props.visible, async (val) => {
   discountRate.value = 90
   pointsToRedeem.value = 0
   priceReason.value = ''
+  if (cart.value?.items.some(it => it.productType === 'drink')) {
+    cartStore.catalogVerified = false
+    try {
+      const catalog: any = await $fetch('/api/products/with-stock')
+      if (catalog.error || !Array.isArray(catalog.data?.list)) throw new Error('商品加载失败')
+      const oldTotal = previewTotal.value
+      cartStore.refreshProductPrices(catalog.data.list)
+      if (oldTotal !== previewTotal.value) message.warning('饮品价格已更新，请确认最新金额后付款')
+    } catch { message.warning('无法核验饮品规格，请刷新商品后再结账') }
+  }
   const rules: any = await $fetch('/api/loyalty-rules')
   loyalty.value = rules.data
   if (cart.value?.customerId) {
@@ -340,6 +359,7 @@ const handleConfirm = async () => {
         expectedTotal: totalNow,
         cart: {
           ...cart.value,
+          items: cart.value.items.map(it => ({ ...it, expectedUnitPrice: it.productType === 'drink' ? String((it as any)._prices?.defaultPrice ?? it.originalPrice) : undefined })),
           priceMode: priceMode.value,
           priceReason: priceReason.value, pointsToRedeem: pointsToRedeem.value,
           discountRate: priceMode.value === 'discount' ? discountRate.value : undefined,
@@ -371,6 +391,11 @@ const handleConfirm = async () => {
     }
   } catch (e: any) {
     message.error(e.data?.error?.message || e.message || '系统错误')
+    if (['PRICE_CHANGED', 'DRINK_VARIANT_UNAVAILABLE', 'INVALID_DRINK_VARIANT'].includes(e.data?.error?.code)) {
+      cartStore.catalogVerified = false
+      emit('update:visible', false)
+      emit('stock-changed')
+    }
   } finally {
     loading.value = false
   }

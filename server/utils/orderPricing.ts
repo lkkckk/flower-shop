@@ -18,7 +18,7 @@ export async function quoteOrder(tx: any, cart: any, role: string) {
   if (rate.lt(0) || rate.gt(100)) throw new Error('折扣必须在 0–100 之间')
   const items = []
   for (const input of cart.items) {
-    const p = await tx.product.findUnique({ where: { id: Number(input.productId) }, include: { unitConversions: true, recipe: true } })
+    const p = await tx.product.findUnique({ where: { id: Number(input.productId) }, include: { unitConversions: true, recipe: true, drinkGroups: { include: { options: true }, orderBy: { sort: 'asc' } }, drinkVariants: true } })
     if (!p || p.status !== 'active') throw new Error('商品不存在或已下架')
     const qty = positive(input.qty, 3)
     const unit = input.unit || p.baseUnit
@@ -27,6 +27,22 @@ export async function quoteOrder(tx: any, cart: any, role: string) {
     const baseQty = qty.times(conversion)
     if (baseQty.decimalPlaces() > 3) throw new Error('换算后的数量最多支持三位小数')
     let basePrice = money(pickBasePrice({ ...p, level: customer?.level }, 'retail'))
+    let variantId: string | null = null, variantLabel: string | null = null
+    if (p.productType === 'drink') {
+      if (!qty.isInteger() || unit !== '杯' || input.specialBatchId) throw new Error('饮品按整杯销售，不支持单位换算或批次特价')
+      const variant = p.drinkVariants.find((v: any) => v.id === input.variantId)
+      if (!variant || !variant.enabled || variant.price === null) throw new Error(`饮品“${p.name}”规格不存在或已停售`)
+      basePrice = money(variant.price)
+      if (typeof input.expectedUnitPrice !== 'string' || !/^\d+\.\d{2}$/.test(input.expectedUnitPrice)) throw new Error('请确认饮品规格价格后结账')
+      if (!decimal(input.expectedUnitPrice).eq(basePrice)) throw Object.assign(new Error(`饮品“${p.name}”价格已变化，请重新选择规格确认价格`), { code: 'PRICE_CHANGED', statusCode: 409 })
+      const selections = variant.options as { groupId: string; optionId: string }[]
+      variantLabel = p.drinkGroups.filter((g: any) => g.active !== false).map((g: any) => {
+        const option = g.options.find((o: any) => o.id === selections.find(s => s.groupId === g.id)?.optionId && o.active !== false)
+        if (!option) throw new Error('饮品规格已变化，请重新选择')
+        return option.name
+      }).join(' / ')
+      variantId = variant.id
+    } else if (input.variantId) throw new Error('普通商品不能选择饮品规格')
     let batchId: number | undefined
     if (input.specialBatchId) {
       const batch = await tx.stockBatch.findUnique({ where: { id: Number(input.specialBatchId) } })
@@ -36,7 +52,7 @@ export async function quoteOrder(tx: any, cart: any, role: string) {
       batchId = batch.id
     }
     const unitPrice = basePrice.times(conversion).times(rate).div(100).toDecimalPlaces(2)
-    items.push({ productId: p.id, productName: p.name, unit, qty: qty.toFixed(3), baseQty: baseQty.toFixed(3), unitPrice: unitPrice.toFixed(2), originalPrice: basePrice.times(conversion).toFixed(2), subtotal: unitPrice.times(qty).toFixed(2), specialBatchId: batchId, imageUrl: input.imageUrl === undefined ? p.imageUrl : input.imageUrl, grade: input.grade ?? p.grade, color: input.color ?? p.color, notes: input.notes ?? null })
+    items.push({ productId: p.id, productName: p.name, productNameSnapshot: p.name, productTypeSnapshot: p.productType || 'standard', variantId, variantLabel, unit, qty: qty.toFixed(3), baseQty: baseQty.toFixed(3), unitPrice: unitPrice.toFixed(2), originalPrice: basePrice.times(conversion).toFixed(2), subtotal: unitPrice.times(qty).toFixed(2), specialBatchId: batchId, imageUrl: input.imageUrl === undefined ? p.imageUrl : input.imageUrl, grade: input.grade ?? p.grade, color: input.color ?? p.color, notes: input.notes ?? null })
   }
   const subtotal = sumMoney(items.map(x => x.subtotal))
   let reduction = manualDiscount

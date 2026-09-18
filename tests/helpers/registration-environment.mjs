@@ -48,7 +48,7 @@ export async function registrationEnvironment() {
     await new Promise(resolve => socket.close(resolve))
     const origin = `http://127.0.0.1:${port}`
     let logs = ''
-    server = spawn(process.execPath, ['.output/server/index.mjs'], { env: { ...env, HOST: '127.0.0.1', PORT: String(port) }, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
+    server = spawn(process.execPath, [path.join(process.env.FLOWER_BUILD_OUTPUT || '.output', 'server/index.mjs')], { env: { ...env, HOST: '127.0.0.1', PORT: String(port) }, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
     server.stdout.on('data', data => { logs = (logs + data).slice(-8000) })
     server.stderr.on('data', data => { logs = (logs + data).slice(-8000) })
     for (let i = 0; ; i++) {
