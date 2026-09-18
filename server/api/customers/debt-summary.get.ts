@@ -3,14 +3,14 @@ import { prisma } from '../../utils/prisma'
 export default defineEventHandler(async () => {
   try {
     const customers = await prisma.customer.findMany({
-      where: { balance: { lt: 0 } },
-      orderBy: { balance: 'asc' },
+      where: { receivableBalance: { gt: 0 } },
+      orderBy: { receivableBalance: 'desc' },
       select: {
         id: true,
         name: true,
         phone: true,
         level: true,
-        balance: true,
+        balance: true, storedValueBalance:true, receivableBalance:true, availablePoints:true,
         totalOwed: true,
       },
     })

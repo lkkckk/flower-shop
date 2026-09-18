@@ -87,6 +87,7 @@
               placeholder="请输入默认价"
             />
           </a-form-item>
+          <a-form-item label="会员价" name="memberPrice"><a-input-number v-model:value="formState.memberPrice" :min="0" :precision="2" class="w-full" /></a-form-item>
           <a-form-item label="VIP 价" name="vipPrice">
             <a-input-number
               v-model:value="formState.vipPrice"
@@ -320,6 +321,7 @@ interface FormState {
   color: string
   specification: string
   defaultPrice: number | null
+  memberPrice: number | null
   vipPrice: number | null
   wholesalePrice: number | null
   shelfLifeDays: number
@@ -348,6 +350,7 @@ const getInitialState = (): FormState => ({
   color: '',
   specification: '',
   defaultPrice: null,
+  memberPrice: null,
   vipPrice: null,
   wholesalePrice: null,
   shelfLifeDays: 7,
@@ -409,7 +412,8 @@ watch(
           color: props.product.color || '',
           specification: props.product.specification || '',
           defaultPrice: props.product.defaultPrice,
-          vipPrice: props.product.vipPrice,
+          memberPrice: props.product.memberPrice,
+      vipPrice: props.product.vipPrice,
           wholesalePrice: props.product.wholesalePrice,
           shelfLifeDays: props.product.shelfLifeDays,
           status: props.product.status,

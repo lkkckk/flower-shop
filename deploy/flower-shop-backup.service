@@ -1,0 +1,13 @@
+[Unit]
+Description=Flower shop database and image backup
+After=postgresql.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/flower-shop
+EnvironmentFile=/opt/flower-shop/.env
+Environment=PRODUCT_IMAGE_DIR=/var/lib/flower-shop/uploads/products
+Environment=PREORDER_IMAGE_DIR=/var/lib/flower-shop/uploads/preorder-images
+Environment=FLOWER_BACKUP_DIR=/var/backups/flower-shop
+ExecStart=/usr/bin/python3 /opt/flower-shop/scripts/backup.py
+UMask=0077

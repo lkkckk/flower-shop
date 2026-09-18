@@ -2,9 +2,10 @@
   <a-form layout="vertical" :model="form">
     <a-row :gutter="16">
       <a-col :xs="24" :md="12">
-        <a-form-item label="下单客户" extra="可选择已有客户，或直接填写收货信息">
+        <a-form-item label="下单客户" extra="收取订金或挂账时须选择客户；全款订单可直接填写收货信息">
           <a-select
             v-model:value="form.customerId"
+            :disabled="!!initial"
             placeholder="搜索客户姓名/电话"
             show-search
             allow-clear
@@ -71,15 +72,12 @@
       </a-col>
     </a-row>
 
-    <a-divider orientation="left" style="font-size: 14px">价格模式</a-divider>
+    <a-alert v-if="pricingLocked" message="已收款或开始制作，商品及照片已锁定。可修改收货信息；退改商品请在订单详情提交纠错申请。" type="info" class="mb-3" /><a-divider orientation="left" style="font-size: 14px">价格模式</a-divider>
     <div class="mb-4 rounded-lg border border-pink-100 bg-pink-50 p-3">
-      <a-radio-group v-model:value="form.priceMode" button-style="solid" class="flex flex-wrap gap-1" @change="applyPriceModeToAllItems">
-        <a-radio-button value="retail">零售价</a-radio-button>
-        <a-radio-button value="vip">VIP价</a-radio-button>
-        <a-radio-button value="wholesale">批发价</a-radio-button>
-        <a-radio-button value="discount">折扣价</a-radio-button>
+      <a-radio-group :disabled="pricingLocked" v-model:value="form.priceMode" button-style="solid" class="flex flex-wrap gap-1" @change="applyPriceModeToAllItems">
+        <a-radio-button value="retail">客户等级价</a-radio-button>
+        <a-radio-button v-if="!isCashier" value="discount">折扣价</a-radio-button>
         <a-radio-button value="promotion">满减活动价</a-radio-button>
-        <a-radio-button value="custom">自定义价</a-radio-button>
       </a-radio-group>
 
       <div v-if="form.priceMode === 'discount'" class="mt-3 flex items-center gap-2">
@@ -151,17 +149,17 @@
           </div>
         </template>
         <template v-else-if="column.key === 'unit'">
-          <a-select v-model:value="record.unit" class="w-24" @change="() => onUnitChange(record)">
+          <a-select :disabled="pricingLocked" v-model:value="record.unit" class="w-24" @change="() => onUnitChange(record)">
             <a-select-option v-for="u in record.unitOptions" :key="u.unit" :value="u.unit">
               {{ u.unit }}
             </a-select-option>
           </a-select>
         </template>
         <template v-else-if="column.key === 'qty'">
-          <a-input-number v-model:value="record.qty" :min="0.1" :step="0.1" class="w-24" @change="() => recomputeSubtotal(record)" />
+          <a-input-number :disabled="pricingLocked" v-model:value="record.qty" :min="0.1" :step="0.1" class="w-24" @change="() => recomputeSubtotal(record)" />
         </template>
         <template v-else-if="column.key === 'priceSource'">
-          <a-select v-model:value="record.priceSource" class="w-28" @change="() => applyPriceModeToRow(record)">
+          <a-select disabled v-model:value="record.priceSource" class="w-28" @change="() => applyPriceModeToRow(record)">
             <a-select-option value="retail">零售价</a-select-option>
             <a-select-option value="vip">VIP价</a-select-option>
             <a-select-option value="wholesale">批发价</a-select-option>
@@ -169,18 +167,18 @@
           </a-select>
         </template>
         <template v-else-if="column.key === 'unitPrice'">
-          <a-input-number v-model:value="record.unitPrice" :min="0" :step="0.01" class="w-28" @change="() => onManualPriceChange(record)" />
+          <a-input-number disabled v-model:value="record.unitPrice" :min="0" :step="0.01" class="w-28" @change="() => onManualPriceChange(record)" />
         </template>
         <template v-else-if="column.key === 'subtotal'">
           <span class="text-pink-600 font-bold">¥{{ Number(record.subtotal || 0).toFixed(2) }}</span>
         </template>
         <template v-else-if="column.key === 'action'">
-          <a-button type="link" danger size="small" @click="removeItem(index)">移除</a-button>
+          <a-button type="link" danger size="small" :disabled="pricingLocked" @click="removeItem(index)">移除</a-button>
         </template>
       </template>
     </a-table>
     <div class="mt-2 flex justify-between items-start gap-4">
-      <a-button type="dashed" @click="pickerOpen = true">+ 添加商品</a-button>
+      <a-button type="dashed" :disabled="pricingLocked" @click="pickerOpen = true">+ 添加商品</a-button>
       <div class="text-right text-sm leading-7">
         <div>商品小计：<span class="font-bold">¥{{ subtotalBeforeReduction.toFixed(2) }}</span></div>
         <div v-if="promotionReduction > 0" class="text-gray-500">满减优惠：-¥{{ promotionReduction.toFixed(2) }}</div>
@@ -197,10 +195,10 @@
         <div class="order-photo-actions">
           <b>{{ item.productName }}</b>
           <span class="text-xs text-gray-500">{{ item.grade }} {{ item.color }} · {{ item.qty }}{{ item.unit }}</span>
-          <a-upload accept=".jpg,.jpeg,.png,.webp" :show-upload-list="false" :before-upload="(file: File) => uploadPhoto(file, item)" :disabled="item.uploading || submitting">
-            <a-button :loading="item.uploading" :disabled="submitting">{{ item.imageUrl ? '更换订单照片' : '上传订单照片' }}</a-button>
+          <a-upload accept=".jpg,.jpeg,.png,.webp" :show-upload-list="false" :before-upload="(file: File) => uploadPhoto(file, item)" :disabled="pricingLocked || item.uploading || submitting">
+            <a-button :loading="item.uploading" :disabled="pricingLocked || submitting">{{ item.imageUrl ? '更换订单照片' : '上传订单照片' }}</a-button>
           </a-upload>
-          <a-button v-if="item.imageUrl" type="link" danger :disabled="item.uploading || submitting" @click="item.imageUrl = null">移除照片</a-button>
+          <a-button v-if="item.imageUrl" type="link" danger :disabled="pricingLocked || item.uploading || submitting" @click="item.imageUrl = null">移除照片</a-button>
         </div>
       </div>
     </div>
@@ -213,16 +211,23 @@
       <a-textarea v-model:value="form.notes" :rows="2" placeholder="如：一定送到手上、预订人电话另告知等" />
     </a-form-item>
 
-    <div class="flex justify-end gap-2 mt-4">
+
+  <a-alert v-if="quoteError" :message="quoteError" type="warning" class="mb-3" />
+    <a-form-item v-if="form.priceMode==='discount'" label="优惠原因（必填）"><a-input v-model:value="priceReason" /></a-form-item>
+    <a-card v-if="!initial" title="本次收取订金 / 全款" size="small" class="my-4">
+      <div class="mvp-form-grid"><a-form-item label="支付方式"><a-select v-model:value="deposit.method" :options="[{value:'credit',label:'暂不收款 / 挂账'},{value:'wechat',label:'微信'},{value:'alipay',label:'支付宝'},{value:'cash',label:'现金（需开班）'},{value:'balance',label:'预存余额'}]" /></a-form-item><a-form-item label="本次收款"><a-input-number v-model:value="deposit.paidAmount" :min="0" :max="totalAmount" :precision="2" :disabled="deposit.method==='credit'" /></a-form-item></div>
+    </a-card>
+        <div class="flex justify-end gap-2 mt-4">
       <a-button @click="$emit('cancel')">取消</a-button>
       <a-button type="primary" :loading="submitting" :disabled="uploadCount > 0" @click="onSubmit">{{ submitText }}</a-button>
     </div>
   </a-form>
 
-  <PreorderProductPicker v-model:open="pickerOpen" @pick="onPickProduct" />
+  <PreorderProductPicker v-if="!pricingLocked" v-model:open="pickerOpen" @pick="onPickProduct" />
 </template>
 
 <script setup lang="ts">
+import {money,decimal} from '~~/shared/money'
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import dayjs, { type Dayjs } from 'dayjs'
 import { message } from 'ant-design-vue'
@@ -251,6 +256,11 @@ const emit = defineEmits<{
 }>()
 
 const { searchCustomers } = useCustomers()
+const { isCashier } = useAuth()
+const priceReason = ref(''), quoteError = ref(''), quoteBusy = ref(false)
+const pricingLocked = computed(() => !!props.initial && (Number(props.initial.paidAmount)>0 || props.initial.pointsRedeemed>0 || !['pending','confirmed'].includes(props.initial.fulfillmentStatus)))
+const serverTotal = ref<number | null>(null), serverSubtotal = ref(0)
+const deposit = reactive({method:'credit',paidAmount:0})
 
 const form = reactive<any>({
   customerId: null,
@@ -285,7 +295,7 @@ const itemColumns = [
 ]
 
 const subtotalBeforeReduction = computed(() =>
-  form.items.reduce((s: number, it: any) => s + Number(it.subtotal || 0), 0),
+  serverSubtotal.value,
 )
 
 const selectedPromotion = computed(() =>
@@ -300,7 +310,7 @@ const promotionReduction = computed(() => {
 })
 
 const totalAmount = computed(() =>
-  Math.max(0, Math.round((subtotalBeforeReduction.value - promotionReduction.value) * 100) / 100),
+  serverTotal.value ?? 0,
 )
 
 const daysHint = computed(() => {
@@ -313,7 +323,7 @@ const daysHint = computed(() => {
   return { text: `${label}${REMINDER_STAGE_LABEL[stage] ? ' · ' + REMINDER_STAGE_LABEL[stage] : ''}`, color: REMINDER_STAGE_COLOR[stage] || 'blue' }
 })
 
-const roundMoney = (n: number) => Math.max(0, Math.round(n * 100) / 100)
+const roundMoney = (n: number) => money(n).clamp(0,Infinity).toNumber()
 
 const unitToBaseQty = (row: any) => {
   const hit = row.unitOptions?.find((u: any) => u.unit === row.unit)
@@ -334,7 +344,7 @@ const getModePriceSource = () => {
 
 const recomputeSubtotal = (row: any) => {
   row.baseQty = roundMoney(Number(row.qty || 0) * unitToBaseQty(row))
-  row.subtotal = roundMoney(Number(row.qty || 0) * Number(row.unitPrice || 0))
+  row.subtotal = money(decimal(row.qty || 0).times(row.unitPrice || 0)).toNumber()
 }
 
 const applyPriceModeToRow = (row: any) => {
@@ -483,6 +493,7 @@ const onSubmit = () => {
     message.error('请至少添加一个商品')
     return
   }
+  if (quoteBusy.value || quoteError.value || serverTotal.value === null) { message.error(quoteError.value || '请等待价格确认'); return }
   if (form.priceMode === 'promotion') {
     if (!form.promotionId) {
       message.error('请选择满减活动，或切换为其他价格模式')
@@ -494,6 +505,9 @@ const onSubmit = () => {
     }
   }
   emit('submit', {
+    expectedTotal: totalAmount.value,
+    priceReason: priceReason.value,
+    payment: props.initial ? undefined : deposit,
     customerId: form.customerId || null,
     sourceChannel: form.sourceChannel || null,
     fulfillmentType: form.fulfillmentType,
@@ -507,7 +521,7 @@ const onSubmit = () => {
     totalAmount: totalAmount.value,
     cardMessage: form.cardMessage || null,
     notes: form.notes || null,
-    items: form.items.map((it: any) => ({
+    items: pricingLocked.value ? undefined : form.items.map((it: any) => ({
       productId: it.productId,
       unit: it.unit,
       qty: Number(it.qty),
@@ -569,6 +583,25 @@ onMounted(() => {
   onCustomerSearch('')
   loadPromotions()
 })
+
+let quoteSequence = 0
+let quoteTimer: ReturnType<typeof setTimeout>
+watch(() => JSON.stringify({ customerId:form.customerId, priceMode:form.priceMode, discountRate:form.discountRate, promotionId:form.promotionId, priceReason:priceReason.value, items:form.items.map((i:any)=>({productId:i.productId,qty:i.qty,unit:i.unit})) }), () => {
+ clearTimeout(quoteTimer); const sequence=++quoteSequence
+ if(pricingLocked.value){serverTotal.value=Number(props.initial.totalAmount);serverSubtotal.value=Number(props.initial.totalAmount);quoteBusy.value=false;quoteError.value='';return}
+ quoteBusy.value=true; serverTotal.value=null
+ quoteTimer=setTimeout(async()=>{
+  if(!form.items.length){quoteBusy.value=false;serverSubtotal.value=0;return}
+  try{
+   const response:any=await $fetch('/api/orders/quote',{method:'POST',body:{...form,priceReason:priceReason.value}})
+   if(sequence!==quoteSequence)return
+   if(response.error)throw new Error(response.error.message)
+   serverTotal.value=Number(response.data.total);serverSubtotal.value=Number(response.data.subtotal);quoteError.value=''
+   response.data.items.forEach((line:any,index:number)=>{form.items[index].unitPrice=Number(line.unitPrice);form.items[index].subtotal=Number(line.subtotal);form.items[index].baseQty=Number(line.baseQty)})
+  }catch(e:any){if(sequence===quoteSequence)quoteError.value=e.data?.error?.message||e.message}
+  finally{if(sequence===quoteSequence)quoteBusy.value=false}
+ },250)
+},{immediate:true})
 </script>
 
 <style scoped>

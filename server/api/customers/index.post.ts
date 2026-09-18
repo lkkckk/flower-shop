@@ -6,6 +6,10 @@ export default defineEventHandler(async (event) => {
   const phone = body.phone ? String(body.phone).trim() : null
   const address = body.address || null
   const level = body.level || 'normal'
+  if (event.context.user.role === 'cashier' && level !== 'normal') {
+    setResponseStatus(event, 403)
+    return { data: null, error: { message: '会员等级由店员或管理员维护', code: 'ROLE_FORBIDDEN' } }
+  }
   const notes = body.notes || null
 
   if (!name) {

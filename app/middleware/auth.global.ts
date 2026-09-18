@@ -8,6 +8,9 @@
 const PUBLIC_PATHS = new Set(['/login'])
 const CASHIER_ALLOWED_PREFIXES = [
   '/pos',
+  '/preorders',
+  '/shifts',
+  '/orders',
   '/customers',
   '/products',
   '/notifications',

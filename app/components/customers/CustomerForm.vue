@@ -24,7 +24,7 @@
       </a-form-item>
 
       <a-form-item label="客户等级" name="level">
-        <a-radio-group v-model:value="form.level" button-style="solid">
+        <a-radio-group :disabled="isCashier" v-model:value="form.level" button-style="solid">
           <a-radio-button value="normal">普通</a-radio-button>
           <a-radio-button value="member">会员</a-radio-button>
           <a-radio-button value="vip">VIP</a-radio-button>
@@ -44,6 +44,7 @@
 </template>
 
 <script setup lang="ts">
+const {isCashier}=useAuth()
 import { ref, reactive, watch, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import { useCustomers } from '~/composables/useCustomers'

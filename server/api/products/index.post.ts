@@ -18,6 +18,7 @@ export default defineEventHandler(async (event) => {
           color: body.color,
           specification: body.specification,
           defaultPrice: body.defaultPrice,
+          memberPrice: body.memberPrice,
           vipPrice: body.vipPrice,
           wholesalePrice: isCashier ? undefined : body.wholesalePrice,
           shelfLifeDays: body.shelfLifeDays,

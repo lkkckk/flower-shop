@@ -266,7 +266,7 @@
               prefix="¥"
             />
           </a-form-item>
-          <a-form-item label="折价原因">
+          <a-form-item label="特价数量（基础单位）"><a-input-number v-model:value="discountForm.specialQty" :min="0.001" :max="currentBatch.currentQty" :precision="3" /></a-form-item><a-form-item label="特价截止时间"><input type="datetime-local" v-model="discountForm.specialUntil" class="mvp-input" /></a-form-item><a-form-item label="折价原因">
             <a-textarea v-model:value="discountForm.reason" :auto-size="{ minRows: 2, maxRows: 4 }" placeholder="如：临近过期、品相下降等" />
           </a-form-item>
         </a-form>
@@ -444,12 +444,14 @@ const onScrapSubmit = async () => {
 // 折价弹窗
 const discountModalVisible = ref(false)
 const discountSubmitting = ref(false)
-const discountForm = reactive({ discountPrice: 0 as number, reason: '' })
+const discountForm = reactive({ discountPrice: 0 as number, reason: '', specialQty:1, specialUntil:'' })
 
 const openDiscountModal = (record: any) => {
   currentBatch.value = record
   discountForm.discountPrice = record.costPrice || 0
   discountForm.reason = ''
+  discountForm.specialQty=Number(record.currentQty)
+  discountForm.specialUntil=new Date(Date.now()+86400000).toLocaleString('sv-SE').slice(0,16).replace(' ','T')
   discountModalVisible.value = true
 }
 
@@ -463,6 +465,8 @@ const onDiscountSubmit = async () => {
     await discountBatch({
       batchId: currentBatch.value.id,
       discountPrice: discountForm.discountPrice,
+      specialQty:discountForm.specialQty,
+      specialUntil:discountForm.specialUntil,
       reason: discountForm.reason || undefined,
     })
     message.success('折价成功')

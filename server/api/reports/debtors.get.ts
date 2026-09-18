@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const customers = await prisma.customer.findMany({
-    where: { totalOwed: { gt: 0 } },
+    where: { receivableBalance: { gt: 0 } },
     include: {
       orders: {
         where: { owedAmount: { gt: 0 }, status: { not: 'cancelled' } },
@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
         },
       },
     },
-    orderBy: { totalOwed: 'desc' },
+    orderBy: { receivableBalance: 'desc' },
   })
 
   return {
@@ -29,8 +29,8 @@ export default defineEventHandler(async (event) => {
       id: c.id,
       name: c.name,
       phone: c.phone,
-      balance: c.balance,
-      totalOwed: c.totalOwed,
+      balance: c.storedValueBalance, storedValueBalance:c.storedValueBalance, receivableBalance:c.receivableBalance, availablePoints:c.availablePoints,
+      totalOwed: c.receivableBalance,
       orders: c.orders.map((o) => ({
         id: o.id,
         orderNo: o.orderNo,

@@ -1,38 +1,8 @@
-import { prisma } from '../../utils/prisma'
-import { getCurrentUser } from '../../utils/auth'
-
-export default defineEventHandler(async (event) => {
-  const payload = getCurrentUser(event)
-  if (!payload || payload.type !== 'staff' || payload.role === 'cashier') {
-    return { data: null, error: { message: '权限不足', code: 'FORBIDDEN' } }
-  }
-
-  const id = Number(getRouterParam(event, 'id'))
-  if (isNaN(id)) {
-    return { data: null, error: { message: '无效的批次 ID', code: 'INVALID_ID' } }
-  }
-
-  try {
-    // 检查是否有销售关联
-    const orderItemCount = await prisma.orderItem.count({ where: { batchId: id } })
-    if (orderItemCount > 0) {
-      return {
-        data: null,
-        error: { message: `该批次已有 ${orderItemCount} 条销售记录，不能删除`, code: 'HAS_ORDER_ITEMS' },
-      }
-    }
-
-    // 在事务中删除 StockMovement 再删除 StockBatch
-    await prisma.$transaction(async (tx) => {
-      await tx.stockMovement.deleteMany({ where: { batchId: id } })
-      await tx.stockBatch.delete({ where: { id } })
-    })
-
-    return { data: { success: true }, error: null }
-  } catch (error: any) {
-    return {
-      data: null,
-      error: { message: error.message || '删除失败', code: 'DELETE_ERROR' },
-    }
-  }
+import { businessHandler } from '../../utils/businessTransaction'
+import { decimal } from '../../../shared/money'
+export default businessHandler('stock.deactivate',async(tx,actor,key,b,event)=>{
+ const id=Number(getRouterParam(event,'id'));const batch=await tx.stockBatch.findUnique({where:{id}})
+ if(!batch)throw new Error('批次不存在')
+ if(decimal(batch.currentQty).gt(0))throw new Error('有库存的批次请先报损或盘点，不能停用')
+ return tx.stockBatch.update({where:{id},data:{status:'inactive'}})
 })

@@ -1,3 +1,5 @@
+> 当前业务模型以 `prisma/schema.prisma`、服务端事务服务及 [MVP 实施验收记录](docs/mvp-implementation-status.md) 为准。数据库为 PostgreSQL；历史提示词不代表当前接口约定。
+
 # 🌸 花店管理系统 (Flower Shop Management)
 
 鲜花批发店自用的进销存 + 收银管理系统。单店部署在店里电脑上，手机平板通过局域网访问。
@@ -104,7 +106,7 @@ flower-shop/
 ├── prisma/
 │   ├── schema.prisma           # 数据模型定义
 │   ├── migrations/             # 数据库迁移文件
-│   └── dev.db                  # SQLite 数据库文件
+│   └── migrations/             # PostgreSQL 迁移记录
 ├── nuxt.config.ts              # Nuxt 配置
 ├── tailwind.config.ts          # Tailwind CSS 配置
 └── package.json

@@ -1,53 +1,12 @@
-import { prisma } from '../../utils/prisma'
-
-export default defineEventHandler(async (event) => {
-  const body = await readBody(event)
-  const batchId = Number(body.batchId)
-  const qty = Number(body.qty)
-  const reason = body.reason ? String(body.reason) : null
-
-  if (!batchId || isNaN(batchId)) {
-    return { data: null, error: { message: '无效的批次 ID', code: 'INVALID_PARAMS' } }
-  }
-
-  if (!(qty > 0)) {
-    return { data: null, error: { message: '报损数量必须大于 0', code: 'INVALID_PARAMS' } }
-  }
-
-  try {
-    const result = await prisma.$transaction(async (tx) => {
-      const batch = await tx.stockBatch.findUnique({ where: { id: batchId } })
-      if (!batch) throw new Error('批次不存在')
-      if (batch.status !== 'in_stock') throw new Error('该批次状态不允许报损')
-      if (qty > batch.currentQty) throw new Error(`报损数量不能超过当前库存 (${batch.currentQty})`)
-
-      const newQty = batch.currentQty - qty
-      const updatedBatch = await tx.stockBatch.update({
-        where: { id: batchId },
-        data: {
-          currentQty: newQty,
-          status: newQty <= 0 ? 'scrapped' : 'in_stock',
-        },
-      })
-
-      const movement = await tx.stockMovement.create({
-        data: {
-          batchId,
-          type: 'scrap',
-          qtyChange: -qty,
-          notes: reason,
-          operator: 'system',
-        },
-      })
-
-      return { batch: updatedBatch, movement }
-    })
-
-    return { data: result, error: null }
-  } catch (error: any) {
-    return {
-      data: null,
-      error: { message: error.message || '报损失败', code: 'SCRAP_FAILED' },
-    }
-  }
+import { businessHandler } from '../../utils/businessTransaction'
+import { decimal, positive } from '../../../shared/money'
+export default businessHandler('stock.scrap',async(tx,actor,key,b)=>{
+ const batchId=Number(b.batchId),qty=positive(b.qty,3)
+ if(!String(b.reason||'').trim())throw new Error('请填写报损原因')
+ const batch=await tx.stockBatch.findUnique({where:{id:batchId}})
+ if(!batch||!['in_stock','discounted'].includes(batch.status)||qty.gt(batch.currentQty))throw new Error('批次不存在、已停用或报损超过库存')
+ const left=decimal(batch.currentQty).minus(qty)
+ const updated=await tx.stockBatch.update({where:{id:batchId},data:{currentQty:left.toFixed(3),specialQty:decimal(batch.specialQty).clamp(0,left).toFixed(3),status:left.isZero()?'scrapped':batch.status}})
+ const movement=await tx.stockMovement.create({data:{batchId,type:'scrap',qtyChange:qty.neg().toFixed(3),operator:String(actor),operatorUserId:actor,sourceKey:key,notes:b.reason}})
+ return {batch:updated,movement}
 })

@@ -14,6 +14,7 @@
         <div v-if="order.sourceChannel" class="source-tag">{{ order.sourceChannel }}</div>
       </div>
 
+      <p class="finance-note">订单金额 ¥{{ Number(order.totalAmount).toFixed(2) }} · 已收 ¥{{ Number(order.paidAmount).toFixed(2) }} · 尾款 ¥{{ Number(order.owedAmount).toFixed(2) }}<span v-if="Number(order.refundedAmount)>0"> · 已退 ¥{{Number(order.refundedAmount).toFixed(2)}}</span></p>
       <!-- 主表格 -->
       <table class="slip-table">
         <tbody>

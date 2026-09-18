@@ -4,7 +4,7 @@ export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const keyword = query.keyword as string | undefined
 
-  const where: any = {}
+  const where: any = { status:'active' }
   if (keyword) {
     where.OR = [
       { name: { contains: keyword } },
@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
         name: true,
         phone: true,
         level: true,
-        balance: true,
+        balance: true, storedValueBalance:true, receivableBalance:true, availablePoints:true,
       },
       orderBy: { updatedAt: 'desc' },
       take: 20,

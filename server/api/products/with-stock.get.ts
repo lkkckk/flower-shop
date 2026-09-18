@@ -1,3 +1,5 @@
+import { activeSpecial, normalBatchQuantity } from '../../../shared/batchAvailability'
+import { decimal } from '../../../shared/money'
 import { prisma } from '../../utils/prisma'
 import { hideWholesalePriceForCashier } from '../../utils/productVisibility'
 
@@ -44,8 +46,8 @@ export default defineEventHandler(async (event) => {
                   include: {
                     unitConversions: true,
                     stockBatches: {
-                      where: { status: 'in_stock', currentQty: { gt: 0 } },
-                      select: { currentQty: true },
+                      where: { status: { in: ['in_stock','discounted'] }, currentQty: { gt: 0 } },
+                      select: { id:true, batchNo:true, status:true, currentQty:true, specialPrice:true, specialQty:true, specialUntil:true },
                     },
                   },
                 },
@@ -54,8 +56,8 @@ export default defineEventHandler(async (event) => {
           },
         },
         stockBatches: {
-          where: { status: 'in_stock', currentQty: { gt: 0 } },
-          select: { currentQty: true },
+          where: { status: { in: ['in_stock','discounted'] }, currentQty: { gt: 0 } },
+          select: { id:true, batchNo:true, status:true, currentQty:true, specialPrice:true, specialQty:true, specialUntil:true },
         },
       },
       orderBy: { updatedAt: 'desc' },
@@ -67,7 +69,7 @@ export default defineEventHandler(async (event) => {
       const recipeStock = recipeItems.length > 0
         ? Math.min(...recipeItems.map((item: any) => {
             const component = item.componentProduct
-            const componentStock = component.stockBatches.reduce((sum: number, batch: any) => sum + Number(batch.currentQty || 0), 0)
+            const componentStock = component.stockBatches.reduce((sum: number, batch: any) => sum + normalBatchQuantity(batch).toNumber(), 0)
             const required = item.unit === component.baseUnit
               ? Number(item.qty || 0)
               : Number(item.qty || 0) * Number(component.unitConversions.find((u: any) => u.fromUnit === item.unit)?.toBaseQty || 1)
@@ -75,12 +77,13 @@ export default defineEventHandler(async (event) => {
           }))
         : null
       const totalStock = recipeStock === null
-        ? p.stockBatches.reduce((sum, batch) => sum + batch.currentQty, 0)
+        ? p.stockBatches.reduce((sum, batch) => sum + normalBatchQuantity(batch).toNumber(), 0)
         : recipeStock
       const { stockBatches, ...rest } = p
       return {
         ...rest,
         totalStock,
+        specialBatches: recipeItems.length ? [] : stockBatches.filter(b => activeSpecial(b)).map(b => ({id:b.id,batchNo:b.batchNo,specialPrice:b.specialPrice,specialQty:decimal(b.specialQty).clamp(0,b.currentQty).toFixed(3),specialUntil:b.specialUntil})),
       }
     })
 

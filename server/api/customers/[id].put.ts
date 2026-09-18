@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     const existing = await prisma.customer.findUnique({ where: { id } })
-    if (!existing) {
+    if (!existing || existing.status !== 'active') {
       return { data: null, error: { message: '客户不存在', code: 'NOT_FOUND' } }
     }
 

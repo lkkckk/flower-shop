@@ -112,6 +112,8 @@ const menuGroups = [
   {
     label: '主要工作台',
     items: [
+      { key: '/operations', label: '经营工作台', path: '/operations', icon: AccountBookOutlined },
+      { key: '/shifts', label: '收银交班', path: '/shifts', icon: AccountBookOutlined },
       { key: '/reports', label: '每日复盘', path: '/reports', icon: BarChartOutlined },
     ],
   },
@@ -148,6 +150,8 @@ const primaryActions = [
 ]
 
 const cashierActions = [
+  { key: '/shifts', label: '收银交班', path: '/shifts', icon: AccountBookOutlined },
+  { key: '/preorders', label: '预售管理', path: '/preorders', icon: CalendarOutlined },
   { key: '/pos', label: '收银台', path: '/pos', icon: ShopOutlined },
   { key: '/pos/schedule', label: '订单排单', path: '/pos/schedule', icon: CalendarOutlined },
   { key: '/pos/preparation', label: '今日备货', path: '/pos/preparation', icon: InboxOutlined },

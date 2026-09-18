@@ -14,7 +14,7 @@
           </div>
         </a-card>
         <a-card class="kpi-card" :body-style="{ padding: '14px 18px' }">
-          <div class="kpi-label">累计欠款总额</div>
+          <div class="kpi-label">应收欠款总额</div>
           <div class="kpi-value text-red-600">¥{{ summary.totalOwed.toFixed(2) }}</div>
         </a-card>
       </div>
@@ -227,7 +227,7 @@ const columns = [
   { title: '手机号', key: 'phone', width: 130 },
   { title: '等级 / 分群', key: 'rfm', width: 160 },
   { title: '账户余额', key: 'balance', width: 160 },
-  { title: '累计欠款', key: 'totalOwed', width: 110 },
+  { title: '应收欠款', key: 'totalOwed', width: 110 },
   { title: '最近下单', key: 'lastOrderAt', width: 130 },
   { title: '历史订单', key: 'orderCount', width: 90, align: 'center' as const },
   { title: '累计消费', key: 'totalSpent', width: 110, align: 'right' as const },
@@ -329,12 +329,12 @@ const exportDebtSummary = async () => {
       return
     }
     const { exportToCsv } = useExport()
-    const headers = ['客户姓名', '手机号', '等级', '当前欠款 (¥)', '累计欠款 (¥)']
+    const headers = ['客户姓名', '手机号', '等级', '当前欠款 (¥)', '应收欠款 (¥)']
     const rows = customers.map((c: any) => [
       c.name,
       c.phone || '',
       getLevelName(c.level),
-      Math.abs(c.balance).toFixed(2),
+      Number(c.receivableBalance).toFixed(2),
       (c.totalOwed || 0).toFixed(2),
     ])
     const filename = `客户欠款汇总表_${dayjs().format('YYYYMMDD')}`

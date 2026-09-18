@@ -5,7 +5,7 @@ import { prisma } from '../../utils/prisma'
  * 采购建议
  *
  * 算法（最小可用版）：
- *   建议库存 = 近 7 天总销量 / 7 × 安全库存天数 N（来自 Setting.safetyStockDays，默认 5）
+ *   建议库存 = 近 7 天批次净耗用量（含配方用料，扣除退货回库） / 7 × 安全库存天数 N（来自 Setting.safetyStockDays，默认 5）
  *   缺口     = 建议库存 - 当前在库
  *   仅返回缺口 > 0 的活跃商品，按缺口降序
  */
@@ -21,13 +21,7 @@ export default defineEventHandler(async () => {
         where: { status: 'active' },
         select: { id: true, name: true, baseUnit: true, grade: true, imageUrl: true },
       }),
-      prisma.orderItem.groupBy({
-        by: ['productId'],
-        where: {
-          order: { createdAt: { gte: since }, status: { not: 'cancelled' } },
-        },
-        _sum: { baseQty: true },
-      }),
+      prisma.stockMovement.findMany({where:{createdAt:{gte:since},type:{in:['sale','return']}},include:{batch:{select:{productId:true}}}}),
       prisma.stockBatch.groupBy({
         by: ['productId'],
         where: { status: { in: ['in_stock', 'discounted'] } },
@@ -36,7 +30,7 @@ export default defineEventHandler(async () => {
     ])
 
     const salesMap = new Map<number, number>()
-    for (const r of sales) salesMap.set(r.productId, r._sum.baseQty ?? 0)
+    for (const r of sales) salesMap.set(r.batch.productId, (salesMap.get(r.batch.productId)||0)-Number(r.qtyChange))
     const stockMap = new Map<number, number>()
     for (const r of stockAgg) stockMap.set(r.productId, r._sum.currentQty ?? 0)
 

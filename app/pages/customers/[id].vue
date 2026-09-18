@@ -9,12 +9,13 @@
         <a-tag v-if="customer" :color="getLevelColor(customer.level)">{{ getLevelName(customer.level) }}</a-tag>
       </template>
       <template #extra>
-        <a-button v-if="customer" @click="openEdit">编辑</a-button>
-        <a-button v-if="customer" @click="openRecharge">充值</a-button>
-        <a-button v-if="customer" type="primary" @click="openRepay">收款</a-button>
+        <a-button v-if="customer && !isCashier" @click="openEdit">编辑</a-button>
+        <a-button v-if="customer && !isCashier" @click="openRecharge">充值</a-button>
+        <a-button v-if="customer && !isCashier" type="primary" @click="openRepay">收款</a-button>
       </template>
     </a-page-header>
 
+    <CustomersCrmPanel v-if="customer" :customer-id="customer.id" />
     <a-spin :spinning="loading">
       <a-card v-if="customer" class="page-card mt-4">
         <a-descriptions :column="{ xs: 1, sm: 2, md: 3 }" bordered size="small">
@@ -23,14 +24,12 @@
           <a-descriptions-item label="等级">
             <a-tag :color="getLevelColor(customer.level)">{{ getLevelName(customer.level) }}</a-tag>
           </a-descriptions-item>
-          <a-descriptions-item label="账户余额">
-            <span v-if="customer.balance > 0" class="text-green-600 font-bold">预存 ¥{{ customer.balance.toFixed(2) }}</span>
-            <span v-else-if="customer.balance < 0" class="text-red-600 font-bold">欠款 ¥{{ Math.abs(customer.balance).toFixed(2) }}</span>
-            <span v-else class="text-gray-400">—</span>
+          <a-descriptions-item label="预存余额">
+            <span class="text-green-600 font-bold">¥{{ Number(customer.storedValueBalance || 0).toFixed(2) }}</span>
           </a-descriptions-item>
-          <a-descriptions-item label="累计欠款">¥{{ (customer.totalOwed || 0).toFixed(2) }}</a-descriptions-item>
+          <a-descriptions-item label="应收欠款">¥{{ (customer.receivableBalance || 0).toFixed(2) }}</a-descriptions-item>
           <a-descriptions-item label="会员积分">
-            <span class="text-yellow-600 font-bold">{{ customer.points || 0 }} 分</span>
+            <span class="text-yellow-600 font-bold">{{ customer.availablePoints || 0 }} 分</span>
           </a-descriptions-item>
           <a-descriptions-item label="创建时间">{{ formatDateTime(customer.createdAt) }}</a-descriptions-item>
           <a-descriptions-item label="地址" :span="3">{{ customer.address || '—' }}</a-descriptions-item>
@@ -70,7 +69,7 @@
                   </span>
                 </template>
                 <template v-else-if="column.key === 'status'">
-                  <a-tag :color="orderStatusColor(record.status)">{{ orderStatusText(record.status) }}</a-tag>
+                  <a-tag :color="orderStatusColor(record.status)">{{ ({unpaid:'未付',partial:'部分付款',paid:'已结清',partially_refunded:'部分退款',refunded:'已退款'}[record.paymentStatus] || orderStatusText(record.status)) }}</a-tag>
                 </template>
               </template>
             </a-table>
@@ -160,6 +159,7 @@
 </template>
 
 <script setup lang="ts">
+const {isCashier}=useAuth()
 import { ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import dayjs from 'dayjs'

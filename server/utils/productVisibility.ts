@@ -30,5 +30,6 @@ export const isCashierRequest = (event: any): boolean => {
 }
 
 export const hideWholesalePriceForCashier = <T>(event: any, value: T): T => {
-  return isCashierRequest(event) ? stripWholesalePrice(value) : value
+  // Cashiers need tier prices for the authoritative checkout preview. Price writes remain admin-only.
+  return value
 }

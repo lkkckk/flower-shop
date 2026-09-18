@@ -120,16 +120,16 @@
 
         <!-- 汇总区 -->
         <a-descriptions :column="{ xs: 1, sm: 2, md: 5 }" bordered size="small" class="mt-6">
-          <a-descriptions-item label="期间销售">
+          <a-descriptions-item label="期间订单金额">
             ¥{{ statement.summary.totalSales.toFixed(2) }}
           </a-descriptions-item>
-          <a-descriptions-item label="已收金额">
+          <a-descriptions-item label="外部资金净收">
             <span class="text-green-600">¥{{ statement.summary.totalPaid.toFixed(2) }}</span>
           </a-descriptions-item>
-          <a-descriptions-item label="新增欠款">
+          <a-descriptions-item label="应收增加">
             <span class="text-red-600">¥{{ statement.summary.totalOwed.toFixed(2) }}</span>
           </a-descriptions-item>
-          <a-descriptions-item label="还款金额">
+          <a-descriptions-item label="应收减少">
             <span class="text-green-600">¥{{ statement.summary.totalRepay.toFixed(2) }}</span>
           </a-descriptions-item>
           <a-descriptions-item label="期末欠款">
@@ -207,11 +207,7 @@ const columns = [
 
 const tableRows = computed(() => {
   if (!statement.value) return []
-  const lines = buildStatementLines(
-    statement.value.orders,
-    statement.value.payments,
-    statement.value.openingBalance
-  )
+  const lines = buildStatementLines(statement.value.entries, statement.value.openingBalance)
   const rows: any[] = lines.map((l, idx) => ({ ...l, _key: `row-${idx}`, _isFooter: false }))
   // 期末行
   rows.push({
@@ -272,11 +268,7 @@ const onPrint = () => {
 
 const onExport = () => {
   if (!statement.value) return
-  const lines = buildStatementLines(
-    statement.value.orders,
-    statement.value.payments,
-    statement.value.openingBalance
-  )
+  const lines = buildStatementLines(statement.value.entries, statement.value.openingBalance)
   const headers = ['日期', '类型', '单号', '摘要', '金额', '累计欠款']
   const rows: any[][] = []
 
@@ -293,7 +285,7 @@ const onExport = () => {
   for (const line of lines) {
     rows.push([
       formatDateTime(line.date),
-      line.kind === 'order' ? '订单' : '收款',
+      '账务',
       line.refNo,
       line.summary,
       line.amount.toFixed(2),
@@ -303,10 +295,10 @@ const onExport = () => {
 
   // 期末汇总
   rows.push([])
-  rows.push(['汇总', '', '', '期间销售', statement.value.summary.totalSales.toFixed(2), ''])
-  rows.push(['汇总', '', '', '已收金额', statement.value.summary.totalPaid.toFixed(2), ''])
-  rows.push(['汇总', '', '', '新增欠款', statement.value.summary.totalOwed.toFixed(2), ''])
-  rows.push(['汇总', '', '', '还款金额', statement.value.summary.totalRepay.toFixed(2), ''])
+  rows.push(['汇总', '', '', '期间订单金额', statement.value.summary.totalSales.toFixed(2), ''])
+  rows.push(['汇总', '', '', '外部资金净收', statement.value.summary.totalPaid.toFixed(2), ''])
+  rows.push(['汇总', '', '', '应收增加', statement.value.summary.totalOwed.toFixed(2), ''])
+  rows.push(['汇总', '', '', '应收减少', statement.value.summary.totalRepay.toFixed(2), ''])
   rows.push(['汇总', '', '', '期末欠款', '', statement.value.summary.closingBalance.toFixed(2)])
 
   const name = statement.value.customer.name

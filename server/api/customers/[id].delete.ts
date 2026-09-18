@@ -1,39 +1,9 @@
-import { prisma } from '../../utils/prisma'
-
-export default defineEventHandler(async (event) => {
-  const id = Number(getRouterParam(event, 'id'))
-  if (!id) {
-    return { data: null, error: { message: '无效的客户 ID', code: 'INVALID_PARAMS' } }
-  }
-
-  try {
-    const existing = await prisma.customer.findUnique({ where: { id } })
-    if (!existing) {
-      return { data: null, error: { message: '客户不存在', code: 'NOT_FOUND' } }
-    }
-
-    const orderCount = await prisma.order.count({ where: { customerId: id } })
-    if (orderCount > 0) {
-      return {
-        data: null,
-        error: {
-          message: `该客户有 ${orderCount} 笔历史订单，无法删除`,
-          code: 'HAS_ORDERS',
-        },
-      }
-    }
-
-    // 同步清理 payments（避免外键悬空）
-    await prisma.$transaction(async (tx) => {
-      await tx.payment.deleteMany({ where: { customerId: id } })
-      await tx.customer.delete({ where: { id } })
-    })
-
-    return { data: { success: true }, error: null }
-  } catch (error: any) {
-    return {
-      data: null,
-      error: { message: error.message || '删除客户失败', code: 'DELETE_ERROR' },
-    }
-  }
+import { businessHandler } from '../../utils/businessTransaction'
+import { activeCustomer } from '../../utils/accounts'
+import { money } from '../../../shared/money'
+export default businessHandler('customer.deactivate', async (tx, actor, key, b, event) => {
+  const id = Number(getRouterParam(event, 'id')), customer = await activeCustomer(tx, id)
+  if (!money(customer.storedValueBalance).isZero() || !money(customer.receivableBalance).isZero()) throw new Error('客户仍有预存或欠款，请先结清账户')
+  await tx.customer.update({ where: { id }, data: { status: 'inactive' } })
+  return { success: true }
 })

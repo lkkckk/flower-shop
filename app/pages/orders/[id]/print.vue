@@ -47,7 +47,7 @@
               {{ item.product.name }}
               <div v-if="item.grade" class="sub-text">{{ item.grade }}</div>
             </td>
-            <td class="text-right">{{ Number(Number(item.qty).toFixed(2)) }}{{ item.unit }}</td>
+            <td class="text-right">{{ Number(Number(item.qty).toFixed(3)) }}{{ item.unit }}<div v-if="Number(item.returnedQty)>0" class="sub-text">已退 {{item.returnedQty}}</div></td>
             <td class="text-right">¥{{ Number(item.subtotal).toFixed(2) }}</td>
           </tr>
         </tbody>
@@ -56,13 +56,16 @@
       <div class="divider"></div>
 
       <div class="total-line">
-        <span>合计：</span>
+        <span>原单合计：</span>
         <span class="font-bold">¥{{ Number(order.totalAmount).toFixed(2) }}</span>
       </div>
       <div class="total-line">
-        <span>实收：</span>
+        <span>累计收款：</span>
         <span>¥{{ Number(order.paidAmount).toFixed(2) }}</span>
       </div>
+      <div v-if="Number(order.pointsDiscount)>0" class="total-line"><span>已含积分抵扣：</span><span>¥{{Number(order.pointsDiscount).toFixed(2)}}</span></div>
+      <div v-if="Number(order.refundedAmount)>0" class="total-line"><span>已退款：</span><span>¥{{Number(order.refundedAmount).toFixed(2)}}</span></div>
+      <div v-if="order.fulfillmentStatus==='cancelled'" class="total-line"><strong>订单已作废</strong></div>
       <div v-if="order.owedAmount > 0" class="total-line text-bold">
         <span>欠款：</span>
         <span>¥{{ Number(order.owedAmount).toFixed(2) }}</span>

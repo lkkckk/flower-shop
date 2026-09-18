@@ -54,7 +54,7 @@
         <tbody>
           <tr v-for="(line, idx) in lines" :key="idx">
             <td>{{ formatDateTime(line.date) }}</td>
-            <td>{{ line.kind === 'order' ? '订单' : '收款' }}</td>
+            <td>{{ '账务' }}</td>
             <td class="mono">{{ line.refNo }}</td>
             <td>{{ line.summary }}</td>
             <td class="text-right" :class="line.amount > 0 ? 'plus' : line.amount < 0 ? 'minus' : ''">
@@ -75,15 +75,15 @@
       <table class="summary-table">
         <tbody>
           <tr>
-            <th>期间销售</th>
+            <th>期间订单金额</th>
             <td>¥{{ statement.summary.totalSales.toFixed(2) }}</td>
-            <th>已收金额</th>
+            <th>外部资金净收</th>
             <td>¥{{ statement.summary.totalPaid.toFixed(2) }}</td>
-            <th>新增欠款</th>
+            <th>应收增加</th>
             <td>¥{{ statement.summary.totalOwed.toFixed(2) }}</td>
           </tr>
           <tr>
-            <th>还款金额</th>
+            <th>应收减少</th>
             <td>¥{{ statement.summary.totalRepay.toFixed(2) }}</td>
             <th>期末欠款</th>
             <td colspan="3"><b>¥{{ statement.summary.closingBalance.toFixed(2) }}</b></td>
@@ -143,11 +143,7 @@ const loadStatement = async () => {
     })
     if (res.error) return
     statement.value = res.data
-    lines.value = buildStatementLines(
-      res.data.orders,
-      res.data.payments,
-      res.data.openingBalance
-    )
+    lines.value = buildStatementLines(res.data.entries, res.data.openingBalance)
   } catch (e) {
     // ignore
   }

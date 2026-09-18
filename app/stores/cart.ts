@@ -1,3 +1,6 @@
+import { pickBasePrice } from '~~/shared/priceMode'
+import { money, decimal, sumMoney } from '~~/shared/money'
+import { createClientId } from '~~/shared/clientId'
 // defineStore / ref / computed 由 @pinia/nuxt + Nuxt 自动导入提供
 
 export interface CartItem {
@@ -38,13 +41,9 @@ export interface PaymentInfo {
   owedAmount: number
 }
 
-const generateId = () => {
-  return typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID()
-    : Math.random().toString(36).substring(2, 15)
-}
+const generateId = createClientId
 
-const roundMoney = (value: number) => Math.round(value * 100) / 100
+const roundMoney = (value: number) => money(value).toNumber()
 
 export const useCartStore = defineStore('cart', () => {
   const createEmptyCart = (): Cart => ({
@@ -73,7 +72,7 @@ export const useCartStore = defineStore('cart', () => {
     return (cartId: string) => {
       const cart = carts.value.find((c) => c.id === cartId)
       if (!cart) return 0
-      return cart.items.reduce((sum, item) => sum + item.subtotal, 0)
+      return sumMoney(cart.items.map(item => item.subtotal)).toNumber()
     }
   })
 
@@ -117,12 +116,12 @@ export const useCartStore = defineStore('cart', () => {
 
   const getPriceForLevel = (product: any, level: string) => {
     // 与结账接口一致：零售基础价，优惠在结账时统一计算。
-    return product.defaultPrice
+    return product.specialBatchId ? Number(product.specialPrice) : pickBasePrice({ ...product, level }, 'retail')
   }
 
   const getLevelBasePrice = (prices: any, level: string) => {
     if (!prices) return 0
-    return prices.defaultPrice || 0
+    return prices.specialBatchId ? Number(prices.specialPrice) : pickBasePrice({ ...prices, level }, 'retail')
   }
 
   const recalculatePrices = (cart: Cart) => {
@@ -138,9 +137,9 @@ export const useCartStore = defineStore('cart', () => {
       }
 
       const basePrice = getLevelBasePrice(prices, cart.customerLevel)
-      item.unitPrice = roundMoney(basePrice * toBaseQty)
+      item.unitPrice = money(decimal(basePrice).times(toBaseQty)).toNumber()
       item.originalPrice = item.unitPrice
-      item.subtotal = roundMoney(item.qty * item.unitPrice)
+      item.subtotal = money(decimal(item.qty).times(item.unitPrice)).toNumber()
     })
   }
 
@@ -152,7 +151,8 @@ export const useCartStore = defineStore('cart', () => {
       cart.customerId = customer.id
       cart.customerName = customer.name
       cart.customerLevel = customer.level || 'normal'
-      cart.customerBalance = customer.balance || 0
+      cart.customerBalance = customer.storedValueBalance ?? customer.balance ?? 0
+      ;(cart as any).availablePoints = customer.availablePoints ?? 0
       cart.label = customer.name || '客户'
       cart.deliveryAddress = customer.address || ''
     } else {
@@ -185,24 +185,25 @@ export const useCartStore = defineStore('cart', () => {
     if (unit !== product.baseUnit) {
       // 如果按不同单位卖，单价通常需要乘以包含的基础单位数量
       // 取决于业务设定，这里假定是基础数量 * 基础价
-      unitPrice = unitPrice * toBaseQty
+      unitPrice = decimal(unitPrice).times(toBaseQty).toNumber()
     }
 
     unitPrice = roundMoney(unitPrice)
 
     // 检查是否存在
     const existingItem = cart.items.find(
-      (i) => i.productId === product.id && i.unit === unit
+      (i) => i.productId === product.id && i.unit === unit && (i as any).specialBatchId === product.specialBatchId
     )
 
     if (existingItem) {
       existingItem.qty += qty
       existingItem.baseQty = existingItem.qty * toBaseQty
-      existingItem.subtotal = roundMoney(existingItem.qty * existingItem.unitPrice)
+      existingItem.subtotal = money(decimal(existingItem.qty).times(existingItem.unitPrice)).toNumber()
     } else {
       cart.items.push({
         id: generateId(),
         productId: product.id,
+        specialBatchId: product.specialBatchId,
         productName: product.name,
         grade: product.grade,
         specification: product.specification,
@@ -213,11 +214,14 @@ export const useCartStore = defineStore('cart', () => {
         baseQty: qty * toBaseQty,
         unitPrice,
         originalPrice: unitPrice,
-        subtotal: roundMoney(qty * unitPrice),
+        subtotal: money(decimal(qty).times(unitPrice)).toNumber(),
         notes: '',
         // 将价格字典隐藏保存以便后续换客户重算
         _prices: {
+          specialBatchId: product.specialBatchId,
+          specialPrice: product.specialPrice,
           defaultPrice: product.defaultPrice,
+          memberPrice: product.memberPrice,
           vipPrice: product.vipPrice,
           wholesalePrice: product.wholesalePrice,
         }
@@ -239,7 +243,7 @@ export const useCartStore = defineStore('cart', () => {
       if (conv) toBaseQty = conv.toBaseQty
     }
     item.baseQty = qty * toBaseQty
-    item.subtotal = roundMoney(qty * item.unitPrice)
+    item.subtotal = money(decimal(qty).times(item.unitPrice)).toNumber()
   }
 
   const updateItemUnit = (cartId: string, itemId: string, unit: string) => {
@@ -258,11 +262,11 @@ export const useCartStore = defineStore('cart', () => {
     
     // 重算价格：当前等级的基础单价 * 换算数量
     const prices = (item as any)._prices || {}
-    let baseLevelPrice = prices.defaultPrice
+    let baseLevelPrice = getLevelBasePrice(prices, cart.customerLevel)
 
-    item.unitPrice = roundMoney(baseLevelPrice * toBaseQty)
+    item.unitPrice = money(decimal(baseLevelPrice).times(toBaseQty)).toNumber()
     item.originalPrice = item.unitPrice
-    item.subtotal = roundMoney(item.qty * item.unitPrice)
+    item.subtotal = money(decimal(item.qty).times(item.unitPrice)).toNumber()
   }
 
   const updateItemPrice = (cartId: string, itemId: string, price: number) => {
@@ -272,7 +276,7 @@ export const useCartStore = defineStore('cart', () => {
     if (!item) return
 
     item.unitPrice = price
-    item.subtotal = item.qty * price
+    item.subtotal = money(decimal(item.qty).times(price)).toNumber()
   }
 
   const removeItem = (cartId: string, itemId: string) => {
@@ -292,10 +296,10 @@ export const useCartStore = defineStore('cart', () => {
         item.unitPrice = adjustment.value
       } else {
         // percentage: value = -10 means 10% off, value = 20 means 20% markup
-        item.unitPrice = item.originalPrice * (1 + adjustment.value / 100)
+        item.unitPrice = decimal(item.originalPrice).times(decimal(adjustment.value).div(100).plus(1)).toNumber()
       }
-      item.unitPrice = Math.max(0, Math.round(item.unitPrice * 100) / 100)
-      item.subtotal = roundMoney(item.qty * item.unitPrice)
+      item.unitPrice = money(item.unitPrice).clamp(0,Infinity).toNumber()
+      item.subtotal = money(decimal(item.qty).times(item.unitPrice)).toNumber()
     }
   }
 
@@ -337,7 +341,8 @@ export const useCartStore = defineStore('cart', () => {
       for (const item of cart.items) {
         const product = byId.get(item.productId)
         if (!product) continue
-        ;(item as any)._prices = { defaultPrice: product.defaultPrice }
+        const special = product.specialBatches?.find((b:any)=>b.id===(item as any).specialBatchId)
+        ;(item as any)._prices = { ...product, specialBatchId:(item as any).specialBatchId, specialPrice:special?.specialPrice ?? (item as any)._prices?.specialPrice }
       }
       recalculatePrices(cart)
     }

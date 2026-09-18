@@ -1,3 +1,5 @@
+> 历史资料（已归档）：此文件记录旧版设计过程，包含已废弃的 SQLite、权限或业务状态描述。当前采用 PostgreSQL，运行依据为 `prisma/schema.prisma` 和 `server/utils` 业务服务；请勿按此文件初始化或部署。
+
 # 项目初始化进展
 
 ## 状态：done ✅

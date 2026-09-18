@@ -1,10 +1,10 @@
 import { prisma } from '../../utils/prisma'
 
 /** 将所有未读通知置为已读 */
-export default defineEventHandler(async () => {
+export default defineEventHandler(async (event) => {
   try {
     const r = await prisma.notification.updateMany({
-      where: { userId: null, readAt: null },
+      where: { OR: [{ userId: null }, { userId: event.context.user.sub }], readAt: null },
       data: { readAt: new Date() },
     })
     return { data: { updated: r.count }, error: null }

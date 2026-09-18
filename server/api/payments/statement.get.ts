@@ -1,111 +1,14 @@
-import dayjs from 'dayjs'
 import { prisma } from '../../utils/prisma'
-
-export default defineEventHandler(async (event) => {
-  const query = getQuery(event)
-  const customerId = Number(query.customerId)
-  if (!customerId) {
-    return { data: null, error: { message: '缺少 customerId 参数', code: 'INVALID_PARAMS' } }
-  }
-
-  const startDate = query.startDate
-    ? dayjs(query.startDate as string).startOf('day').toDate()
-    : dayjs().startOf('month').toDate()
-  const endDate = query.endDate
-    ? dayjs(query.endDate as string).endOf('day').toDate()
-    : dayjs().endOf('month').toDate()
-
-  try {
-    const [customer, orders, payments, priorOrders, priorRepays] = await Promise.all([
-      prisma.customer.findUnique({ where: { id: customerId } }),
-
-      // 期间订单
-      prisma.order.findMany({
-        where: {
-          customerId,
-          createdAt: { gte: startDate, lte: endDate },
-        },
-        orderBy: { createdAt: 'asc' },
-        include: {
-          items: {
-            select: {
-              id: true,
-              productId: true,
-              qty: true,
-              unit: true,
-              unitPrice: true,
-              subtotal: true,
-              product: { select: { name: true, baseUnit: true } },
-            },
-          },
-        },
-      }),
-
-      // 期间还款流水（type=repay）
-      prisma.payment.findMany({
-        where: {
-          customerId,
-          type: 'repay',
-          createdAt: { gte: startDate, lte: endDate },
-        },
-        orderBy: { createdAt: 'asc' },
-      }),
-
-      // 期初之前所有订单 owedAmount 之和
-      prisma.order.aggregate({
-        where: {
-          customerId,
-          createdAt: { lt: startDate },
-        },
-        _sum: { owedAmount: true },
-      }),
-
-      // 期初之前所有 repay 之和
-      prisma.payment.aggregate({
-        where: {
-          customerId,
-          type: 'repay',
-          createdAt: { lt: startDate },
-        },
-        _sum: { amount: true },
-      }),
-    ])
-
-    if (!customer) {
-      return { data: null, error: { message: '客户不存在', code: 'NOT_FOUND' } }
-    }
-
-    const openingBalance =
-      (priorOrders._sum.owedAmount || 0) - (priorRepays._sum.amount || 0)
-
-    const totalSales = orders.reduce((sum, o) => sum + o.totalAmount, 0)
-    const totalPaid = orders.reduce((sum, o) => sum + o.paidAmount, 0)
-    const totalOwed = orders.reduce((sum, o) => sum + o.owedAmount, 0)
-    const totalRepay = payments.reduce((sum, p) => sum + p.amount, 0)
-    const closingBalance = openingBalance + totalOwed - totalRepay
-
-    return {
-      data: {
-        customer,
-        startDate,
-        endDate,
-        openingBalance,
-        orders,
-        payments,
-        summary: {
-          totalSales,
-          totalPaid,
-          totalOwed,
-          totalRepay,
-          closingBalance,
-        },
-      },
-      error: null,
-    }
-  } catch (error: any) {
-    return {
-      data: null,
-      error: { message: error.message || '生成对账单失败', code: 'STATEMENT_ERROR' },
-    }
-  }
+import { reportRange } from '../../utils/businessReports'
+import { sumMoney } from '../../../shared/money'
+export default defineEventHandler(async event=>{
+ const q=getQuery(event), id=Number(q.customerId); const {startDate,endDate,filter}=reportRange(q)
+ const customer=await prisma.customer.findUnique({where:{id}})
+ if(!customer)throw createError({statusCode:404,message:'客户不存在'})
+ const entries=await prisma.customerAccountEntry.findMany({where:{customerId:id,account:'receivable',createdAt:filter},orderBy:[{createdAt:'asc'},{id:'asc'}]})
+ const prior=await prisma.customerAccountEntry.aggregate({where:{customerId:id,account:'receivable',createdAt:{lt:startDate}},_sum:{amount:true}})
+ const opening=sumMoney([prior._sum.amount||0]), closing=opening.plus(sumMoney(entries.map(e=>e.amount)))
+ const orders=await prisma.order.findMany({where:{customerId:id,createdAt:filter},include:{items:{include:{product:true}}}})
+ const payments=await prisma.payment.findMany({where:{customerId:id,createdAt:filter,paymentMethod:{not:'balance'}},orderBy:{createdAt:'asc'}})
+ return {data:{customer,startDate,endDate,openingBalance:opening.toFixed(2),closingBalance:closing.toFixed(2),entries,orders,payments,summary:{totalSales:sumMoney(orders.map(o=>o.totalAmount)).toFixed(2),totalPaid:sumMoney(payments.map(p=>p.amount)).toFixed(2),totalOwed:sumMoney(entries.filter(e=>Number(e.amount)>0).map(e=>e.amount)).toFixed(2),totalRepay:sumMoney(entries.filter(e=>Number(e.amount)<0).map(e=>-Number(e.amount))).toFixed(2),closingBalance:closing.toFixed(2)}},error:null}
 })

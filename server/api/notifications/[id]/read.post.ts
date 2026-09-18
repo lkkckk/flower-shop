@@ -7,8 +7,8 @@ export default defineEventHandler(async (event) => {
     return { data: null, error: { message: '无效的通知 ID', code: 'INVALID_PARAMS' } }
   }
   try {
-    await prisma.notification.update({
-      where: { id },
+    await prisma.notification.updateMany({
+      where: { id, OR: [{ userId: null }, { userId: event.context.user.sub }] },
       data: { readAt: new Date() },
     })
     return { data: { success: true }, error: null }

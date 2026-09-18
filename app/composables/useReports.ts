@@ -5,7 +5,7 @@ export const useReports = () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  const fetchDashboard = async (params: { startDate?: string; endDate?: string } = {}) => {
+  const fetchDashboard = async (params: { startDate?: string; endDate?: string; basis?: string } = {}) => {
     loading.value = true
     error.value = null
     try {

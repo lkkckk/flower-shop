@@ -21,9 +21,9 @@ export function getUnitFactor(product: SaleProduct, unit: string): number {
 export function remainingSaleQuantity(
   product: SaleProduct,
   unit: string,
-  items: { id: string; productId: number; baseQty: number }[],
+  items: { id: string; productId: number; baseQty: number; specialBatchId?: number }[],
   excludeItemId?: string,
 ) {
-  const selected = items.filter(i => i.productId === product.id && i.id !== excludeItemId).reduce((sum, i) => sum + i.baseQty, 0)
+  const selected = items.filter(i => i.productId === product.id && i.id !== excludeItemId && !i.specialBatchId).reduce((sum, i) => sum + i.baseQty, 0)
   return Math.max(0, Math.floor((product.totalStock - selected + 1e-8) / getUnitFactor(product, unit) * 100) / 100)
 }

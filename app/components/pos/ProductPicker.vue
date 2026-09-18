@@ -33,6 +33,7 @@
               <label class="unit-picker"><span>单位</span><select :value="selectedUnit(product)" :aria-label="product.name + '销售单位'" @change="units[product.id] = ($event.target as HTMLSelectElement).value"><option v-for="unit in getSaleUnits(product)" :key="unit.name" :value="unit.name">{{ unit.name }}{{ unit.factor !== 1 ? '（' + unit.factor + product.baseUnit + '）' : '' }}</option></select></label>
               <div class="product-price"><strong>¥{{ unitPrice(product).toFixed(2) }}</strong><span>/{{ selectedUnit(product) }}</span></div>
               <div class="stock-copy">{{ product.totalStock <= 0 ? '补货中' : '还可加 ' + formatQuantity(remaining(product)) + ' ' + selectedUnit(product) }}</div>
+              <div v-if="product.specialBatches?.length" class="special-batches"><button v-for="batch in product.specialBatches" :key="batch.id" type="button" @click="addSpecial(product,batch)">特价 ¥{{ batch.specialPrice }}/{{ product.baseUnit }} · 批次 {{ batch.batchNo }} · 余 {{ batch.specialQty }} · 点选 1 {{ product.baseUnit }}</button></div>
               <div class="product-stepper">
                 <button v-if="selectedQuantity(product) > 0" type="button" class="quantity-button minus" :aria-label="'减少' + product.name" @click="changeQuantity(product, Math.max(0, selectedQuantity(product) - 1))"><MinusOutlined /></button>
                 <button v-if="selectedQuantity(product) > 0" type="button" class="quantity-value" :aria-label="'修改' + product.name + '数量'" @click="openQuantity(product)">{{ formatQuantity(selectedQuantity(product)) }}</button>
@@ -56,10 +57,12 @@
 import { computed, onMounted, ref } from 'vue'
 import { AppstoreOutlined, MinusOutlined, PictureOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
+import { money, decimal } from '~~/shared/money'
+import { pickBasePrice } from '~~/shared/priceMode'
 import { useCartStore } from '~/stores/cart'
 import { getSaleUnits, getUnitFactor, remainingSaleQuantity, type SaleProduct } from '~~/shared/posQuantity'
 
-interface CatalogProduct extends SaleProduct { name: string; defaultPrice: number; imageUrl?: string | null; specification?: string | null; grade?: string | null; color?: string | null; categoryId?: number | null }
+interface CatalogProduct extends SaleProduct { name: string; defaultPrice: number; imageUrl?: string | null; specification?: string | null; grade?: string | null; color?: string | null; categoryId?: number | null; specialBatches?: any[] }
 interface Category { id: number; name: string; children?: Category[] }
 const cartStore = useCartStore()
 const { token } = useAuth()
@@ -90,10 +93,16 @@ const filteredProducts = computed(() => {
 })
 const selectRoot = (id: number | null) => { rootId.value = id; categoryId.value = null }
 const selectedUnit = (product: CatalogProduct) => units.value[product.id] || product.baseUnit
-const selectedItem = (product: CatalogProduct, unit = selectedUnit(product)) => cartStore.activeCart?.items.find(i => i.productId === product.id && i.unit === unit)
+const selectedItem = (product: CatalogProduct, unit = selectedUnit(product)) => cartStore.activeCart?.items.find(i => i.productId === product.id && i.unit === unit && !(i as any).specialBatchId)
 const selectedQuantity = (product: CatalogProduct) => selectedItem(product)?.qty || 0
 const productQuantity = (product: CatalogProduct) => cartStore.activeCart?.items.filter(i => i.productId === product.id).reduce((sum, i) => sum + i.baseQty, 0) || 0
-const unitPrice = (product: CatalogProduct) => Math.round(product.defaultPrice * getUnitFactor(product, selectedUnit(product)) * 100) / 100
+const unitPrice = (product: CatalogProduct) => money(decimal(pickBasePrice({...product,level:cartStore.activeCart?.customerLevel},'retail')).times(getUnitFactor(product,selectedUnit(product)))).toNumber()
+const addSpecial = (product:CatalogProduct,batch:any) => {
+ const cart=cartStore.activeCart;if(!cart)return
+ const used=cart.items.filter((i:any)=>i.specialBatchId===batch.id).reduce((s:number,i:any)=>s+i.baseQty,0)
+ if(decimal(batch.specialQty).minus(used).lt(1)){message.warning('该特价批次可售数量不足 1，请刷新库存');return}
+ cartStore.addItem(cart.id,{...product,specialBatchId:batch.id,specialPrice:batch.specialPrice,name:`${product.name}（特价批次 ${batch.batchNo}）`},product.baseUnit,1)
+}
 const remaining = (product: CatalogProduct) => remainingSaleQuantity(product, selectedUnit(product), cartStore.activeCart?.items || [])
 const formatQuantity = (qty: number) => Number(qty.toFixed(2)).toString()
 const maxQuantity = computed(() => quantityProduct.value ? remainingSaleQuantity(quantityProduct.value, quantityUnit.value, cartStore.activeCart?.items || [], selectedItem(quantityProduct.value, quantityUnit.value)?.id) : 0)
@@ -132,6 +141,7 @@ onMounted(() => { if (token.value) refresh() })
 </script>
 
 <style scoped>
+.special-batches button { display:block; width:100%; margin-top:8px; padding:8px; border:1px solid #d9aa63; border-radius:8px; background:#fff7e8; color:#79531c; text-align:left; font-size:12px; }
 .product-picker { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; background: #fff; }
 .picker-toolbar { display: flex; gap: 10px; padding: 14px 18px 10px; }
 .picker-toolbar :deep(.ant-input-affix-wrapper) { border-radius: 24px; background: #f5f5f2; border-color: transparent; box-shadow: none; min-height: 44px; }

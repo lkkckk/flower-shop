@@ -25,7 +25,7 @@ try {
       stockBatches: { create: { batchNo: `TEST-${index}`, inboundDate: new Date(), expiryDate: new Date(Date.now() + 7 * 86400000), inboundQty: index === 5 ? 0 : 100, currentQty: index === 5 ? 0 : 100, costPrice: 1 } },
     } }))
   }
-  const customer = await p.customer.create({ data: { name: '验收客户', level: 'vip', balance: 100 } })
+  const customer = await p.customer.create({ data: { name: '验收客户', level: 'vip', balance: 100, storedValueBalance:100, accountEntries:{create:{account:'stored_value',amount:100,balanceAfter:100,type:'opening',sourceKey:'acceptance-customer-opening'}} } })
   await p.setting.createMany({ data: [{ key: 'shopName', value: '花店收银验收' }, { key: 'lowStockThreshold', value: '0' }] })
   const promotion = await p.promotion.create({ data: { name: '满100减15', threshold: 100, reduction: 15 } })
   mkdirSync('.cache', { recursive: true })

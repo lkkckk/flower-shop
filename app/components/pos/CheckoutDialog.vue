@@ -28,8 +28,8 @@
       <div class="mb-5 bg-pink-50 p-3 rounded-lg border border-pink-100">
         <div class="text-gray-600 mb-2 font-medium text-sm">价格模式</div>
         <a-radio-group v-model:value="priceMode" button-style="solid" class="w-full flex flex-wrap gap-1">
-          <a-radio-button value="retail" class="flex-1 text-center">零售价</a-radio-button>
-          <a-radio-button value="discount" class="flex-1 text-center">折扣价</a-radio-button>
+          <a-radio-button value="retail" class="flex-1 text-center">客户等级价</a-radio-button>
+          <a-radio-button v-if="!isCashier" value="discount" class="flex-1 text-center">折扣价</a-radio-button>
           <a-radio-button value="promotion" class="flex-1 text-center">满减活动</a-radio-button>
         </a-radio-group>
 
@@ -69,6 +69,11 @@
         </div>
       </div>
 
+      <a-form-item v-if="priceMode === 'discount' || cart.discount > 0" label="手工优惠原因（必填）"><a-input v-model:value="priceReason" /></a-form-item>
+      <a-form-item v-if="cart.customerId && cart.customerLevel !== 'wholesale'" :label="`积分抵现（可用 ${Math.max(0, (cart as any).availablePoints || 0)} 分，${loyalty.pointsPerYuan} 分抵 1 元，上限 ${loyalty.maxPercent}%）`">
+        <a-input-number v-model:value="pointsToRedeem" :min="0" :precision="0" :max="Math.max(0, (cart as any).availablePoints || 0)" />
+      </a-form-item>
+      <NuxtLink to="/shifts" class="block mb-3">现金收款前先开班 · 查看交班</NuxtLink>
       <div class="mb-5">
         <div class="text-gray-600 mb-2 font-medium text-sm">支付方式</div>
         <a-radio-group v-model:value="paymentMethod" button-style="solid" class="w-full flex flex-wrap gap-1">
@@ -137,6 +142,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { money, decimal } from '~~/shared/money'
 import { message } from 'ant-design-vue'
 import { useCartStore } from '~/stores/cart'
 import { computeOrder, type PriceMode } from '~~/shared/priceMode'
@@ -160,6 +166,10 @@ const cartStore = useCartStore()
 const { currentCashier } = useActiveCashier()
 
 const loading = ref(false)
+const { isCashier } = useAuth()
+const pointsToRedeem = ref(0)
+const priceReason = ref('')
+const loyalty = ref({ pointsPerYuan: 100, maxPercent: 20 })
 const paymentMethod = ref<'cash' | 'wechat' | 'alipay' | 'credit' | 'balance'>('wechat')
 const paidAmount = ref<number>(0)
 
@@ -186,7 +196,8 @@ const computeInput = computed(() => {
     }
     return {
       basis: {
-        defaultPrice: p.defaultPrice ?? it.unitPrice,
+        defaultPrice: p.specialBatchId ? p.specialPrice : p.defaultPrice ?? it.unitPrice,
+        memberPrice: p.memberPrice, vipPrice: p.vipPrice, wholesalePrice: p.wholesalePrice, level: p.specialBatchId ? 'normal' : cart.value?.customerLevel,
       },
       qty: it.qty,
       toBaseQty,
@@ -208,7 +219,7 @@ const computeInput = computed(() => {
 const subtotalBeforeReduction = computed(() => computeInput.value?.subtotal ?? 0)
 const subtotal = computed(() => computeInput.value?.subtotal ?? 0)
 const reduction = computed(() => computeInput.value?.reduction ?? 0)
-const previewTotal = computed(() => Math.max(0, Math.round(((computeInput.value?.total ?? 0) - (cart.value?.discount || 0)) * 100) / 100))
+const previewTotal = computed(() => money(computeInput.value?.total ?? 0).minus(cart.value?.discount || 0).minus(money(decimal(pointsToRedeem.value || 0).div(loyalty.value.pointsPerYuan))).clamp(0, Infinity).toNumber())
 const promotionApplicable = computed(() => computeInput.value?.promotionApplicable ?? false)
 
 const confirmDisabled = computed(() => {
@@ -228,6 +239,14 @@ watch(() => props.visible, async (val) => {
   priceMode.value = 'retail'
   promotionId.value = null
   discountRate.value = 90
+  pointsToRedeem.value = 0
+  priceReason.value = ''
+  const rules: any = await $fetch('/api/loyalty-rules')
+  loyalty.value = rules.data
+  if (cart.value?.customerId) {
+    const profile: any = await $fetch(`/api/customers/${cart.value.customerId}/profile`)
+    cartStore.setCustomer(cart.value.id, profile.data)
+  }
   await loadPromotions()
   if (paymentMethod.value === 'balance') {
     paidAmount.value = Math.min(cart.value?.customerBalance ?? 0, previewTotal.value)
@@ -269,7 +288,7 @@ const loadPromotions = async () => {
 }
 
 const changeAmount = computed(() => {
-  return Math.max(0, paidAmount.value - previewTotal.value)
+  return money(paidAmount.value).minus(previewTotal.value).clamp(0, Infinity).toNumber()
 })
 
 const handleConfirm = async () => {
@@ -323,6 +342,7 @@ const handleConfirm = async () => {
         cart: {
           ...cart.value,
           priceMode: priceMode.value,
+          priceReason: priceReason.value, pointsToRedeem: pointsToRedeem.value,
           discountRate: priceMode.value === 'discount' ? discountRate.value : undefined,
           promotionId: priceMode.value === 'promotion' ? promotionId.value : null,
         },

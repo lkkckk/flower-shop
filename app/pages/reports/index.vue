@@ -32,6 +32,9 @@
       </div>
     </a-card>
 
+    <a-alert class="mb-3" message="销售按交付时间确认；实收按外部付款发生时间；应收按账本变动。预存消费不会重复计作现金收入。" />
+    <a-space class="mb-3" wrap><a-select v-model:value="basis" :options="[{value:'sales',label:'销售'},{value:'cash',label:'实收'},{value:'receivable',label:'应收变动'}]" style="width:160px" @change="loadData" /><span>当前口径合计：¥{{ Number(data?.summary.selectedAmount || 0).toFixed(2) }}</span></a-space>
+    <a-alert v-if="data?.missingCostOrders?.length" type="warning" message="历史订单存在成本缺失，本期毛利暂不完整，请先核对迁移差异。" class="mb-3" />
     <a-spin :spinning="loading">
       <!-- 核心指标卡片 -->
       <a-row :gutter="[16, 16]">
@@ -106,13 +109,13 @@
         </a-col>
         <a-col :xs="24" :sm="12" :xl="6">
           <a-card size="small">
-            <div class="text-xs text-gray-500">新增欠款</div>
+            <div class="text-xs text-gray-500">应收净变动</div>
             <div class="text-xl font-bold text-red-600">¥{{ (data?.summary.totalOwed || 0).toFixed(2) }}</div>
           </a-card>
         </a-col>
         <a-col :xs="24" :sm="12" :xl="6">
           <a-card size="small">
-            <div class="text-xs text-gray-500">进货成本</div>
+            <div class="text-xs text-gray-500">已售成本</div>
             <div class="text-xl font-bold text-gray-700">¥{{ (data?.summary.totalCost || 0).toFixed(2) }}</div>
           </a-card>
         </a-col>
@@ -127,7 +130,7 @@
       </a-row>
 
       <!-- 销售趋势 -->
-      <a-card title="销售趋势（按日）" class="page-card">
+      <a-card :title="`${basis==='sales'?'销售':basis==='cash'?'实收':'应收变动'}趋势（按日）`" class="page-card">
         <a-empty v-if="!data || !data.dailyTrend?.length" description="暂无数据" />
         <a-table
           v-else
@@ -292,7 +295,7 @@
       </a-card>
 
       <!-- 滞销商品 -->
-      <a-card title="滞销商品（近 7 天 < 5 单且仍有库存）" class="page-card">
+      <a-card title="滞销商品（近 7 天无净销量且仍有库存）" class="page-card">
         <a-empty v-if="!data?.slowProducts?.length" description="暂无滞销商品" />
         <a-table
           v-else
@@ -343,6 +346,7 @@ useHead({ title: '经营报表 - 花店管理系统' })
 
 const { isStrictAdmin } = useAuth()
 const { fetchDashboard, loading } = useReports()
+const basis = ref('sales')
 
 // 欠款客户
 const debtors = ref<any[]>([])
@@ -351,7 +355,7 @@ const debtorLoading = ref(false)
 const debtorColumns = [
   { title: '客户', dataIndex: 'name', key: 'name', width: 120 },
   { title: '电话', dataIndex: 'phone', key: 'phone', width: 130 },
-  { title: '累计欠款', key: 'totalOwed', width: 120 },
+  { title: '应收欠款', key: 'totalOwed', width: 120 },
   { title: '当前余额', key: 'balance', width: 120 },
   { title: '欠款订单数', key: 'orderCount', width: 100, customRender: ({ record }: any) => record.orders?.length || 0 },
 ]
@@ -411,13 +415,13 @@ const dateRange = ref<[string, string]>([
 
 const data = ref<any | null>(null)
 
-const trendColumns = [
+const trendColumns = computed(() => [
   { title: '日期', key: 'date', dataIndex: 'date', width: 120 },
   { title: '订单数', key: 'orderCount', dataIndex: 'orderCount', width: 90 },
-  { title: '销售额', key: 'amount', width: 120 },
-  { title: '毛利', key: 'profit', width: 120 },
+  { title: basis.value==='sales'?'销售额':basis.value==='cash'?'实收额':'应收变动', key: 'amount', width: 120 },
+  ...(basis.value==='sales'?[{ title: '毛利', key: 'profit', width: 120 }]:[]),
   { title: '走势', key: 'bar' },
-]
+])
 
 const slowColumns = [
   { title: '商品名', key: 'productName', dataIndex: 'productName', width: 200 },
@@ -454,10 +458,7 @@ const formatQty = (n: number) => {
   return Number.isInteger(n) ? n : n.toFixed(2)
 }
 
-const stagnantDays = (record: any) => {
-  if (!record.lastSoldAt) return '∞'
-  return dayjs().startOf('day').diff(dayjs(record.lastSoldAt).startOf('day'), 'day')
-}
+const stagnantDays = (record:any) => record.stagnantDays ?? 0
 
 const rankClass = (index: number) => {
   if (index === 0) return 'rank-gold'
@@ -508,8 +509,8 @@ const onExportReport = () => {
   rows.push(['客单价', s.avgOrderValue.toFixed(2)])
   rows.push(['毛利率', s.grossMargin.toFixed(1) + '%'])
   rows.push(['已收金额', s.totalPaid.toFixed(2)])
-  rows.push(['新增欠款', s.totalOwed.toFixed(2)])
-  rows.push(['进货成本', s.totalCost.toFixed(2)])
+  rows.push(['应收净变动', s.totalOwed.toFixed(2)])
+  rows.push(['已售成本', s.totalCost.toFixed(2)])
   rows.push(['毛利总额', s.grossProfit.toFixed(2)])
   rows.push([])
 
@@ -553,6 +554,7 @@ const onExportReport = () => {
 const loadData = async () => {
   try {
     const result = await fetchDashboard({
+      basis: basis.value,
       startDate: dateRange.value[0],
       endDate: dateRange.value[1],
     })

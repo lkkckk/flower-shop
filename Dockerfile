@@ -7,6 +7,11 @@ COPY . .
 RUN pnpm install --frozen-lockfile
 RUN pnpm build
 
+FROM postgres:16-alpine AS backup
+RUN apk add --no-cache python3
+COPY scripts/backup.py /backup.py
+ENTRYPOINT ["python3", "/backup.py"]
+
 FROM node:20-bookworm AS runtime
 RUN npm install --global pnpm@10.33.0
 

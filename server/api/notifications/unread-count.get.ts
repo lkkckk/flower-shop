@@ -1,9 +1,9 @@
 import { prisma } from '../../utils/prisma'
 
 /** 仅返回未读数，供前端铃铛红点轮询使用，比 list 接口更轻 */
-export default defineEventHandler(async () => {
+export default defineEventHandler(async (event) => {
   try {
-    const count = await prisma.notification.count({ where: { userId: null, readAt: null } })
+    const count = await prisma.notification.count({ where: { OR: [{ userId: null }, { userId: event.context.user.sub }], readAt: null } })
     return { data: { count }, error: null }
   } catch (error: any) {
     return {

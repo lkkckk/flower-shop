@@ -1,3 +1,4 @@
+import { money } from '~~/shared/money'
 import dayjs from 'dayjs'
 
 export interface StatementLine {
@@ -10,62 +11,14 @@ export interface StatementLine {
   raw?: any
 }
 
-/**
- * 将 orders 和 payments 按时间合并为对账明细行，计算每行的本期累计欠款
- */
-export const buildStatementLines = (
-  orders: any[],
-  payments: any[],
-  openingBalance: number
-): StatementLine[] => {
-  const entries: Array<{ date: Date; kind: 'order' | 'payment'; raw: any }> = []
-  for (const o of orders) {
-    entries.push({ date: new Date(o.createdAt), kind: 'order', raw: o })
-  }
-  for (const p of payments) {
-    entries.push({ date: new Date(p.createdAt), kind: 'payment', raw: p })
-  }
-  entries.sort((a, b) => a.date.getTime() - b.date.getTime())
-
-  const lines: StatementLine[] = []
-  let running = openingBalance
-
-  for (const e of entries) {
-    if (e.kind === 'order') {
-      const o = e.raw
-      // 本次订单产生的欠款（可能 0）
-      const owed = o.owedAmount || 0
-      running += owed
-      const itemCount = o.items?.length || 0
-      const firstItem = o.items?.[0]?.product?.name || ''
-      const summary = itemCount > 0
-        ? `${firstItem}${itemCount > 1 ? ` 等 ${itemCount} 项` : ''}（合计 ¥${o.totalAmount.toFixed(2)}，已付 ¥${o.paidAmount.toFixed(2)}）`
-        : `合计 ¥${o.totalAmount.toFixed(2)}`
-      lines.push({
-        kind: 'order',
-        date: e.date,
-        refNo: o.orderNo,
-        summary,
-        amount: owed, // 仅"新增欠款"进明细行
-        runningBalance: running,
-        raw: o,
-      })
-    } else {
-      const p = e.raw
-      running -= p.amount
-      lines.push({
-        kind: 'payment',
-        date: e.date,
-        refNo: `R${p.id}`,
-        summary: `${paymentMethodText(p.paymentMethod)} 还款${p.notes ? ' · ' + p.notes : ''}`,
-        amount: -p.amount,
-        runningBalance: running,
-        raw: p,
-      })
-    }
-  }
-
-  return lines
+/** All statement rows come from the receivable ledger, including refunds and merge entries. */
+export const buildStatementLines = (entries: any[], openingBalance: number): StatementLine[] => {
+  let running=money(openingBalance)
+  const labels:Record<string,string>={sale:'订单应收',collect:'订单收款',refund:'退款冲销',opening:'期初入账',opening_adjustment:'期初调整',merge_in:'合并转入',merge_out:'合并转出',order_edit:'订单改价'}
+  return entries.map(e=>{
+    running=running.plus(e.amount)
+    return {kind:Number(e.amount)>0?'order':'payment',date:e.createdAt,refNo:e.orderId?`订单 #${e.orderId}`:`流水 #${e.id}`,summary:`${labels[e.type]||e.type}${e.notes?' · '+e.notes:''}`,amount:Number(e.amount),runningBalance:running.toNumber(),raw:e} as StatementLine
+  })
 }
 
 export const paymentMethodText = (m: string) => {

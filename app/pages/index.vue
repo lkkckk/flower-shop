@@ -6,9 +6,9 @@
         <div class="hero-meta">
           <span>{{ todayStr }}</span>
           <i />
-          <span>今日店内 {{ todaySummary.orderCount }} 位员工已签到</span>
+          <span>今日已完成 {{ todaySummary.orderCount }} 笔订单</span>
           <i />
-          <span>气温 18° · 适合鲜花保养</span>
+          <span>请检查花材保鲜与今日履约</span>
         </div>
       </div>
       <a-button type="primary" size="large" class="hero-cta" @click="router.push('/pos')">

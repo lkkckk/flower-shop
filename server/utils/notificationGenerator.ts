@@ -1,3 +1,4 @@
+import { customerReminders } from './customerReminders'
 import dayjs from 'dayjs'
 import { prisma } from './prisma'
 
@@ -22,7 +23,7 @@ async function loadSettings(): Promise<SettingMap> {
   return map
 }
 
-const todayKey = () => dayjs().format('YYYY-MM-DD')
+const todayKey = () => new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai'}).format(new Date())
 
 async function upsertNotification(params: {
   type: 'low_stock' | 'expiring_batch' | 'debt_overdue' | 'anomaly_order'
@@ -115,43 +116,16 @@ async function genExpiringBatch(settings: SettingMap) {
   }
 }
 
-/** 3) 欠款逾期：customer.totalOwed > 0 且最后一次下单超过 N 天 */
+/** 3) 应收逾期：按尚未结清订单的最早到期时间，不因客户新下单而重置。 */
 async function genDebtOverdue(settings: SettingMap) {
-  const days = Math.max(1, Number(settings.debtOverdueDays) || 30)
-  const threshold = dayjs().subtract(days, 'day').toDate()
-
-  const debtors = await prisma.customer.findMany({
-    where: { totalOwed: { gt: 0 } },
-    select: { id: true, name: true, totalOwed: true },
-  })
-  if (debtors.length === 0) return
-
-  // 拿这批欠款客户的最近订单时间
-  const lastOrders = await prisma.order.groupBy({
-    by: ['customerId'],
-    where: { customerId: { in: debtors.map((d) => d.id) } },
-    _max: { createdAt: true },
-  })
-  const lastMap = new Map<number, Date | null>()
-  for (const r of lastOrders) {
-    if (r.customerId != null) lastMap.set(r.customerId, r._max.createdAt ?? null)
-  }
-
-  for (const d of debtors) {
-    const last = lastMap.get(d.id)
-    if (!last) continue
-    if (last <= threshold) {
-      const daysAgo = Math.floor((Date.now() - last.getTime()) / 86_400_000)
-      await upsertNotification({
-        type: 'debt_overdue',
-        level: 'warn',
-        title: `${d.name} 欠款已 ${daysAgo} 天未还`,
-        body: `当前累计欠款 ¥${d.totalOwed.toFixed(2)}，最近一次下单 ${dayjs(last).format('YYYY-MM-DD')}。`,
-        refType: 'customer',
-        refId: d.id,
-      })
-    }
-  }
+ const days=Math.max(1,Number(settings.debtOverdueDays)||30),now=new Date()
+ const debtors=await prisma.customer.findMany({where:{status:'active',receivableBalance:{gt:0}},include:{orders:{where:{owedAmount:{gt:0},fulfillmentStatus:{not:'cancelled'}}}}})
+ for(const c of debtors){
+  const due=c.orders.map(o=>o.orderType==='preorder'?(o.deliveryTime||o.createdAt):o.createdAt).sort((a,b)=>a.getTime()-b.getTime())[0]
+  if(!due||now.getTime()-due.getTime()<days*86400000)continue
+  const age=Math.floor((now.getTime()-due.getTime())/86400000)
+  await upsertNotification({type:'debt_overdue',level:'warn',title:`${c.name} 欠款已 ${age} 天未还`,body:`当前应收 ¥${Number(c.receivableBalance).toFixed(2)}，最早未结清订单到期 ${dayjs(due).format('YYYY-MM-DD')}。`,refType:'customer',refId:c.id})
+ }
 }
 
 /** 4) 异常订单：近 24 小时内的大额、重折扣或大额未收订单 */
@@ -221,6 +195,7 @@ export async function generateNotifications() {
     genExpiringBatch(settings),
     genDebtOverdue(settings),
     genAnomalyOrder(),
+    customerReminders(prisma),
   ])
   await pruneOldNotifications()
 }

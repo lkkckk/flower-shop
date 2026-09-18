@@ -1,12 +1,17 @@
+import { money, decimal, sumMoney } from './money'
 /**
  * 价格模式统一重算工具（前后端共用）
  * 放在 shared/ 下，前端 import 'shared/priceMode'，后端 import '../../../shared/priceMode'
  */
 
-export type PriceMode = 'retail' | 'discount' | 'promotion'
+export type PriceMode = 'retail' | 'member' | 'vip' | 'wholesale' | 'discount' | 'promotion'
 
 export interface PriceBasis {
   defaultPrice: number
+  memberPrice?: number | null
+  vipPrice?: number | null
+  wholesalePrice?: number | null
+  level?: string
 }
 
 export interface LineInput {
@@ -48,12 +53,14 @@ export interface ComputeResult {
 }
 
 function roundPrice(n: number): number {
-  return Math.max(0, Math.round(n * 100) / 100)
+  return money(n).clamp(0, Infinity).toNumber()
 }
 
 /** 挑选基础单价（所有模式均以 defaultPrice 为基础，discount/promotion 在合计层面调整） */
 export function pickBasePrice(basis: PriceBasis, _mode: PriceMode): number {
-  return basis.defaultPrice
+  const level = ['member', 'vip', 'wholesale'].includes(_mode) ? _mode : basis.level
+  const selected = level === 'member' ? basis.memberPrice : level === 'vip' ? basis.vipPrice : level === 'wholesale' ? basis.wholesalePrice : null
+  return Number(selected ?? basis.defaultPrice)
 }
 
 export function computeOrder(input: ComputeInput): ComputeResult {
@@ -66,15 +73,15 @@ export function computeOrder(input: ComputeInput): ComputeResult {
   for (const item of input.items) {
     const base = pickBasePrice(item.basis, mode)
     // 换算到销售单位的基础价
-    let unitPrice = base * (item.toBaseQty || 1)
+    let unitPrice = decimal(base).times(item.toBaseQty || 1).toNumber()
     // 折扣模式：逐行按比例
-    if (mode === 'discount') unitPrice = unitPrice * (rate / 100)
+    if (mode === 'discount') unitPrice = decimal(unitPrice).times(rate).div(100).toNumber()
     unitPrice = roundPrice(unitPrice)
     lineUnitPrices.push(unitPrice)
-    lineSubtotals.push(roundPrice(unitPrice * item.qty))
+    lineSubtotals.push(roundPrice(decimal(unitPrice).times(item.qty).toNumber()))
   }
 
-  const subtotal = roundPrice(lineSubtotals.reduce((s, n) => s + n, 0))
+  const subtotal = sumMoney(lineSubtotals).toNumber()
 
   let reduction = 0
   let promotionApplicable = false
@@ -85,6 +92,6 @@ export function computeOrder(input: ComputeInput): ComputeResult {
     }
   }
 
-  const total = roundPrice(Math.max(0, subtotal - reduction))
+  const total = roundPrice(money(subtotal).minus(reduction).clamp(0, Infinity).toNumber())
   return { lineUnitPrices, lineSubtotals, subtotal, reduction, total, promotionApplicable }
 }

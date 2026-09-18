@@ -76,7 +76,7 @@
             <a-input-number
               v-model:value="editing[record.id].actualQty"
               :min="0"
-              :precision="2"
+              :precision="3"
               size="small"
               class="w-24"
             />
@@ -96,10 +96,11 @@
             </span>
           </template>
 
+          <template v-else-if="column.key === 'costPrice'"><a-input-number v-model:value="editing[record.id].costPrice" :min="0" :precision="2" placeholder="默认最近批次成本" /></template>
           <template v-else-if="column.key === 'reason'">
             <a-input
               v-model:value="editing[record.id].reason"
-              placeholder="盘亏原因（可选）"
+              placeholder="盘点原因（必填）"
               size="small"
               class="w-full"
             />
@@ -154,7 +155,7 @@ const summary = reactive<{ items: SummaryItem[]; lowStockCount: number; threshol
 })
 
 // 每行编辑缓存：actualQty / reason / submitting
-const editing = reactive<Record<number, { actualQty: number; reason: string; submitting: boolean }>>({})
+const editing = reactive<Record<number, { actualQty: number; reason: string; costPrice?:number; submitting: boolean }>>({})
 
 const columns = [
   { title: '商品', key: 'name', width: 220 },
@@ -162,7 +163,7 @@ const columns = [
   { title: '状态', key: 'isLow', width: 80 },
   { title: '实际数量', key: 'actualQty', width: 120 },
   { title: '差额', key: 'delta', width: 100 },
-  { title: '原因', key: 'reason' },
+  { title: '原因', key: 'reason' }, {title:'盘盈单位成本',key:'costPrice',width:140},
   { title: '操作', key: 'action', width: 100 },
 ]
 
@@ -224,6 +225,7 @@ const submitAdjust = async (row: SummaryItem) => {
         productId: row.id,
         actualQty: Number(e.actualQty),
         reason: e.reason,
+          costPrice:e.costPrice,
       },
     })
     if (error) {

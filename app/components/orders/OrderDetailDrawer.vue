@@ -190,6 +190,7 @@
       </template>
       <a-empty v-else-if="!loading" description="未加载到订单" />
     </a-spin>
+    <OrdersFinancePanel v-if="orderId" :order-id="orderId" />
   </a-drawer>
 </template>
 

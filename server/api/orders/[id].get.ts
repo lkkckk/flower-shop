@@ -13,6 +13,8 @@ export default defineEventHandler(async (event) => {
         where: { id },
         include: {
           customer: true,
+          adjustments: { orderBy: { id: 'desc' } },
+          fulfillmentEvents: { orderBy: { id: 'desc' } },
           cashier: { select: { id: true, name: true, username: true } },
           promotion: { select: { id: true, name: true, threshold: true, reduction: true } },
           items: {

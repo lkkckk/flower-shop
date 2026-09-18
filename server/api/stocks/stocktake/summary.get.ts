@@ -17,7 +17,7 @@ export default defineEventHandler(async () => {
         where: { status: 'active' },
         include: {
           stockBatches: {
-            where: { status: 'in_stock', currentQty: { gt: 0 } },
+            where: { status: { in: ['in_stock','discounted'] }, currentQty: { gt: 0 } },
             select: { currentQty: true, expiryDate: true },
           },
         },

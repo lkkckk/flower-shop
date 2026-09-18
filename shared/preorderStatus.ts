@@ -13,6 +13,7 @@ export const PREORDER_STATUSES = [
   'scheduled',       // 待执行
   'in_production',   // 制作中（此时已扣库存）
   'ready_to_ship',   // 待配送
+  'out_for_delivery', // 配送中
   'completed',       // 已完成
   'cancelled',       // 已取消
 ] as const
@@ -25,6 +26,7 @@ export const PREORDER_STATUS_LABEL: Record<PreorderStatus, string> = {
   scheduled: '待执行',
   in_production: '制作中',
   ready_to_ship: '待配送',
+  out_for_delivery: '配送中',
   completed: '已完成',
   cancelled: '已取消',
 }
@@ -34,7 +36,8 @@ const FORWARD_FLOW: Record<PreorderStatus, PreorderStatus[]> = {
   booked: ['scheduled', 'cancelled'],
   scheduled: ['in_production', 'cancelled'],
   in_production: ['ready_to_ship', 'cancelled'],
-  ready_to_ship: ['completed', 'cancelled'],
+  ready_to_ship: ['out_for_delivery', 'completed', 'cancelled'],
+  out_for_delivery: ['completed', 'cancelled'],
   completed: [],
   cancelled: [],
 }
@@ -43,6 +46,7 @@ const FORWARD_FLOW: Record<PreorderStatus, PreorderStatus[]> = {
 export const STOCK_DEDUCTED_STATUSES: PreorderStatus[] = [
   'in_production',
   'ready_to_ship',
+  'out_for_delivery',
   'completed',
 ]
 

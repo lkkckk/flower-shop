@@ -1,6 +1,12 @@
 <template>
   <a-spin :spinning="loading && !order">
     <div v-if="order" class="av-page preorder-detail">
+      <OrdersFinancePanel :order-id="Number($route.params.id)" @updated="load" />
+      <a-card v-if="order.fulfillmentType==='delivery'" title="配送交接" class="mb-4">
+        <div class="mvp-form-grid"><a-form-item label="配送人员"><a-input v-model:value="delivery.person" /></a-form-item><a-form-item label="配送联系电话"><a-input v-model:value="delivery.phone" /></a-form-item></div>
+        <a-button :loading="deliveryBusy" @click="saveDelivery">保存配送信息</a-button>
+        <p v-if="order.fulfillmentEvents?.length">最近履约：{{ new Date(order.fulfillmentEvents[order.fulfillmentEvents.length-1].createdAt).toLocaleString('zh-CN') }}</p>
+      </a-card>
       <header class="detail-head">
         <div class="title-block">
           <div class="title-tags">
@@ -327,7 +333,7 @@ const advanceOptions = computed(() => {
   const from = order.value.status as PreorderStatus
   const all = Object.keys(PREORDER_STATUS_LABEL) as PreorderStatus[]
   return all
-    .filter((to) => canTransition(from, to))
+    .filter((to) => to !== 'cancelled' && canTransition(from, to))
     .map((to) => ({ value: to, label: `→ ${PREORDER_STATUS_LABEL[to]}` }))
 })
 
@@ -366,10 +372,14 @@ const reminderText = computed(() => {
   return `${label} · 还剩 ${days} 天`
 })
 
+const delivery = reactive({person:'',phone:''})
+const {request: deliveryRequest, busy: deliveryBusy} = useBusiness()
+async function saveDelivery(){await deliveryRequest(`/api/preorders/${order.value.id}`,'PUT',{deliveryPerson:delivery.person,deliveryPhone:delivery.phone});await load()}
 const load = async () => {
   const id = Number(route.params.id)
   if (!id) return
   order.value = await fetchOne(id)
+  delivery.person=order.value?.deliveryPerson || '';delivery.phone=order.value?.deliveryPhone || ''
 }
 
 const onAdvance = async ({ key }: { key: string }) => {

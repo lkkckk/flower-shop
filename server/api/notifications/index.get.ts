@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
   const page = Number(query.page) || 1
   const pageSize = Number(query.pageSize) || 50
 
-  const where: any = { userId: null }
+  const where: any = { OR: [{ userId: null }, { userId: event.context.user.sub }] }
   if (onlyUnread) where.readAt = null
   if (type) where.type = type
   if (level) where.level = level
@@ -36,7 +36,7 @@ export default defineEventHandler(async (event) => {
         take: pageSize,
       }),
       prisma.notification.count({ where }),
-      prisma.notification.count({ where: { userId: null, readAt: null } }),
+      prisma.notification.count({ where: { OR: [{ userId: null }, { userId: event.context.user.sub }], readAt: null } }),
     ])
 
     return { data: { list, total, page, pageSize, unreadCount }, error: null }

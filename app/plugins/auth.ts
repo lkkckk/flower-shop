@@ -1,3 +1,5 @@
+import { decimalWire } from '~~/shared/decimalWire'
+import { createClientId } from '~~/shared/clientId'
 import { message } from 'ant-design-vue'
 
 const resolveRequestPath = (request: unknown) => {
@@ -49,9 +51,25 @@ const notifyAuthError = (content: string) => {
  */
 export default defineNuxtPlugin((nuxtApp) => {
   const originalFetch = globalThis.$fetch
+  const pendingKeys = new Map<string, string>()
 
   const wrappedFetch = originalFetch.create({
-    onRequest({ options }) {
+    onResponse({ response, options }) {
+      const signature = (options as any).__operationSignature
+      if (signature && (response.ok || (response.status >= 400 && response.status < 500))) pendingKeys.delete(signature)
+      // Compatibility for existing display components; calculations use shared/money.
+      if (response._data && typeof response._data === 'object') response._data = decimalWire(response._data, true)
+    },
+    onRequest({ options, request }) {
+      if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
+        const body = options.body as any
+        if (!Array.isArray(body) && !body.idempotencyKey) {
+          const signature = String(request) + ':' + options.method + ':' + JSON.stringify(body)
+          if (!pendingKeys.has(signature)) pendingKeys.set(signature, createClientId())
+          body.idempotencyKey = pendingKeys.get(signature)
+          ;(options as any).__operationSignature = signature
+        }
+      }
       // 使用 useCookie 拿 token（与 useAuth 一致）
       const token = useCookie<string | null>('auth_token').value
       if (token) {

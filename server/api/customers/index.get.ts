@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
   const rfmTag = query.rfmTag as RfmMainTag | undefined
   const hasDebt = String(query.hasDebt || '') === 'true'
 
-  const where: any = {}
+  const where: any = { status: 'active' }
   if (keyword) {
     where.OR = [
       { name: { contains: keyword } },
@@ -47,7 +47,7 @@ export default defineEventHandler(async (event) => {
     ]
   }
   if (level) where.level = level
-  if (hasDebt) where.totalOwed = { gt: 0 }
+  if (hasDebt) where.receivableBalance = { gt: 0 }
 
   try {
     // 1. 先 count 总数 + 抓全量基础客户（单店量小，万级以内可接受）
@@ -59,7 +59,7 @@ export default defineEventHandler(async (event) => {
       prisma.customer.aggregate({
         where,
         _count: { _all: true },
-        _sum: { totalOwed: true, balance: true },
+        _sum: { receivableBalance: true, storedValueBalance: true },
       }),
     ])
 
@@ -105,7 +105,7 @@ export default defineEventHandler(async (event) => {
     // 6. summary：注意 summary 用的是过滤前的 where 聚合
     //    debtCount 单独统计
     const debtCount = await prisma.customer.count({
-      where: { ...where, totalOwed: { gt: 0 } },
+      where: { ...where, receivableBalance: { gt: 0 } },
     })
 
     return {
@@ -116,8 +116,8 @@ export default defineEventHandler(async (event) => {
         pageSize,
         summary: {
           count: summary._count._all,
-          totalOwed: summary._sum.totalOwed ?? 0,
-          totalBalance: summary._sum.balance ?? 0,
+          totalOwed: summary._sum.receivableBalance ?? 0,
+          totalBalance: summary._sum.storedValueBalance ?? 0,
           debtCount,
         },
       },

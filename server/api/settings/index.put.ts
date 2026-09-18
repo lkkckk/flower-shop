@@ -18,6 +18,7 @@ export default defineEventHandler(async (event) => {
   }
 
   for (const it of body) {
+    if (it.key === 'loyaltyRules') throw createError({statusCode:400,message:'积分规则请使用专用设置入口'})
     if (!it.key || typeof it.value !== 'string') {
       return { data: null, error: { message: `字段错误：${JSON.stringify(it)}`, code: 'BAD_PARAMS' } }
     }

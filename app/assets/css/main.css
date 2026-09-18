@@ -600,3 +600,20 @@ a:hover {
   .admin-content .toolbar .ant-btn, .admin-content .av-toolbar .ant-btn,
   .ant-modal .ant-btn, .ant-drawer .ant-btn, .order-photo-actions .ant-btn { min-height: 40px; }
 }
+
+/* Operational forms share the existing responsive shell. */
+.mvp-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.mvp-metrics { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 16px; }
+.mvp-metrics strong { display:block; font-size: 22px; color: #34594c; }
+.mvp-return-line { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:12px 0; }
+.mvp-return-line > span:first-child { flex: 1 1 180px; }
+.mvp-return-line .ant-select { min-width: 130px; }
+.mvp-input { width:100%; padding:7px 11px; border:1px solid #d9d9d9; border-radius:6px; background:white; }
+@media(max-width: 600px) { .mvp-form-grid { grid-template-columns:1fr; } .mvp-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+
+@media (max-width: 767px) {
+ .ant-page-header-heading {flex-wrap:wrap; gap:8px;}
+ .ant-page-header-heading-left {min-width:0; width:100%;}
+ .ant-page-header-heading-title {white-space:normal; overflow-wrap:anywhere;}
+ .ant-page-header-heading-extra {margin-left:0; display:flex; flex-wrap:wrap; gap:6px;}
+}
