@@ -20,5 +20,6 @@ export default defineEventHandler(async event => {
   event.context.user = { ...payload, role: user.role }
   if (path === '/api/auth/me') return
   const action = routeAction(event.method, path)
-  if (!action || !can(user.role, action)) throw createError({ statusCode: 403, message: '当前角色无权执行此操作' })
+  if (!action) throw createError({ statusCode: 404, message: '接口不存在' })
+  if (!can(user.role, action)) throw createError({ statusCode: 403, message: '当前角色无权执行此操作' })
 })

@@ -73,7 +73,6 @@
       <a-form-item v-if="cart.customerId && cart.customerLevel !== 'wholesale'" :label="`积分抵现（可用 ${Math.max(0, (cart as any).availablePoints || 0)} 分，${loyalty.pointsPerYuan} 分抵 1 元，上限 ${loyalty.maxPercent}%）`">
         <a-input-number v-model:value="pointsToRedeem" :min="0" :precision="0" :max="Math.max(0, (cart as any).availablePoints || 0)" />
       </a-form-item>
-      <NuxtLink to="/shifts" class="block mb-3">现金收款前先开班 · 查看交班</NuxtLink>
       <div class="mb-5">
         <div class="text-gray-600 mb-2 font-medium text-sm">支付方式</div>
         <a-radio-group v-model:value="paymentMethod" button-style="solid" class="w-full flex flex-wrap gap-1">

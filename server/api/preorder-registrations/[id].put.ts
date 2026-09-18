@@ -76,86 +76,108 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: '取花/送花时间格式无效' })
   }
 
-  return prisma.$transaction(async (tx: any) => {
-    const previous = await tx.operation.findUnique({ where: { id: opId } })
-    if (previous) {
-      if (previous.requestHash !== requestHash) {
-        throw createError({ statusCode: 409, message: '该幂等键已用于不同请求' })
+  try {
+    return await prisma.$transaction(async (tx: any) => {
+      const previous = await tx.operation.findUnique({ where: { id: opId } })
+      if (previous) {
+        if (previous.requestHash !== requestHash) {
+          throw createError({ statusCode: 409, message: '该幂等键已用于不同请求' })
+        }
+        return { data: previous.result, error: null }
       }
-      return { data: previous.result, error: null }
-    }
 
-    // 关键并发控制：使用 FOR UPDATE 行级排他锁锁定该预售登记行，
-    // 确保任何并发更新必须排队等待，后进入的事务必须读到前一个事务提交后的最新 version。
-    const lockedRows: any[] = await tx.$queryRaw`
-      SELECT id, version FROM "PreorderRegistration" WHERE id = ${id} FOR UPDATE
-    `
-    if (!lockedRows || lockedRows.length === 0) {
-      throw createError({ statusCode: 404, message: '预售登记不存在' })
-    }
+      // 关键并发控制：使用 FOR UPDATE 行级排他锁锁定该预售登记行，
+      // 确保任何并发更新必须排队等待，后进入的事务必须读到前一个事务提交后的最新 version。
+      const lockedRows: any[] = await tx.$queryRaw`
+        SELECT id, version FROM "PreorderRegistration" WHERE id = ${id} FOR UPDATE
+      `
+      if (!lockedRows || lockedRows.length === 0) {
+        throw createError({ statusCode: 404, message: '预售登记不存在' })
+      }
 
-    const currentVersion = Number(lockedRows[0].version)
-    if (currentVersion !== clientVersion) {
-      throw createError({ statusCode: 409, message: '该登记已被其他人修改，请刷新后重试' })
-    }
+      // A concurrent identical request may have committed while we waited for the row lock.
+      const completed = await tx.operation.findUnique({ where: { id: opId } })
+      if (completed) {
+        if (completed.requestHash !== requestHash) {
+          throw createError({ statusCode: 409, message: '该幂等键已用于不同请求' })
+        }
+        return { data: completed.result, error: null }
+      }
 
-    // 删除原所有明细（级联删除照片）
-    await tx.preorderRegistrationItem.deleteMany({
-      where: { registrationId: id },
-    })
+      const currentVersion = Number(lockedRows[0].version)
+      if (currentVersion !== clientVersion) {
+        throw createError({ statusCode: 409, message: '该登记已被其他人修改，请刷新后重试' })
+      }
 
-    const updated = await tx.preorderRegistration.update({
-      where: { id },
-      data: {
-        orderNo,
-        contactPhone: body.contactPhone ? String(body.contactPhone).trim() : null,
-        deliveryTime,
-        notes: body.notes ? String(body.notes) : null,
-        cardMessage: body.cardMessage ? String(body.cardMessage) : null,
-        version: currentVersion + 1,
-        updatedById: actor,
-        items: {
-          create: items.map((it: any, idx: number) => ({
-            name: String(it.name).trim(),
-            qty: validateQty(it.qty),
-            sort: Number(it.sort) || idx,
-            photos: {
-              create: (Array.isArray(it.photos) ? it.photos : []).map((p: any, pIdx: number) => ({
-                url: String(p.url),
-                sort: Number(p.sort) || pIdx,
-              })),
-            },
-          })),
-        },
-      },
-      include: {
-        createdBy: { select: { id: true, name: true, role: true } },
-        updatedBy: { select: { id: true, name: true, role: true } },
-        items: {
-          orderBy: { sort: 'asc' },
-          include: {
-            photos: { orderBy: { sort: 'asc' } },
+      // 删除原所有明细（级联删除照片）
+      await tx.preorderRegistrationItem.deleteMany({
+        where: { registrationId: id },
+      })
+
+      const updated = await tx.preorderRegistration.update({
+        where: { id },
+        data: {
+          orderNo,
+          contactPhone: body.contactPhone ? String(body.contactPhone).trim() : null,
+          deliveryTime,
+          notes: body.notes ? String(body.notes) : null,
+          cardMessage: body.cardMessage ? String(body.cardMessage) : null,
+          version: currentVersion + 1,
+          updatedById: actor,
+          items: {
+            create: items.map((it: any, idx: number) => ({
+              name: String(it.name).trim(),
+              qty: validateQty(it.qty),
+              sort: Number(it.sort) || idx,
+              photos: {
+                create: (Array.isArray(it.photos) ? it.photos : []).map((p: any, pIdx: number) => ({
+                  url: String(p.url),
+                  sort: Number(p.sort) || pIdx,
+                })),
+              },
+            })),
           },
         },
-      },
-    })
+        include: {
+          createdBy: { select: { id: true, name: true, role: true } },
+          updatedBy: { select: { id: true, name: true, role: true } },
+          items: {
+            orderBy: { sort: 'asc' },
+            include: {
+              photos: { orderBy: { sort: 'asc' } },
+            },
+          },
+        },
+      })
 
-    const result = JSON.parse(JSON.stringify(updated))
-    await tx.operation.create({
-      data: {
-        id: opId,
-        action,
-        requestHash,
-        result,
-        operatorUserId: actor,
-      },
-    })
-    await audit(tx, actor, action, 'PreorderRegistration', updated.id, {
-      orderNo: updated.orderNo,
-      previousVersion: currentVersion,
-      newVersion: updated.version,
-    })
+      const result = JSON.parse(JSON.stringify(updated))
+      await tx.operation.create({
+        data: {
+          id: opId,
+          action,
+          requestHash,
+          result,
+          operatorUserId: actor,
+        },
+      })
+      await audit(tx, actor, action, 'PreorderRegistration', updated.id, {
+        orderNo: updated.orderNo,
+        previousVersion: currentVersion,
+        newVersion: updated.version,
+      })
 
-    return { data: result, error: null }
-  })
+      return { data: result, error: null }
+    })
+  } catch (err: any) {
+    if (err?.code === 'P2002' || err?.message?.includes('Unique constraint failed')) {
+      const finished = await prisma.operation.findUnique({ where: { id: opId } })
+      if (finished) {
+        if (finished.requestHash !== requestHash) {
+          throw createError({ statusCode: 409, message: '该幂等键已用于不同请求' })
+        }
+        return { data: finished.result, error: null }
+      }
+    }
+    throw err
+  }
 })

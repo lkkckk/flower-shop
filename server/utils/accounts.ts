@@ -43,10 +43,17 @@ export async function awardOrderPoints(tx: any, orderId: number, actor: number) 
 }
 
 export async function paymentRecord(tx: any, actor: number, key: string, data: any) {
-  const shift = await tx.cashShift.findFirst({ where: { userId: actor, status: 'open' } })
-  if (data.paymentMethod === 'cash' && !shift) throw new Error('现金收付款前请先开班')
-  return tx.payment.create({ data: { ...data, sourceKey: key, operator: String(actor), operatorUserId: actor, cashShiftId: shift?.id ?? null } })
+  return tx.payment.create({
+    data: {
+      ...data,
+      sourceKey: key,
+      operator: String(actor),
+      operatorUserId: actor,
+      cashShiftId: null,
+    },
+  })
 }
+
 
 export async function collectOrderPayment(tx: any, orderId: number, amount: any, method: string, actor: number, key: string, notes?: string) {
   const value = positive(amount)

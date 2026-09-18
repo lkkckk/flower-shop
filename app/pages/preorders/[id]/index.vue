@@ -230,7 +230,6 @@
 <script setup lang="ts">
 import { computed, defineComponent, h, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Modal, message } from 'ant-design-vue'
 import type { Component } from 'vue'
 import {
   BellOutlined,
@@ -238,8 +237,6 @@ import {
   CheckOutlined,
   ClockCircleOutlined,
   CreditCardOutlined,
-  DownOutlined,
-  EditOutlined,
   EnvironmentOutlined,
   FileTextOutlined,
   InboxOutlined,
@@ -254,8 +251,6 @@ import { useAuth } from '~/composables/useAuth'
 import {
   PREORDER_STATUSES,
   PREORDER_STATUS_LABEL,
-  canTransition,
-  isStockDeducted,
   type PreorderStatus,
 } from '../../../../shared/preorderStatus'
 import { REMINDER_STAGE_LABEL, REMINDER_STAGE_COLOR } from '../../../../shared/preorderReminder'
@@ -283,7 +278,6 @@ const { user } = useAuth()
 const isAdmin = computed(() => user.value?.role === 'admin')
 const { loading, fetchOne, trashPreorder } = usePreorders()
 const order = ref<any>(null)
-const madeLoading = ref(false)
 
 async function onTrash() {
   if (!order.value) return
@@ -333,19 +327,6 @@ const progressSteps = computed(() => {
   })
 })
 
-const advanceOptions = computed(() => {
-  if (!order.value) return []
-  const from = order.value.status as PreorderStatus
-  const all = Object.keys(PREORDER_STATUS_LABEL) as PreorderStatus[]
-  return all
-    .filter((to) => to !== 'cancelled' && canTransition(from, to))
-    .map((to) => ({ value: to, label: `→ ${PREORDER_STATUS_LABEL[to]}` }))
-})
-
-const editDisabled = computed(() => {
-  if (!order.value) return true
-  return isStockDeducted(order.value.status) || order.value.status === 'cancelled'
-})
 
 const primaryProductTitle = computed(() => {
   const items = order.value?.items || []
@@ -377,47 +358,11 @@ const reminderText = computed(() => {
   return `${label} · 还剩 ${days} 天`
 })
 
-const delivery = reactive({person:'',phone:''})
-const {request: deliveryRequest, busy: deliveryBusy} = useBusiness()
-async function saveDelivery(){await deliveryRequest(`/api/preorders/${order.value.id}`,'PUT',{deliveryPerson:delivery.person,deliveryPhone:delivery.phone});await load()}
 const load = async () => {
   const id = Number(route.params.id)
   if (!id) return
   order.value = await fetchOne(id)
-  delivery.person=order.value?.deliveryPerson || '';delivery.phone=order.value?.deliveryPhone || ''
 }
-
-const onAdvance = async ({ key }: { key: string }) => {
-  const label = PREORDER_STATUS_LABEL[key as PreorderStatus]
-  const willDeduct = key === 'in_production'
-  Modal.confirm({
-    title: `确认推进状态到"${label}"？`,
-    content: willDeduct
-      ? '进入"制作中"将按 FIFO 分配批次并扣减库存，操作不可撤销。'
-      : key === 'cancelled' ? '取消后预售单将关闭。' : undefined,
-    okText: '确定',
-    cancelText: '取消',
-    async onOk() {
-      await advance(order.value.id, key)
-      message.success('状态已更新')
-      await load()
-    },
-  })
-}
-
-const markMade = async () => {
-  if (!order.value || order.value.isMade) return
-  madeLoading.value = true
-  try {
-    await setMade(order.value.id, true)
-    message.success('已标记为做好')
-    await load()
-  } finally {
-    madeLoading.value = false
-  }
-}
-
-const goEdit = () => router.push(`/preorders/${order.value.id}/edit`)
 const goPrint = () => window.open(`/preorders/${order.value.id}/delivery-slip`, '_blank')
 
 const productImage = (item: any) => item?.imageUrl || ''

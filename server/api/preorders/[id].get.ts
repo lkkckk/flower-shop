@@ -3,8 +3,9 @@ import { prisma } from '../../utils/prisma'
 import { computeReminderStage, daysUntil } from '../../../shared/preorderReminder'
 
 export default defineEventHandler(async (event) => {
-  const id = Number(getRouterParam(event, 'id'))
-  if (!id) throw createError({ statusCode: 400, message: '无效的订单 id' })
+  const rawId = getRouterParam(event, 'id')
+  const id = Number(rawId)
+  if (!id || !/^\d+$/.test(rawId || '')) throw createError({ statusCode: 404, message: '预售单不存在' })
 
   try {
     const order = await prisma.order.findUnique({
@@ -35,6 +36,7 @@ export default defineEventHandler(async (event) => {
       error: null,
     }
   } catch (error: any) {
+    if (error?.statusCode) throw error
     return {
       data: null,
       error: { message: error.message || '获取预售单失败', code: 'FETCH_ERROR' },

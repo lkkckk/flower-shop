@@ -75,7 +75,7 @@
         <div class="space-y-6">
           <div
             v-for="(item, idx) in form.items"
-            :key="idx"
+            :key="item.uid"
             class="item-card border rounded-lg p-4 bg-gray-50 relative"
           >
             <div class="flex justify-between items-center mb-3">
@@ -134,7 +134,7 @@
               <div class="flex flex-wrap gap-3">
                 <div
                   v-for="(photo, pIdx) in item.photos"
-                  :key="pIdx"
+                  :key="photo.uid"
                   class="photo-box relative w-24 h-24 border rounded overflow-hidden bg-white shadow-sm flex items-center justify-center"
                   :class="{ 'border-red-400 bg-red-50': photo.status === 'error' }"
                 >
@@ -255,7 +255,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onBeforeUnmount } from 'vue'
+import { reactive, computed, onBeforeUnmount } from 'vue'
 import { message } from 'ant-design-vue'
 import {
   PlusOutlined,
@@ -263,6 +263,7 @@ import {
   ExclamationCircleOutlined,
 } from '@ant-design/icons-vue'
 import { usePreorderRegistrations, type PreorderItemPhoto } from '~/composables/usePreorderRegistrations'
+import { createClientId } from '~~/shared/clientId'
 
 const props = defineProps<{
   initialData?: any
@@ -278,6 +279,7 @@ const emit = defineEmits<{
 const { uploadRegistrationImage } = usePreorderRegistrations()
 
 interface ItemForm {
+  uid: string
   id?: number
   name: string
   qty: string
@@ -293,11 +295,13 @@ const form = reactive({
   cardMessage: props.initialData?.cardMessage || '',
   items: (props.initialData?.items && props.initialData.items.length > 0)
     ? props.initialData.items.map((it: any, idx: number) => ({
+        uid: createClientId(),
         id: it.id,
         name: it.name,
         qty: String(Number(it.qty)),
         sort: it.sort ?? idx,
         photos: (it.photos || []).map((p: any) => ({
+          uid: createClientId(),
           id: p.id,
           url: p.url,
           sort: p.sort ?? 0,
@@ -306,6 +310,7 @@ const form = reactive({
       }))
     : [
         {
+          uid: createClientId(),
           name: '',
           qty: '1',
           sort: 0,
@@ -318,10 +323,7 @@ const errors = reactive({
   orderNo: '',
 })
 
-const uploadingCount = ref(0)
-
 const hasUploadingOrError = computed(() => {
-  if (uploadingCount.value > 0) return true
   for (const it of form.items) {
     for (const p of it.photos) {
       if (p.status === 'uploading' || p.status === 'error') return true
@@ -332,6 +334,7 @@ const hasUploadingOrError = computed(() => {
 
 function addItem() {
   form.items.push({
+    uid: createClientId(),
     name: '',
     qty: '1',
     sort: form.items.length,
@@ -343,9 +346,6 @@ function removeItem(idx: number) {
   const item = form.items[idx]
   if (item?.photos) {
     for (const p of item.photos) {
-      if (p.status === 'uploading') {
-        uploadingCount.value = Math.max(0, uploadingCount.value - 1)
-      }
       if (p.previewUrl) {
         try { URL.revokeObjectURL(p.previewUrl) } catch {}
       }
@@ -367,6 +367,7 @@ function handleUploadFile(file: File, itemIdx: number) {
 
   const targetIdx = form.items[itemIdx].photos.length
   form.items[itemIdx].photos.push({
+    uid: createClientId(),
     url: '',
     previewUrl,
     status: 'uploading',
@@ -383,25 +384,16 @@ async function uploadSinglePhoto(itemIdx: number, photoIdx: number) {
   if (!targetPhoto || !targetPhoto.file) return
 
   targetPhoto.status = 'uploading'
-  uploadingCount.value++
 
   try {
     const url = await uploadRegistrationImage(targetPhoto.file)
-    const current = form.items[itemIdx]?.photos[photoIdx]
-    if (current) {
-      current.url = url
-      current.status = 'done'
-    }
+    targetPhoto.url = url
+    targetPhoto.status = 'done'
   } catch (err: any) {
     console.error('图片上传失败:', err)
-    const current = form.items[itemIdx]?.photos[photoIdx]
-    if (current) {
-      current.status = 'error'
-    }
+    targetPhoto.status = 'error'
     const msg = err?.data?.message || err?.message || '图片上传失败，请重试'
     message.error(msg)
-  } finally {
-    uploadingCount.value = Math.max(0, uploadingCount.value - 1)
   }
 }
 
@@ -411,9 +403,6 @@ function retryUpload(itemIdx: number, photoIdx: number) {
 
 function removePhoto(itemIdx: number, photoIdx: number) {
   const photo = form.items[itemIdx]?.photos[photoIdx]
-  if (photo?.status === 'uploading') {
-    uploadingCount.value = Math.max(0, uploadingCount.value - 1)
-  }
   if (photo?.previewUrl) {
     try { URL.revokeObjectURL(photo.previewUrl) } catch {}
   }

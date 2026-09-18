@@ -112,8 +112,6 @@ const menuGroups = [
   {
     label: '主要工作台',
     items: [
-      { key: '/operations', label: '经营工作台', path: '/operations', icon: AccountBookOutlined },
-      { key: '/shifts', label: '收银交班', path: '/shifts', icon: AccountBookOutlined },
       { key: '/reports', label: '每日复盘', path: '/reports', icon: BarChartOutlined },
     ],
   },
@@ -121,8 +119,6 @@ const menuGroups = [
     label: '销售',
     items: [
       { key: '/orders', label: '订单记录', path: '/orders', icon: FileTextOutlined },
-      { key: '/orders/schedule', label: '订单排单', path: '/orders/schedule', icon: CalendarOutlined },
-      { key: '/orders/preparation', label: '今日备货', path: '/orders/preparation', icon: InboxOutlined },
       { key: '/preorders', label: '预售管理', path: '/preorders', icon: CalendarOutlined },
     ],
   },
@@ -150,11 +146,8 @@ const primaryActions = [
 ]
 
 const cashierActions = [
-  { key: '/shifts', label: '收银交班', path: '/shifts', icon: AccountBookOutlined },
   { key: '/preorders', label: '预售管理', path: '/preorders', icon: CalendarOutlined },
   { key: '/pos', label: '收银台', path: '/pos', icon: ShopOutlined },
-  { key: '/pos/schedule', label: '订单排单', path: '/pos/schedule', icon: CalendarOutlined },
-  { key: '/pos/preparation', label: '今日备货', path: '/pos/preparation', icon: InboxOutlined },
   { key: '/pos/stocktake', label: '库存盘点', path: '/pos/stocktake', icon: InboxOutlined },
   { key: '/customers', label: '客户管理', path: '/customers', icon: TeamOutlined },
   { key: '/products', label: '商品管理', path: '/products', icon: ShoppingOutlined },

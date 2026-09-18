@@ -60,7 +60,7 @@ const lines = ref<any[]>([])
 const references = reactive<Record<number, string>>({})
 const payment = reactive({ amount: 0, paymentMethod: 'wechat', notes: '' })
 const adjustment = reactive({ type: 'return', reason: '' })
-const methods = [{ value: 'wechat', label: '微信' }, { value: 'alipay', label: '支付宝' }, { value: 'cash', label: '现金（需开班）' }, { value: 'balance', label: '客户预存' }]
+const methods = [{ value: 'wechat', label: '微信' }, { value: 'alipay', label: '支付宝' }, { value: 'cash', label: '现金' }, { value: 'balance', label: '客户预存' }]
 const methodLabel = (v: string) => methods.find(m => m.value === v)?.label || v
 const statusLabel = (v: string) => ({ pending: '待审批', approved: '已执行', rejected: '已拒绝' }[v] || v)
 const fmt = (v: any) => amountString(v || 0)

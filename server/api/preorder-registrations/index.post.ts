@@ -1,4 +1,4 @@
-﻿import { createHash } from 'node:crypto'
+import { createHash } from 'node:crypto'
 import { prisma } from '../../utils/prisma'
 import { requireStaff } from '../../utils/auth'
 import { audit } from '../../utils/businessTransaction'
@@ -68,66 +68,79 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: '取花/送花时间格式无效' })
   }
 
-  return prisma.$transaction(async (tx: any) => {
-    const previous = await tx.operation.findUnique({ where: { id: opId } })
-    if (previous) {
-      if (previous.requestHash !== requestHash) {
-        throw createError({ statusCode: 409, message: '该幂等键已用于不同请求' })
+  try {
+    return await prisma.$transaction(async (tx: any) => {
+      const previous = await tx.operation.findUnique({ where: { id: opId } })
+      if (previous) {
+        if (previous.requestHash !== requestHash) {
+          throw createError({ statusCode: 409, message: '该幂等键已用于不同请求' })
+        }
+        return { data: previous.result, error: null }
       }
-      return { data: previous.result, error: null }
-    }
 
-    const created = await tx.preorderRegistration.create({
-      data: {
-        orderNo,
-        contactPhone: body.contactPhone ? String(body.contactPhone).trim() : null,
-        deliveryTime,
-        notes: body.notes ? String(body.notes) : null,
-        cardMessage: body.cardMessage ? String(body.cardMessage) : null,
-        version: 1,
-        createdById: actor,
-        updatedById: actor,
-        items: {
-          create: items.map((it: any, idx: number) => ({
-            name: String(it.name).trim(),
-            qty: validateQty(it.qty),
-            sort: Number(it.sort) || idx,
-            photos: {
-              create: (Array.isArray(it.photos) ? it.photos : []).map((p: any, pIdx: number) => ({
-                url: String(p.url),
-                sort: Number(p.sort) || pIdx,
-              })),
-            },
-          })),
-        },
-      },
-      include: {
-        createdBy: { select: { id: true, name: true, role: true } },
-        updatedBy: { select: { id: true, name: true, role: true } },
-        items: {
-          orderBy: { sort: 'asc' },
-          include: {
-            photos: { orderBy: { sort: 'asc' } },
+      const created = await tx.preorderRegistration.create({
+        data: {
+          orderNo,
+          contactPhone: body.contactPhone ? String(body.contactPhone).trim() : null,
+          deliveryTime,
+          notes: body.notes ? String(body.notes) : null,
+          cardMessage: body.cardMessage ? String(body.cardMessage) : null,
+          version: 1,
+          createdById: actor,
+          updatedById: actor,
+          items: {
+            create: items.map((it: any, idx: number) => ({
+              name: String(it.name).trim(),
+              qty: validateQty(it.qty),
+              sort: Number(it.sort) || idx,
+              photos: {
+                create: (Array.isArray(it.photos) ? it.photos : []).map((p: any, pIdx: number) => ({
+                  url: String(p.url),
+                  sort: Number(p.sort) || pIdx,
+                })),
+              },
+            })),
           },
         },
-      },
-    })
+        include: {
+          createdBy: { select: { id: true, name: true, role: true } },
+          updatedBy: { select: { id: true, name: true, role: true } },
+          items: {
+            orderBy: { sort: 'asc' },
+            include: {
+              photos: { orderBy: { sort: 'asc' } },
+            },
+          },
+        },
+      })
 
-    const result = JSON.parse(JSON.stringify(created))
-    await tx.operation.create({
-      data: {
-        id: opId,
-        action,
-        requestHash,
-        result,
-        operatorUserId: actor,
-      },
-    })
-    await audit(tx, actor, action, 'PreorderRegistration', created.id, {
-      orderNo: created.orderNo,
-      itemCount: created.items.length,
-    })
+      const result = JSON.parse(JSON.stringify(created))
+      await tx.operation.create({
+        data: {
+          id: opId,
+          action,
+          requestHash,
+          result,
+          operatorUserId: actor,
+        },
+      })
+      await audit(tx, actor, action, 'PreorderRegistration', created.id, {
+        orderNo: created.orderNo,
+        itemCount: created.items.length,
+      })
 
-    return { data: result, error: null }
-  })
+      return { data: result, error: null }
+    })
+  } catch (err: any) {
+    if (err?.code === 'P2002' || err?.message?.includes('Unique constraint failed')) {
+      const finished = await prisma.operation.findUnique({ where: { id: opId } })
+      if (finished) {
+        if (finished.requestHash !== requestHash) {
+          throw createError({ statusCode: 409, message: '该幂等键已用于不同请求' })
+        }
+        return { data: finished.result, error: null }
+      }
+    }
+    throw err
+  }
 })

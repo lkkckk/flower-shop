@@ -16,14 +16,6 @@
       </div>
 
       <div class="pos-header-right">
-        <a-button type="text" size="small" class="tool-btn" aria-label="排单" @click="navigateTo('/pos/schedule')">
-          <CalendarOutlined />
-          <span class="tool-label">排单</span>
-        </a-button>
-        <a-button type="text" size="small" class="tool-btn" aria-label="备货" @click="navigateTo('/pos/preparation')">
-          <InboxOutlined />
-          <span class="tool-label">备货</span>
-        </a-button>
         <a-button type="text" size="small" class="tool-btn" aria-label="盘点" @click="navigateTo('/pos/stocktake')">
           <InboxOutlined />
           <span class="tool-label">盘点</span>

@@ -4,6 +4,8 @@
 .nuxt
 .nitro
 .cache
+.playwright-cli/
+output/playwright/
 dist
 
 # Node dependencies
