@@ -13,6 +13,10 @@
       </div>
 
       <a-space wrap v-if="detail">
+        <a-button @click="router.push(`/preorders/registrations/${detail.id}/receipt`)">
+          <template #icon><PrinterOutlined /></template>
+          打印小票
+        </a-button>
         <a-button type="primary" @click="goPrint">
           <template #icon><PrinterOutlined /></template>
           打印配送单
@@ -74,10 +78,11 @@
               :key="item.id || idx"
               class="border rounded-lg p-4 bg-gray-50"
             >
-              <div class="flex justify-between items-center mb-3">
-                <div class="flex items-center gap-2">
+              <div class="flex flex-wrap gap-2 justify-between items-center mb-3">
+                <div class="flex flex-wrap items-center gap-2">
                   <span class="font-bold text-base text-gray-800">{{ item.name }}</span>
                   <a-tag color="blue">数量：{{ Number(item.qty) }}</a-tag>
+                  <span class="font-semibold">金额：{{ formatRegistrationAmount(item.amount) }}</span>
                 </div>
                 <span class="text-xs text-gray-400">共 {{ item.photos?.length || 0 }} 张照片</span>
               </div>
@@ -100,6 +105,7 @@
               <div v-else class="text-xs text-gray-400">未上传照片</div>
             </div>
           </div>
+          <div class="mt-4 pt-4 border-t text-lg font-bold">订单金额：{{ formatRegistrationAmount(sumRegistrationAmounts(detail.items)) }}</div>
         </a-card>
       </div>
     </a-spin>
@@ -113,6 +119,7 @@ import { PrinterOutlined } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import { usePreorderRegistrations } from '~/composables/usePreorderRegistrations'
 import { useAuth } from '~/composables/useAuth'
+import { sumRegistrationAmounts, formatRegistrationAmount } from '~~/shared/preorderMoney'
 
 const route = useRoute()
 const router = useRouter()

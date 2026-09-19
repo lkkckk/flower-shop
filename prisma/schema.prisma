@@ -626,6 +626,7 @@ model PreorderRegistrationItem {
   registrationId Int
   name           String
   qty            Decimal   @db.Decimal(12, 3)
+  amount         Decimal?  @db.Decimal(12, 2)
   sort           Int       @default(0)
 
   registration   PreorderRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)

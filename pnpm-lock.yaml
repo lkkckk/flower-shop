@@ -47,6 +47,9 @@ importers:
       nuxt:
         specifier: ^4.4.2
         version: 4.4.2(@babel/core@7.29.0(supports-color@10.2.2))(@babel/plugin-syntax-jsx@7.28.6(@babel/core@7.29.0(supports-color@10.2.2)))(@electric-sql/pglite@0.4.1)(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@parcel/watcher@2.5.6)(@types/node@25.6.0)(@vue/compiler-sfc@3.5.32)(cac@6.7.14)(db0@0.3.4(@electric-sql/pglite@0.4.1)(mysql2@3.15.3))(ioredis@5.10.1(supports-color@10.2.2))(magicast@0.5.2)(mysql2@3.15.3)(pinia@3.0.4(typescript@6.0.2)(vue@3.5.32(typescript@6.0.2)))(rollup-plugin-visualizer@7.0.1(rollup@4.60.1))(rollup@4.60.1)(srvx@0.11.15)(supports-color@10.2.2)(terser@5.46.1)(tsx@4.21.0)(typescript@6.0.2)(vite@7.3.2(@types/node@25.6.0)(jiti@2.6.1)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+      qz-tray:
+        specifier: ^2.3.0
+        version: 2.3.0
       vue:
         specifier: ^3.5.32
         version: 3.5.32(typescript@6.0.2)
@@ -3329,6 +3332,9 @@ packages:
 
   queue-microtask@1.2.3:
     resolution: {integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==}
+
+  qz-tray@2.3.0:
+    resolution: {integrity: sha512-hviWThaaUHdjSTjs1q7D8ow8F7l1iBUhbM3J+sOL2DgkTlXO5DmxQewMdirdQgnUQAuaiSzVB9wIhiltOn1aaQ==}
 
   radix3@1.1.2:
     resolution: {integrity: sha512-b484I/7b8rDEdSDKckSSBA8knMpcdsXudlE/LNL639wFoHKwLbEkQFZHWEYwDC0wa0FKUcCY+GAF73Z7wxNVFA==}
@@ -7658,6 +7664,8 @@ snapshots:
   quansync@0.2.11: {}
 
   queue-microtask@1.2.3: {}
+
+  qz-tray@2.3.0: {}
 
   radix3@1.1.2: {}
 

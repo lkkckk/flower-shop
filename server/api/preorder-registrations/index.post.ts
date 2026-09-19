@@ -3,6 +3,7 @@ import { prisma } from '../../utils/prisma'
 import { requireStaff } from '../../utils/auth'
 import { audit } from '../../utils/businessTransaction'
 import { preorderImagePath } from '../../utils/preorderImages'
+import { validateRegistrationAmount, serializeRegistration } from '../../utils/preorderRegistrationAmounts'
 import { readBody, createError, defineEventHandler } from 'h3'
 
 function validateQty(val: any): string {
@@ -41,6 +42,7 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, message: `第 ${i + 1} 项商品请填写商品名称` })
     }
     validateQty(it.qty)
+    validateRegistrationAmount(it.amount, i)
     const photos = Array.isArray(it.photos) ? it.photos : []
     for (const p of photos) {
       if (!p.url || typeof p.url !== 'string' || !p.url.startsWith('/preorder-images/')) {
@@ -92,6 +94,7 @@ export default defineEventHandler(async (event) => {
             create: items.map((it: any, idx: number) => ({
               name: String(it.name).trim(),
               qty: validateQty(it.qty),
+              amount: validateRegistrationAmount(it.amount, idx),
               sort: Number(it.sort) || idx,
               photos: {
                 create: (Array.isArray(it.photos) ? it.photos : []).map((p: any, pIdx: number) => ({
@@ -114,7 +117,7 @@ export default defineEventHandler(async (event) => {
         },
       })
 
-      const result = JSON.parse(JSON.stringify(created))
+      const result = JSON.parse(JSON.stringify(serializeRegistration(created)))
       await tx.operation.create({
         data: {
           id: opId,

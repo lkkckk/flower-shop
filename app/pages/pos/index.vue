@@ -5,6 +5,7 @@
     <div class="pos-order-toolbar">
       <button type="button" class="customer-shortcut" @click="openCustomerPicker"><UserOutlined />{{ cartStore.activeCart?.customerName || '散客' }}<span>选择客户</span></button>
       <NuxtLink v-if="lastOrderId" :to="`/orders/${lastOrderId}/print`" class="receipt-shortcut"><PrinterOutlined />上笔小票</NuxtLink>
+      <button type="button" class="receipt-shortcut" @click="printerSettingsVisible = true"><PrinterOutlined />打印设置</button>
     </div>
 
     <div class="pos-workspace flex flex-1 overflow-hidden relative">
@@ -65,8 +66,18 @@
       @stock-changed="productPickerRef?.refresh()"
     />
     <a-modal v-model:open="successVisible" title="结账成功" :footer="null" width="380px">
-      <div class="checkout-success"><CheckCircleOutlined /><p>订单已保存，可以继续为下一位顾客开单。</p><NuxtLink :to="`/orders/${lastOrderId}/print`" class="print-receipt-link"><PrinterOutlined />查看 / 打印 58mm 小票</NuxtLink><a-button size="large" block @click="successVisible = false">继续开单</a-button></div>
+      <div class="checkout-success">
+        <CheckCircleOutlined /><p>订单已保存，可以继续为下一位顾客开单。</p>
+        <p v-if="printStatus" role="status">{{ printStatus }}</p>
+        <a-alert v-if="printError" type="warning" show-icon :message="printError" class="mb-3" />
+        <a-button type="primary" size="large" block :loading="printing" :disabled="printing" class="mb-3" @click="printLastOrder()">打印 / 重打小票</a-button>
+        <a-button v-if="printError" block :disabled="printing" class="mb-3" @click="printLastOrder(true)">改用浏览器打印</a-button>
+        <NuxtLink :to="`/orders/${lastOrderId}/print`" class="receipt-preview-link">查看小票预览</NuxtLink>
+        <a-button block class="mb-3" @click="printerSettingsVisible = true">打印设置</a-button>
+        <a-button size="large" block @click="successVisible = false">继续开单</a-button>
+      </div>
     </a-modal>
+    <PrintingPrinterSettingsModal v-model:open="printerSettingsVisible" />
   </div>
 </template>
 
@@ -97,6 +108,25 @@ const desktopCartRef = ref()
 const mobileCartRef = ref()
 const lastOrderId = useState<number | null>('pos-last-order-id', () => null)
 const successVisible = ref(false)
+const printerSettingsVisible = ref(false)
+const { settings: printerSettings, printSaleReceipt } = usePrinter()
+const printing = ref(false)
+const printError = ref('')
+const printStatus = ref('')
+const printLastOrder = async (forceBrowser = false) => {
+  if (printing.value || !lastOrderId.value) return
+  const orderId = lastOrderId.value
+  printing.value = true
+  printError.value = ''
+  printStatus.value = ''
+  try {
+    const result = await printSaleReceipt(orderId, { forceBrowser })
+    if (lastOrderId.value === orderId) printStatus.value = result.status === 'submitted' ? '打印任务已提交，请检查打印机出纸。' : '已打开浏览器打印窗口，请确认打印。'
+  } catch (error: any) {
+    if (lastOrderId.value === orderId) printError.value = `订单已保存，打印未完成：${error?.message || '请检查打印设置后重试'}。请检查是否已出纸，再决定是否重打。`
+    else message.warning(`订单 ${orderId} 已保存，但打印未完成，请从订单记录重打。`)
+  } finally { printing.value = false }
+}
 const openCustomerPicker = async () => {
   if (window.innerWidth >= 1024) desktopCartRef.value?.openCustomerDrawer()
   else {
@@ -176,11 +206,19 @@ const onCheckoutSuccess = (orderId: number) => {
   mobileDrawerVisible.value = false
   lastOrderId.value = orderId
   successVisible.value = true
+  printStatus.value = ''
+  printError.value = ''
   productPickerRef.value?.refresh()
+  if (printerSettings.value.autoPrintPos) {
+    if (printing.value) printStatus.value = '上一笔打印仍在处理中，本单已保存，请稍后手动打印。'
+    else void printLastOrder()
+  }
 }
 </script>
 
 <style scoped>
+.receipt-preview-link { display: block; padding: 10px; margin-bottom: 12px; }
+.pos-order-toolbar { flex-wrap: wrap; }
 .pos-order-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; padding: 0 16px; background: white; border-bottom: 1px solid var(--line-soft); flex-shrink: 0; }
 .customer-shortcut, .receipt-shortcut { display: flex; align-items: center; gap: 8px; min-height: 44px; background: transparent; border: 0; color: var(--avo-800); font-size: 13px; cursor: pointer; }
 .customer-shortcut span:not(.anticon) { color: var(--ink-500); font-size: 12px; }

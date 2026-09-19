@@ -1,5 +1,6 @@
 ﻿import dayjs from 'dayjs'
 import { prisma } from '../../utils/prisma'
+import { serializeRegistration } from '../../utils/preorderRegistrationAmounts'
 import { getQuery, createError, defineEventHandler } from 'h3'
 
 export default defineEventHandler(async (event) => {
@@ -73,7 +74,7 @@ export default defineEventHandler(async (event) => {
       const totalPhotos = item.items.reduce((acc, cur) => acc + cur.photos.length, 0)
       const previewPhotos = item.items.flatMap(i => i.photos.map(p => p.url)).slice(0, 4)
       return {
-        ...item,
+        ...serializeRegistration(item),
         summary,
         totalPhotos,
         previewPhotos,

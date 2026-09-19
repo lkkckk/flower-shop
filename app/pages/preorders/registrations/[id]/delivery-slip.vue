@@ -43,6 +43,7 @@ const slipData = computed<SlipData | null>(() => {
     items: (rawData.value.items || []).map((it: any) => ({
       name: it.name,
       qty: Number(it.qty),
+      amount: it.amount,
       photos: (it.photos || []).map((p: any) => p.url),
     })),
   }

@@ -40,9 +40,11 @@ const slipData = computed<SlipData | null>(() => {
     deliveryTime: order.value.deliveryTime,
     notes: order.value.notes,
     cardMessage: order.value.cardMessage,
+    totalAmount: order.value.totalAmount ?? undefined,
     items: (order.value.items || []).map((it: any) => ({
       name: it.product?.name || '鲜花商品',
       qty: Number(it.qty),
+      amount: it.subtotal ?? null,
       unit: it.unit,
       photos: it.imageUrl ? [it.imageUrl] : [],
     })),

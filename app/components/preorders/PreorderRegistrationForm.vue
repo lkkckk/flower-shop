@@ -91,8 +91,8 @@
               </a-button>
             </div>
 
-            <!-- 商品名称与数量 -->
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <!-- 金额是当前商品项小计，不按数量乘算 -->
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div class="sm:col-span-2">
                 <label class="block text-xs text-gray-500 mb-1"><span class="text-red-500">*</span> 商品名称</label>
                 <a-input
@@ -107,6 +107,18 @@
                   v-model:value="item.qty"
                   placeholder="> 0，最多3位小数"
                   size="middle"
+                />
+              </div>
+              <div>
+                <label class="block text-xs text-gray-500 mb-1"><span class="text-red-500">*</span> 金额（元）</label>
+                <a-input-number
+                  v-model:value="item.amount"
+                  :min="0"
+                  :max="9999999999.99"
+                  :precision="2"
+                  string-mode
+                  placeholder="268.00"
+                  class="w-full"
                 />
               </div>
             </div>
@@ -236,6 +248,7 @@
           <span v-if="hasUploadingOrError" class="text-amber-600 text-xs flex items-center">
             <ExclamationCircleOutlined class="mr-1" /> 存在正在上传或失败的照片，请完成后再保存。
           </span>
+          <div class="font-semibold mt-1">订单金额：{{ formatRegistrationAmount(formTotal) }}</div>
         </div>
         <a-space>
           <a-button size="large" @click="emit('cancel')">取消返回</a-button>
@@ -264,6 +277,7 @@ import {
 } from '@ant-design/icons-vue'
 import { usePreorderRegistrations, type PreorderItemPhoto } from '~/composables/usePreorderRegistrations'
 import { createClientId } from '~~/shared/clientId'
+import { parseRegistrationAmount, sumRegistrationAmounts, formatRegistrationAmount } from '~~/shared/preorderMoney'
 
 const props = defineProps<{
   initialData?: any
@@ -283,6 +297,7 @@ interface ItemForm {
   id?: number
   name: string
   qty: string
+  amount: string | null
   sort: number
   photos: PreorderItemPhoto[]
 }
@@ -299,6 +314,7 @@ const form = reactive({
         id: it.id,
         name: it.name,
         qty: String(Number(it.qty)),
+        amount: it.amount == null ? null : String(it.amount),
         sort: it.sort ?? idx,
         photos: (it.photos || []).map((p: any) => ({
           uid: createClientId(),
@@ -313,6 +329,7 @@ const form = reactive({
           uid: createClientId(),
           name: '',
           qty: '1',
+          amount: null,
           sort: 0,
           photos: [] as PreorderItemPhoto[],
         },
@@ -321,6 +338,10 @@ const form = reactive({
 
 const errors = reactive({
   orderNo: '',
+})
+
+const formTotal = computed(() => {
+  try { return sumRegistrationAmounts(form.items) } catch { return null }
 })
 
 const hasUploadingOrError = computed(() => {
@@ -337,6 +358,7 @@ function addItem() {
     uid: createClientId(),
     name: '',
     qty: '1',
+    amount: null,
     sort: form.items.length,
     photos: [],
   })
@@ -438,6 +460,10 @@ function handleSubmit() {
       return
     }
     const qtyStr = String(it.qty).trim()
+    try { parseRegistrationAmount(it.amount) } catch (error: any) {
+      message.error(`第 ${i + 1} 项商品：${error.message}`)
+      return
+    }
     if (!/^(0|[1-9]\d*)(\.\d{1,3})?$/.test(qtyStr) || parseFloat(qtyStr) <= 0) {
       message.error(`第 ${i + 1} 项商品数量必须大于零且最多保留三位小数`)
       return
@@ -459,6 +485,7 @@ function handleSubmit() {
     items: form.items.map((it, idx) => ({
       name: it.name.trim(),
       qty: it.qty.trim(),
+      amount: parseRegistrationAmount(it.amount),
       sort: idx,
       photos: it.photos.map((p, pIdx) => ({
         url: p.url,

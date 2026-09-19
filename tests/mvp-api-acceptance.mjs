@@ -54,7 +54,7 @@ try {
   assert.equal(upload.status, 200)
   const image = (await upload.json()).data.imageUrl
   await call('/api/preorders', 'cashier', 'POST', {}, 404)
-  const pre = await call('/api/preorder-registrations', 'cashier', 'POST', { orderNo: `自由登记${suffix}`, items: [{ name: '手填花束', qty: 1, photos: [{ url: image }] }] })
+  const pre = await call('/api/preorder-registrations', 'cashier', 'POST', { orderNo: `自由登记${suffix}`, items: [{ name: '手填花束', qty: 1, amount: '30.00', photos: [{ url: image }] }] })
   const detail = await call(`/api/preorder-registrations/${pre.id}`)
   assert.equal(detail.items[0].photos[0].url, image)
   const recipeSale = await call('/api/orders/checkout', 'cashier', 'POST', { cart: { customerId: c.id, items: [{ productId: recipe.id, qty: 1, unit: '束' }] }, payment: { method: 'wechat', paidAmount: 30 } })

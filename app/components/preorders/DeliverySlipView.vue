@@ -92,6 +92,7 @@
               <div class="slip-item-header">
                 <span class="item-name">{{ item.name }}</span>
                 <span class="item-qty">数量：{{ item.qty }} {{ item.unit || '' }}</span>
+                <span class="item-amount">金额：{{ formatRegistrationAmount(item.amount) }}</span>
                 <span v-if="item.photos.length > 1" class="photo-tag">
                   照片 {{ pIdx + 1 }}/{{ item.photos.length }}
                 </span>
@@ -108,26 +109,30 @@
               <div class="slip-item-header">
                 <span class="item-name">{{ item.name }}</span>
                 <span class="item-qty">数量：{{ item.qty }} {{ item.unit || '' }}</span>
+                <span class="item-amount">金额：{{ formatRegistrationAmount(item.amount) }}</span>
               </div>
               <div class="no-photo-text">（本商品无确认照片）</div>
             </div>
           </template>
         </template>
+        <div class="order-total">订单金额：{{ formatRegistrationAmount(orderTotal) }}</div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { PrinterOutlined } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
+import { sumRegistrationAmounts, formatRegistrationAmount } from '~~/shared/preorderMoney'
 
 export interface SlipItem {
   name: string
   qty: string | number
   unit?: string
+  amount?: string | number | null
   photos: string[]
 }
 
@@ -138,6 +143,7 @@ export interface SlipData {
   notes?: string | null
   cardMessage?: string | null
   items: SlipItem[]
+  totalAmount?: string | number | null
 }
 
 const props = defineProps<{
@@ -146,6 +152,7 @@ const props = defineProps<{
 }>()
 
 const router = useRouter()
+const orderTotal = computed(() => props.data.totalAmount !== undefined ? props.data.totalAmount : sumRegistrationAmounts(props.data.items))
 const printReady = ref(false)
 const loadError = ref<string | null>(null)
 
@@ -338,6 +345,8 @@ onMounted(() => {
 
 .slip-item-header {
   display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
   justify-content: space-between;
   align-items: baseline;
   margin-bottom: 8px;
@@ -346,6 +355,8 @@ onMounted(() => {
 }
 
 .item-name {
+  flex-basis: 100%;
+  overflow-wrap: anywhere;
   font-size: 16pt;
   font-weight: 700;
   color: #111827;
@@ -361,6 +372,9 @@ onMounted(() => {
   font-size: 11pt;
   color: #6b7280;
 }
+
+.item-amount { font-size: 14pt; font-weight: 700; }
+.order-total { border-top: 2px solid #111827; padding: 12px 0; font-size: 16pt; font-weight: 700; break-inside: avoid; }
 
 .photo-container {
   width: 160mm;

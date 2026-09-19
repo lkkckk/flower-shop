@@ -1,0 +1,10 @@
+import { amountString, decimal } from '../../../shared/money'
+import { escapeHtml } from './escapeHtml'
+import { line, receiptDate, receiptDocument } from './document'
+
+const currency = (value: unknown) => `¥${amountString(value ?? 0)}`
+const positive = (value: unknown) => decimal(value ?? 0).gt(0)
+export function renderSaleReceipt(order: any, shopName: string, paperWidth: 58 | 80): string {
+  const items = (order.items || []).map((item: any) => `<section class="item"><div class="item-name">${escapeHtml(item.productNameSnapshot || item.product?.name || '')}</div>${item.variantLabel ? `<div>${escapeHtml(item.variantLabel)}</div>` : ''}${item.grade ? `<div class="sub">${escapeHtml(item.grade)}</div>` : ''}${line('单价', `${currency(item.unitPrice)}/${item.unit || ''}`)}${line('数量', `${decimal(item.qty ?? 0).toString()}${item.unit || ''}`)}${positive(item.returnedQty) ? line('已退', `${decimal(item.returnedQty).toString()}${item.unit || ''}`) : ''}${line('小计', currency(item.subtotal))}</section>`).join('')
+  return receiptDocument(`小票 ${order.orderNo}`, shopName, `${line('单号：', order.orderNo)}${line('时间：', receiptDate(order.createdAt))}${line('客户：', order.customer?.name || '散客')}${order.customer?.phone ? line('电话：', order.customer.phone) : ''}${order.deliveryTime ? line('配送时间：', receiptDate(order.deliveryTime)) : ''}${order.deliveryAddress ? line('配送地址：', order.deliveryAddress) : ''}<div class="divider"></div>${items}<div class="divider"></div><div class="total">${line('原单合计：', currency(order.totalAmount))}</div>${line('累计收款：', currency(order.paidAmount))}${positive(order.pointsDiscount) ? line('已含积分抵扣：', currency(order.pointsDiscount)) : ''}${positive(order.refundedAmount) ? line('已退款：', currency(order.refundedAmount)) : ''}${positive(order.owedAmount) ? line('欠款：', currency(order.owedAmount)) : ''}${order.fulfillmentStatus === 'cancelled' ? '<strong>订单已作废</strong>' : ''}${order.notes ? `<div class="notes">客户备注：${escapeHtml(order.notes)}</div>` : ''}<div class="footer">谢谢惠顾，欢迎再次光临！</div>`, paperWidth)
+}

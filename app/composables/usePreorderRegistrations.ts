@@ -15,6 +15,7 @@ export interface PreorderRegistrationItemData {
   id?: number
   name: string
   qty: string | number
+  amount: string | null
   sort?: number
   photos: PreorderItemPhoto[]
 }

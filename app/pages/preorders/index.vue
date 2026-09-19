@@ -95,6 +95,7 @@
                   <a-space size="small">
                     <a-button type="link" size="small" @click="goRegDetail(record.id)">详情</a-button>
                     <a-button type="link" size="small" @click="goRegEdit(record.id)">修改</a-button>
+                    <a-button type="link" size="small" @click="goRegReceipt(record.id)">打印小票</a-button>
                     <a-button type="link" size="small" @click="goRegPrint(record.id)">打印配送单</a-button>
                     <a-popconfirm
                       v-if="isAdmin"
@@ -150,12 +151,13 @@
                   </span>
                 </div>
 
-                <div class="flex justify-between items-center mt-3 pt-2 border-t text-xs">
+                <div class="flex flex-wrap gap-2 justify-between items-center mt-3 pt-2 border-t text-xs">
                   <span class="text-gray-400">{{ formatDateTime(record.createdAt) }}</span>
-                  <div class="space-x-1">
+                  <div class="flex flex-wrap gap-1">
                     <a-button size="small" @click="goRegDetail(record.id)">详情</a-button>
                     <a-button size="small" @click="goRegEdit(record.id)">修改</a-button>
-                    <a-button size="small" type="primary" ghost @click="goRegPrint(record.id)">打印</a-button>
+                    <a-button size="small" type="primary" ghost @click="goRegReceipt(record.id)">打印小票</a-button>
+                    <a-button size="small" @click="goRegPrint(record.id)">配送单</a-button>
                     <a-popconfirm
                       v-if="isAdmin"
                       title="移入回收站？"
@@ -389,7 +391,7 @@ const regColumns = [
   { title: '取花/送花时间', key: 'deliveryTime', width: 170 },
   { title: '商品摘要及照片', key: 'summary' },
   { title: '登记时间', key: 'createdAt', width: 160 },
-  { title: '操作', key: 'action', width: 220, fixed: 'right' },
+  { title: '操作', key: 'action', width: 310, fixed: 'right' },
 ]
 
 async function loadRegList() {
@@ -426,6 +428,10 @@ function goRegEdit(id: number) {
 
 function goRegPrint(id: number) {
   window.open(`/preorders/registrations/${id}/delivery-slip`, '_blank')
+}
+
+function goRegReceipt(id: number) {
+  router.push(`/preorders/registrations/${id}/receipt`)
 }
 
 async function onTrashReg(id: number) {

@@ -65,7 +65,7 @@ try {
   const form = new FormData(); form.append('file', new Blob([bytes], { type: 'image/png' }), 'test.png')
   const imageUrl = ok(await request('/api/preorder-registrations/images', 'cashier', 'POST', form)).imageUrl
   const payload = { orderNo: '重复编号验收', notes: '多行备注\n打印完整显示', cardMessage: '生日快乐\n万事如意',
-    items: [{ name: '手填玫瑰花束', qty: '1.125', photos: Array.from({ length: 4 }, (_, sort) => ({ url: imageUrl, sort })) }], idempotencyKey: randomUUID() }
+    items: [{ name: '手填玫瑰花束', qty: '1.125', amount: '268.00', photos: Array.from({ length: 4 }, (_, sort) => ({ url: imageUrl, sort })) }], idempotencyKey: randomUUID() }
   const createResults = await Promise.all([request('/api/preorder-registrations', 'cashier', 'POST', payload), request('/api/preorder-registrations', 'cashier', 'POST', payload)])
   const reg = ok(createResults[0]); assert.equal(ok(createResults[1]).id, reg.id)
   const duplicate = ok(await write('/api/preorder-registrations', 'cashier', payload))
@@ -76,7 +76,7 @@ try {
   assert.deepEqual(ok(updates[0]), ok(updates[1]))
   assert.equal(updates[0].data.version, 2)
   const race = await Promise.all(['第一人', '第二人'].map(name => request(`/api/preorder-registrations/${reg.id}`, 'cashier', 'PUT', {
-    ...payload, version: 2, idempotencyKey: randomUUID(), items: [{ name, qty: '2', photos: [] }],
+    ...payload, version: 2, idempotencyKey: randomUUID(), items: [{ name, qty: '2', amount: '128.50', photos: [] }],
   })))
   assert.deepEqual(race.map(r => r.status).sort(), [200, 409])
   const finalReg = ok(await request(`/api/preorder-registrations/${reg.id}`))

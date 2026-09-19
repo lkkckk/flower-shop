@@ -1,8 +1,8 @@
 <template>
   <div class="receipt-page">
     <div class="print-controls">
-      <NuxtLink :to="'/pos'">← 返回收银台</NuxtLink>
-      <h1>销售小票</h1>
+      <NuxtLink :to="'/preorders/registrations/' + route.params.id">← 返回登记详情</NuxtLink>
+      <h1>预售登记小票</h1>
       <div class="print-actions">
         <label>纸宽 <select v-model.number="paperWidth" aria-label="小票纸宽"><option :value="58">58mm</option><option :value="80">80mm</option></select></label>
         <button type="button" @click="settingsVisible = true">打印设置</button>
@@ -14,7 +14,7 @@
       <p v-if="loading">加载单据中…</p>
       <div v-else-if="loadError" role="alert">{{ loadError }} <button type="button" @click="loadReceipt">重新加载</button></div>
     </div>
-    <iframe v-if="receiptHtml" ref="previewFrame" class="receipt-preview" title="销售小票预览" sandbox="allow-same-origin" :srcdoc="receiptHtml" :style="{ width: paperWidth + 'mm', height: previewHeight + 'px' }" @load="resizePreview" />
+    <iframe v-if="receiptHtml" ref="previewFrame" class="receipt-preview" title="预售登记小票预览" sandbox="allow-same-origin" :srcdoc="receiptHtml" :style="{ width: paperWidth + 'mm', height: previewHeight + 'px' }" @load="resizePreview" />
     <PrintingPrinterSettingsModal v-model:open="settingsVisible" />
   </div>
 </template>
@@ -22,7 +22,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { resolveShopName } from '~~/shared/shopIdentity'
-import { renderSaleReceipt } from '~/utils/printing/saleReceipt'
+import { renderPreorderReceipt } from '~/utils/printing/preorderReceipt'
 definePageMeta({ layout: false })
 const route = useRoute()
 const record = ref<any>(null)
@@ -35,14 +35,14 @@ const printError = ref('')
 const printStatus = ref('')
 const previewFrame = ref<HTMLIFrameElement | null>(null)
 const previewHeight = ref(600)
-const { settings, saveSettings, printSaleReceipt } = usePrinter()
-
+const { settings, saveSettings, printPreorderReceipt } = usePrinter()
+const { fetchRegistration } = usePreorderRegistrations()
 const paperWidth = computed({
   get: () => settings.value.paperWidth,
   set: (value: 58 | 80) => saveSettings({ paperWidth: value }),
 })
 const receiptHtml = computed(() => record.value && !loading.value && !loadError.value
-  ? renderSaleReceipt(record.value, shopName.value, paperWidth.value) : '')
+  ? renderPreorderReceipt(record.value, shopName.value, paperWidth.value) : '')
 useHead({ title: () => record.value ? `小票 ${record.value.orderNo}` : '小票预览' })
 const resizePreview = async () => {
   const doc = previewFrame.value?.contentDocument
@@ -55,7 +55,7 @@ const loadReceipt = async () => {
   loadError.value = ''
   try {
     const [data, shop]: any[] = await Promise.all([
-      $fetch(`/api/orders/${route.params.id}`).then((response: any) => { if (response.error || !response.data) throw new Error(response.error?.message || '未找到订单'); return response.data }),
+      fetchRegistration(Number(route.params.id)),
       $fetch('/api/settings'),
     ])
     if (!data || !shop?.data || shop.error) throw new Error('单据或店铺设置加载失败')
@@ -70,7 +70,7 @@ const printReceipt = async (forceBrowser = false) => {
   printError.value = ''
   printStatus.value = ''
   try {
-    const result = await printSaleReceipt(Number(route.params.id), { forceBrowser, paperWidth: paperWidth.value })
+    const result = await printPreorderReceipt(Number(route.params.id), { forceBrowser, paperWidth: paperWidth.value })
     printStatus.value = result.status === 'submitted' ? '打印任务已提交，请检查打印机出纸。' : '已打开浏览器打印窗口，请确认打印。'
   } catch (error: any) { printError.value = error?.message || '打印未完成，请检查打印设置' }
   finally { printing.value = false }

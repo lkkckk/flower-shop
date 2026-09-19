@@ -1,5 +1,6 @@
 ﻿import { prisma } from '../../utils/prisma'
 import { getRouterParam, createError, defineEventHandler } from 'h3'
+import { serializeRegistration } from '../../utils/preorderRegistrationAmounts'
 
 export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
@@ -25,7 +26,7 @@ export default defineEventHandler(async (event) => {
   }
 
   return {
-    data: registration,
+    data: serializeRegistration(registration),
     error: null,
   }
 })

@@ -18,8 +18,10 @@ async (page) => {
   const check = (value, message) => { if (!value) throw new Error(message); };
   await page.getByPlaceholder('手工填写订单编号（允许重复）').fill('浏览器验收-照片关联');
   await page.getByPlaceholder('例如：碎冰蓝玫瑰11枝花束').fill('待删除商品甲');
+  await page.getByPlaceholder('268.00').fill('268.00');
   await page.getByRole('button',{name:'添加商品'}).click();
   await page.getByPlaceholder('例如：碎冰蓝玫瑰11枝花束').nth(1).fill('保留商品乙');
+  await page.getByPlaceholder('268.00').nth(1).fill('128.50');
   let response = page.waitForResponse(r=>r.url().endsWith('/api/preorder-registrations/images'));
   await page.locator('.item-card').nth(1).locator('input[type=file]').first().setInputFiles(blue);
   const blueUrl = (await (await response).json()).data.imageUrl;
